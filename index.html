@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Хранилка</title>
+</head>
+<body>
+  <script>
+    // Перенаправляем все параметры из VK на твой Cloudflare Worker
+    const params = new URLSearchParams(window.location.search);
+    const target = 'https://leshiy-storage-bot.leshiyalex.workers.dev/vk?' + params.toString();
+    window.location.replace(target);
+  </script>
+</body>
+</html>
