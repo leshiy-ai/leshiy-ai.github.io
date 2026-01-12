@@ -6,10 +6,14 @@
 </head>
 <body>
   <script>
-    // Перенаправляем все параметры из VK на твой Cloudflare Worker
+    // Получаем все параметры из URL
     const params = new URLSearchParams(window.location.search);
-    const target = 'https://leshiy-storage-bot.leshiyalex.workers.dev/vk?' + params.toString();
-    window.location.replace(target);
+
+    // Формируем URL для редиректа
+    const targetUrl = 'https://leshiy-storage-bot.leshiyalex.workers.dev/vk?' + params.toString();
+
+    // Перенаправляем
+    window.location.href = targetUrl;
   </script>
 </body>
 </html>
