@@ -33,7 +33,6 @@ const Message = ({ message, onSwipe }) => {
         if (!isDragging.current) return;
         currentX.current = e.touches[0].clientX - startX.current;
 
-        // Allow swipe right for user, left for AI
         if ((message.role === 'user' && currentX.current < 0) || (message.role === 'ai' && currentX.current > 0)) {
             currentX.current = 0;
         }
@@ -47,7 +46,7 @@ const Message = ({ message, onSwipe }) => {
         isDragging.current = false;
         if (msgRef.current) {
             msgRef.current.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
-            const threshold = msgRef.current.offsetWidth * 0.4; // 40% of width to trigger swipe
+            const threshold = msgRef.current.offsetWidth * 0.4;
 
             if (Math.abs(currentX.current) > threshold) {
                 const direction = currentX.current > 0 ? 1 : -1;
@@ -86,15 +85,14 @@ function App() {
     const [selectedImage, setSelectedImage] = useState(null);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
-    
-    // State for pull-to-refresh
-    const [ptrState, setPtrState] = useState('idle'); // idle, pulling, refreshing
+    const [ptrState, setPtrState] = useState('idle');
 
     const chatEndRef = useRef(null);
     const fileInputRef = useRef(null);
-    const chatWindowRef = useRef(null); // Ref for chat window
-    const appContainerRef = useRef(null); // Ref for the main container
-    const startY = useRef(0); // For pull-to-refresh touch tracking
+    const chatWindowRef = useRef(null);
+    const appContainerRef = useRef(null);
+    const startY = useRef(0);
+    const isPulled = useRef(false);
 
     const translations = {
         ru: {
@@ -125,7 +123,7 @@ function App() {
 
     useEffect(() => {
         setMessages([{ id: Date.now(), role: 'ai', text: t.welcome }]);
-    }, []);
+    }, [language]);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -236,31 +234,34 @@ function App() {
         }
     };
     
-    // --- Pull to Refresh Logic ---
     const handleTouchStart = (e) => {
         if (chatWindowRef.current && chatWindowRef.current.scrollTop === 0) {
             startY.current = e.touches[0].pageY;
+            isPulled.current = true;
             setPtrState('pulling');
         }
     };
 
     const handleTouchMove = (e) => {
-        if (ptrState !== 'pulling') return;
+        if (!isPulled.current) return;
         const currentY = e.touches[0].pageY;
         const diff = currentY - startY.current;
         if (diff > 0) {
             e.preventDefault();
-            const pullDistance = Math.pow(diff, 0.85); // Creates a rubber-band effect
+            const pullDistance = Math.pow(diff, 0.85);
             if (appContainerRef.current) {
                 appContainerRef.current.style.transform = `translateY(${pullDistance}px)`;
             }
-            if (pullDistance > 80) { // Threshold to trigger refresh
+            if (pullDistance > 80 && ptrState !== 'refreshing') {
                 setPtrState('refreshing');
             }
         }
     };
 
     const handleTouchEnd = () => {
+        if (!isPulled.current) return;
+        isPulled.current = false;
+
         if (ptrState === 'refreshing') {
             if (appContainerRef.current) {
                 appContainerRef.current.style.transition = 'transform 0.3s';
@@ -268,7 +269,7 @@ function App() {
             }
             setTimeout(() => {
                 window.location.reload();
-            }, 500); // Give time for the animation
+            }, 500);
         } else {
             if (appContainerRef.current) {
                 appContainerRef.current.style.transition = 'transform 0.3s';
@@ -278,7 +279,6 @@ function App() {
         }
         startY.current = 0;
     };
-    // --- End Pull to Refresh ---
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
