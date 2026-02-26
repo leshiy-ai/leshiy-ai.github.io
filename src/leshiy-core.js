@@ -2,8 +2,8 @@ import axios from 'axios';
 import { CONFIG } from './config';
 
 export const askLeshiy = async (userText, history = []) => {
-    // Временно меняем на 1.5, чтобы IDX и прокси не выдавали 429
-    const MODEL = "gemini-1.5-flash"; 
+    // Модель версии 2.5 Gemini
+    const MODEL = "gemini-2.5-flash"; 
     
     const systemPrompt = `Ты - Leshiy-AI. Твой автор Огорельцев Александр.
     Если юзер хочет сохранить файл или инфу, ответь: [ACTION:STORAGE] текст. 
