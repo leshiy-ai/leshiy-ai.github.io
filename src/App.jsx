@@ -57,10 +57,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const systemInstruction = `Ты - Gemini AI от Leshiy. Твой автор Огорельцев Александр из города Тюмени. Твоя задача - анализировать запрос.
-      Если пользователь хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.
-      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.
-      В остальных случаях просто отвечай как умный ассистент.`;
+      const systemInstruction = `Ты - Gemini AI от Leshiy. Твой автор Огорельцев Александр из города Тюмени. Твоя задача - анализировать запрос.\n      Если пользователь хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.\n      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.\n      В остальных случаях просто отвечай как умный ассистент.`;
 
       const MODEL = "gemini-2.5-flash";
 
@@ -102,7 +99,7 @@ function App() {
         onDrop={handleDrop}
       >
         <header className="app-header">
-          <img src="/gemini.png" alt="Gemini AI" className="logo" />
+          <img src="/Gemini.png" alt="Gemini AI" className="logo" />
           <h1>Leshiy-AI <span>ECOSYSTEM</span></h1>
           <div className="status-dots">
             <span title="Gemini Proxy" className="dot green"></span>
@@ -115,7 +112,7 @@ function App() {
             <div key={i} className={`message ${m.role}`}>
               <div className="bubble">{m.text}</div>
             </div>
-          ))}\
+          ))}
           {isLoading && <div className="message ai"><div className="bubble typing">⏳ Gemini-AI думает...</div></div>}
           <div ref={chatEndRef} />
         </div>
