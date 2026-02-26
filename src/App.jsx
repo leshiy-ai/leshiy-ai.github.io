@@ -194,32 +194,82 @@ function App() {
     const handleSend = async () => {
         const userMessage = input.trim();
         if (!userMessage && !selectedImage) return;
-
+    
         setIsLoading(true);
-
+    
         const messageToDisplay = { id: Date.now(), role: 'user', text: userMessage };
         if (selectedImage) {
             messageToDisplay.image = selectedImage.preview;
         }
         setMessages(prev => [...prev, messageToDisplay]);
-
+    
+        const imageToProcess = selectedImage;
+        const textToProcess = input;
+    
         setInput('');
         setSelectedImage(null);
-
-        try {
-            const aiResponse = await askLeshiy({
-                text: userMessage,
-                imageBase64: selectedImage?.base64,
-                mimeType: selectedImage?.mimeType,
-            });
-
-            setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
-
-        } catch (err) {
-            console.error("Ошибка отправки:", err);
-            setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
-        } finally {
-            setIsLoading(false);
+    
+        if (imageToProcess) {
+            const lowerCaseMessage = textToProcess.toLowerCase();
+    
+            if (lowerCaseMessage.startsWith('сохрани')) {
+                let path = '';
+                if (lowerCaseMessage.startsWith('сохрани в ')) {
+                    path = textToProcess.substring('сохрани в '.length).trim();
+                }
+    
+                setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: `${t.uploading} ${imageToProcess.file.name}...` }]);
+    
+                try {
+                    const formData = new FormData();
+                    formData.append('file', imageToProcess.file);
+                    formData.append('chat_id', "235663624");
+                    if (path) {
+                        formData.append('path', path);
+                    }
+    
+                    await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+    
+                    let successMsg = `✅ ${imageToProcess.file.name} ${t.uploadSuccess}`;
+                    if (path) {
+                        successMsg += ` в "${path}"`;
+                    }
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: successMsg }]);
+    
+                } catch (err) {
+                    console.error("Ошибка загрузки файла:", err);
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: `❌ ${t.uploadError} ${imageToProcess.file.name}` }]);
+                } finally {
+                    setIsLoading(false);
+                }
+    
+            } else {
+                try {
+                    const aiResponse = await askLeshiy({
+                        text: textToProcess,
+                        imageBase64: imageToProcess.base64,
+                        mimeType: imageToProcess.mimeType,
+                    });
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
+                } catch (err) {
+                    console.error("Ошибка отправки:", err);
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        } else {
+            try {
+                const aiResponse = await askLeshiy({ text: textToProcess });
+                setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
+            } catch (err) {
+                console.error("Ошибка отправки:", err);
+                setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
     
