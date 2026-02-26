@@ -11,7 +11,7 @@ export const askLeshiy = async (userText, history = []) => {
     Иначе просто ответь как умный ассистент со смайликами.`;
 
     try {
-        const response = await axios.post(`${CONFIG.GEMINI_PROXY}/v1beta/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
+        const response = await axios.post(`${CONFIG.GEMINI_PROXY}/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
             contents: [{ parts: [{ text: systemPrompt + "\n\nЗапрос: " + userText }] }]
         }, {
             headers: { "X-Proxy-Secret": CONFIG.PROXY_SECRET }
