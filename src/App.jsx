@@ -27,7 +27,7 @@ function App() {
 
     try {
       // 1. Системный промпт для "Диспетчера"
-      const systemInstruction = `Ты - Leshiy-AI. Твоя задача - анализировать запрос.\n      Если юзер хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.\n      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.\n      В остальных случаях просто отвечай как умный ассистент.`;
+      const systemInstruction = `Ты - Gemini AI от Leshiy. Твоя задача - анализировать запрос.\n      Если юзер хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.\n      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.\n      В остальных случаях просто отвечай как умный ассистент.`;
 
       // 1. Константы для удобства (можно вынести в CONFIG)
       const MODEL = "gemini-2.5-flash";
@@ -60,7 +60,7 @@ function App() {
 
       setMessages(prev => [...prev, { role: 'ai', text: aiResponseText }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'ai', text: "❌ Ошибка связи с Лешим. Проверь ключи в config.js" }]);
+      setMessages(prev => [...prev, { role: 'ai', text: "❌ Ошибка связи с Gemini-AI" }]);
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +82,7 @@ function App() {
             <div className="bubble">{m.text}</div>
           </div>
         ))}
-        {isLoading && <div className="message ai"><div className="bubble typing">Леший думает...</div></div>}
+        {isLoading && <div className="message ai"><div className="bubble typing">⏳ Gemini-AI думает...</div></div>}
         <div ref={chatEndRef} />
       </div>
 
@@ -91,9 +91,9 @@ function App() {
           value={input} 
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Спроси о чем-нибудь или попроси сохранить файл..."
+          placeholder="Чат с исскуственным интеллектом. Спроси меня о чем-нибудь..."
         />
-        <button onClick={handleSend} disabled={isLoading}>Отправить</button>
+        <button onClick={handleSend} disabled={isLoading}>✅ Отправить</button>
       </div>
     </div>
   );
