@@ -19,6 +19,28 @@ function App() {
 
   useEffect(scrollToBottom, [messages]);
 
+  const uploadFileToStorage = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Добавляем инфу о пользователе, если нужно для Яндекса
+    formData.append('user', 'Leshiy-Admin'); 
+  
+    try {
+      const res = await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          // Если твой гейтвей требует ключ, добавь его сюда
+          'Authorization': `Bearer ${CONFIG.PROXY_SECRET}` 
+        }
+      });
+      return res.data;
+    } catch (err) {
+      console.error("Ошибка загрузки:", err);
+      throw err;
+    }
+  };
+
   // --- ЛОГИКА DRAG AND DROP ---
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -38,13 +60,16 @@ function App() {
     }
   };
 
-  const handleFiles = (files) => {
-    // Пока просто выводим в чат, позже подключим STORAGE_GATEWAY
-    const fileNames = Array.from(files).map(f => f.name).join(', ');
-    setMessages(prev => [...prev, { 
-      role: 'ai', 
-      text: `📁 Поймал файлы: ${fileNames}. Готовлю их к загрузке в хранилище...` 
-    }]);
+  const handleFiles = async (files) => {
+    for (let file of files) {
+      setMessages(prev => [...prev, { role: 'ai', text: `☁️ Загружаю ${file.name}...` }]);
+      try {
+        await uploadFileToStorage(file);
+        setMessages(prev => [...prev, { role: 'ai', text: `✅ Файл ${file.name} успешно сохранен в экосистеме!` }]);
+      } catch {
+        setMessages(prev => [...prev, { role: 'ai', text: `❌ Не удалось сохранить ${file.name}` }]);
+      }
+    }
   };
 
   // --- ЛОГИКА ОТПРАВКИ ТЕКСТА ---
@@ -67,7 +92,7 @@ function App() {
         targetUrl,
         {
           contents: [{
-            parts: [{ text: systemInstruction + "\\n\\nЗапрос: " + input }]
+            parts: [{ text: systemInstruction + '\'\'\n\'\'\nЗапрос: ' + input }]
           }]
         },
         { headers: { "X-Proxy-Secret": CONFIG.PROXY_SECRET } }
