@@ -1,5 +1,9 @@
 name: Deploy to GitHub Pages
-
+run: npm run build
+        env:
+          VITE_GEMINI_PROXY: ${{ secrets.VITE_GEMINI_PROXY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_PROXY_SECRET: ${{ secrets.VITE_PROXY_SECRET }}
 on:
   push:
     branches: ["main"]
