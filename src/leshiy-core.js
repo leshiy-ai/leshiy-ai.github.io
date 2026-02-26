@@ -2,29 +2,38 @@ import axios from 'axios';
 import { CONFIG } from './config';
 
 export const askLeshiy = async (userText, history = []) => {
-    // 1. Сначала спрашиваем Gemini через твой прокси
-    // Мы добавляем системную инструкцию, чтобы он понимал, что он - Диспетчер
-    const systemPrompt = `Ты - Leshiy-AI. У тебя есть доступ к Хранилищу (Яндекс) и AI-Генератору (Cloudflare). 
-    Если юзер хочет сохранить файл, ответь в формате: [ACTION:STORAGE]. 
-    Если создать фото/видео/аудио: [ACTION:AI_GENERATE]. 
-    Иначе просто ответь текстом со смайликами.`;
+    // Временно меняем на 1.5, чтобы IDX и прокси не выдавали 429
+    const MODEL = "gemini-1.5-flash"; 
+    
+    const systemPrompt = `Ты - Leshiy-AI. Твой автор Огорельцев Александр.
+    Если юзер хочет сохранить файл или инфу, ответь: [ACTION:STORAGE] текст. 
+    Если создать фото/изображение: [ACTION:GENERATE] текст. 
+    Иначе просто ответь как умный ассистент со смайликами.`;
 
     try {
-        const response = await axios.post(`${CONFIG.GEMINI_PROXY}/models/gemini-2.5-flash:generateContent`, {
-            contents: [{ parts: [{ text: systemPrompt + "\n\n" + userText }] }]
+        const response = await axios.post(`${CONFIG.GEMINI_PROXY}/v1beta/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`, {
+            contents: [{ parts: [{ text: systemPrompt + "\n\nЗапрос: " + userText }] }]
         }, {
             headers: { "X-Proxy-Secret": CONFIG.PROXY_SECRET }
         });
 
         const aiText = response.data.candidates[0].content.parts[0].text;
 
-        // 2. Проверяем, не вызвал ли ИИ "инструмент"
+        // Точная проверка экшенов
         if (aiText.includes("[ACTION:STORAGE]")) {
-            return { type: 'system', text: 'Понял, сохраняю в облако...', action: 'storage' };
+            return { type: 'system', text: aiText.replace("[ACTION:STORAGE]", "").trim(), action: 'storage' };
+        }
+        
+        if (aiText.includes("[ACTION:GENERATE]")) {
+            return { type: 'system', text: aiText.replace("[ACTION:GENERATE]", "").trim(), action: 'generate' };
         }
         
         return { type: 'text', text: aiText };
     } catch (error) {
-        return { type: 'error', text: 'Ошибка связи с Лешим-АИ: ' + error.message };
+        // Если ловим 429, возвращаем понятную ошибку
+        if (error.response?.status === 429) {
+            return { type: 'error', text: 'Леший притормозил (превышена квота). Подожди минуту.' };
+        }
+        return { type: 'error', text: 'Ошибка связи: ' + error.message };
     }
 };

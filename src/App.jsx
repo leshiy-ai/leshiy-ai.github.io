@@ -23,19 +23,19 @@ function App() {
   const uploadFileToStorage = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('user', 'Leshiy-Admin');
-  
+    // Добавляем твой DEBUG_CHAT_ID, чтобы бот знал, чьи это файлы
+    formData.append('chat_id', "235663624"); 
+
     try {
-      const res = await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${CONFIG.PROXY_SECRET}`
-        }
-      });
-      return res.data;
+        // Шлем запрос напрямую в твой воркер (не в прокси!)
+        // Тебе нужно добавить этот URL в свой config.js как STORAGE_GATEWAY
+        const res = await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return res.data;
     } catch (err) {
-      console.error("Ошибка загрузки:", err);
-      throw err;
+        console.error("Ошибка загрузки в воркер:", err);
+        throw err;
     }
   };
 
@@ -119,44 +119,31 @@ function App() {
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
-
-    const userMsg = { role: 'user', text: input };
-    setMessages(prev => [...prev, userMsg]);
+    if (!input.trim() || isLoading) return;
+  
     const currentInput = input;
+    setMessages(prev => [...prev, { role: 'user', text: currentInput }]);
     setInput('');
     setIsLoading(true);
-
+  
     try {
-      // Вся логика теперь в askLeshiy!
       const aiResponse = await askLeshiy(currentInput, messages);
-
-      // Обрабатываем ответ от "мозга"
+  
       if (aiResponse.action === 'storage') {
-        // Если Leshiy решил, что нужно что-то сохранить
-        setMessages(prev => [...prev, { role: 'ai', text: aiResponse.text }]);
-        // Тут можно добавить логику, например, открытия модального окна для загрузки
-        // или отправки команды на сервер
-         try {
-            await axios.post(CONFIG.STORAGE_GATEWAY, {
-                action: "store_info",
-                data: currentInput, // Отправляем исходный запрос пользователя
-                source: "web-ecosystem"
-            });
-        } catch (e) {
-            console.error("Бот не ответил на команду сохранения");
-        } 
+        setMessages(prev => [...prev, { role: 'ai', text: `📁 [Хранилка]: ${aiResponse.text}` }]);
+        // Реальный вызов твоего воркера для записи текста
+        await axios.post(CONFIG.STORAGE_GATEWAY, {
+            text: aiResponse.text,
+            chat_id: "235663624"
+        });
       } else if (aiResponse.action === 'generate') {
-        // Если Leshiy решил, что нужно генерировать
-        const generatePrompt = aiResponse.text.replace("[ACTION:GENERATE]", "").trim();
-        await generateImage(generatePrompt, currentInput);
+        // Вызываем генерацию
+        await generateImage(aiResponse.text, currentInput);
       } else {
-        // Если это просто текстовый ответ
         setMessages(prev => [...prev, { role: 'ai', text: aiResponse.text }]);
       }
     } catch (err) {
-      console.error(err);
-      setMessages(prev => [...prev, { role: 'ai', text: "❌ Ошибка связи с Leshiy-AI. Проверь модель и прокси." }]);
+      setMessages(prev => [...prev, { role: 'ai', text: "❌ Леший временно недоступен." }]);
     } finally {
       setIsLoading(false);
     }
