@@ -1,9 +1,5 @@
 name: Deploy to GitHub Pages
-run: npm run build
-        env:
-          VITE_GEMINI_PROXY: ${{ secrets.VITE_GEMINI_PROXY }}
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_PROXY_SECRET: ${{ secrets.VITE_PROXY_SECRET }}
+
 on:
   push:
     branches: ["main"]
@@ -19,15 +15,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
+
       - name: Install dependencies
         run: npm install
+
       - name: Build
         run: npm run build
+        env:
+          VITE_GEMINI_PROXY: ${{ secrets.VITE_GEMINI_PROXY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_PROXY_SECRET: ${{ secrets.VITE_PROXY_SECRET }}
+
       - name: Upload Artifacts
         uses: actions/upload-pages-artifact@v3
         with:
