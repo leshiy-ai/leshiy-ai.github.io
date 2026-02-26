@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
+import { AI_MODELS, SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, loadActiveConfig } from './ai-config';
 import './App.css';
 
 const fileToDataURL = (file) => {
@@ -84,6 +85,8 @@ function App() {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
     const [ptrState, setPtrState] = useState('idle');
+    const [isAdmin, setIsAdmin] = useState(true); // Default to true for now
+    const [showAdminPanel, setShowAdminPanel] = useState(false);
 
     const chatEndRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -103,7 +106,8 @@ function App() {
             thinking: '⏳ Gemini-AI думает...',
             uploading: '☁️ Загружаю',
             uploadSuccess: '✅ Файл успешно сохранен в экосистеме!',
-            uploadError: '❌ Не удалось сохранить'
+            uploadError: '❌ Не удалось сохранить',
+            admin: '👑 Админка'
         },
         en: {
             title: 'Leshiy-AI',
@@ -114,7 +118,8 @@ function App() {
             thinking: '⏳ Gemini-AI is thinking...',
             uploading: '☁️ Uploading',
             uploadSuccess: '✅ File successfully saved in the ecosystem!',
-            uploadError: '❌ Failed to save'
+            uploadError: '❌ Failed to save',
+            admin: '👑 Admin'
         }
     };
 
@@ -361,6 +366,15 @@ function App() {
         softReload();
     };
 
+    const handleAdminClick = () => {
+        setShowAdminPanel(!showAdminPanel);
+    }
+
+    const handleModelChange = (serviceType, modelKey) => {
+        localStorage.setItem(SERVICE_TYPE_MAP[serviceType].kvKey, modelKey);
+        alert(`${serviceType} model set to ${modelKey}`);
+    }
+
     return (
         <div 
             ref={appContainerRef}
@@ -382,12 +396,32 @@ function App() {
                 <img src="/Gemini.png" alt="Gemini AI" className="logo" />
                 <h1>{t.title} <span>ECOSYSTEM</span></h1>
                 <div className="header-actions">
+                    {isAdmin && <button className="action-btn" onClick={handleAdminClick}>{t.admin}</button>}
                     <button className="action-btn" onClick={toggleLanguage}>{language === 'ru' ? '🇷🇺' : '🇺🇸'}</button>
                     <button className="action-btn" onClick={toggleTheme}>{theme === 'light' ? '☀️' : '🌙'}</button>
                     <button className="action-btn" onClick={softReload}>⟳</button>
                     <button className="action-btn close-btn" onClick={closeApp}>✕</button>
                 </div>
             </header>
+
+            {showAdminPanel && (
+                <div className="admin-panel">
+                    <h2>AI Model Configuration</h2>
+                    {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
+                        <div key={serviceType} className="service-config">
+                            <h3>{serviceConfig.name}</h3>
+                            <select 
+                                defaultValue={localStorage.getItem(serviceConfig.kvKey) || Object.keys(serviceConfig.models)[0]}
+                                onChange={(e) => handleModelChange(serviceType, e.target.value)}
+                            >
+                                {Object.entries(serviceConfig.models).map(([modelKey, modelName]) => (
+                                    <option key={modelKey} value={modelKey}>{modelName}</option>
+                                ))}
+                            </select>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div className="chat-window" ref={chatWindowRef}>
                 {messages.map((m) => (
