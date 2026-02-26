@@ -197,6 +197,11 @@ function App() {
     };
 
     const handleSend = async () => {
+        if (input.trim().toLowerCase() === '/admin') {
+            setShowAdminPanel(true);
+            setInput('');
+            return;
+        }
         const userMessage = input.trim();
         if (!userMessage && !selectedImage) return;
     
@@ -366,14 +371,51 @@ function App() {
         softReload();
     };
 
-    const handleAdminClick = () => {
-        setShowAdminPanel(!showAdminPanel);
-    }
+    const AdminPanel = () => {
+        const [currentModels, setCurrentModels] = useState({});
 
-    const handleModelChange = (serviceType, modelKey) => {
-        localStorage.setItem(SERVICE_TYPE_MAP[serviceType].kvKey, modelKey);
-        alert(`${serviceType} model set to ${modelKey}`);
-    }
+        useEffect(() => {
+            const initialModels = {};
+            for (const serviceType in SERVICE_TYPE_MAP) {
+                const storedModel = localStorage.getItem(SERVICE_TYPE_MAP[serviceType].kvKey);
+                if (storedModel) {
+                    initialModels[serviceType] = storedModel;
+                } else {
+                    initialModels[serviceType] = Object.keys(AI_MODEL_MENU_CONFIG[serviceType].models)[0];
+                }
+            }
+            setCurrentModels(initialModels);
+        }, []);
+
+        const handleModelChange = (serviceType, modelKey) => {
+            localStorage.setItem(SERVICE_TYPE_MAP[serviceType].kvKey, modelKey);
+            setCurrentModels(prev => ({...prev, [serviceType]: modelKey}));
+        };
+
+        return (
+            <div className="admin-modal-overlay" onClick={() => setShowAdminPanel(false)}>
+                <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+                    <h2>AI Model Configuration</h2>
+                    {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
+                        <div key={serviceType} className="admin-service-section">
+                            <h3>{serviceConfig.name}</h3>
+                            <div className="admin-buttons-container">
+                                {Object.entries(serviceConfig.models).map(([modelKey, modelName]) => (
+                                    <button
+                                        key={modelKey}
+                                        className={`admin-model-btn ${currentModels[serviceType] === modelKey ? 'active' : ''}`}
+                                        onClick={() => handleModelChange(serviceType, modelKey)}
+                                    >
+                                        {modelName}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div 
@@ -387,6 +429,7 @@ function App() {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
+            {showAdminPanel && <AdminPanel />}
             <div id="pull-to-refresh">
                 <div id="ptr-loader" className="loader"></div>
                 <span id="ptr-text">Потяните для обновления</span>
@@ -396,32 +439,12 @@ function App() {
                 <img src="/Gemini.png" alt="Gemini AI" className="logo" />
                 <h1>{t.title} <span>ECOSYSTEM</span></h1>
                 <div className="header-actions">
-                    {isAdmin && <button className="action-btn" onClick={handleAdminClick}>{t.admin}</button>}
                     <button className="action-btn" onClick={toggleLanguage}>{language === 'ru' ? '🇷🇺' : '🇺🇸'}</button>
                     <button className="action-btn" onClick={toggleTheme}>{theme === 'light' ? '☀️' : '🌙'}</button>
                     <button className="action-btn" onClick={softReload}>⟳</button>
                     <button className="action-btn close-btn" onClick={closeApp}>✕</button>
                 </div>
             </header>
-
-            {showAdminPanel && (
-                <div className="admin-panel">
-                    <h2>AI Model Configuration</h2>
-                    {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
-                        <div key={serviceType} className="service-config">
-                            <h3>{serviceConfig.name}</h3>
-                            <select 
-                                defaultValue={localStorage.getItem(serviceConfig.kvKey) || Object.keys(serviceConfig.models)[0]}
-                                onChange={(e) => handleModelChange(serviceType, e.target.value)}
-                            >
-                                {Object.entries(serviceConfig.models).map(([modelKey, modelName]) => (
-                                    <option key={modelKey} value={modelKey}>{modelName}</option>
-                                ))}
-                            </select>
-                        </div>
-                    ))}
-                </div>
-            )}
 
             <div className="chat-window" ref={chatWindowRef}>
                 {messages.map((m) => (

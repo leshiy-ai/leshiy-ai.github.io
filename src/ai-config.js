@@ -11,23 +11,23 @@ const placeholderFunction = async (config, data, env) => {
 };
 
 export const AI_MODELS = {
-    // --- GEMINI (Example) ---
+    // --- GEMINI ---
     TEXT_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         FUNCTION: placeholderFunction, 
-        MODEL: 'gemini-1.5-flash', 
+        MODEL: 'gemini-2.5-flash', 
         API_KEY: 'GEMINI_API_KEY', 
         BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
     IMAGE_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         FUNCTION: placeholderFunction, 
-        MODEL: 'gemini-1.5-flash', 
+        MODEL: 'gemini-2.5-flash', 
         API_KEY: 'GEMINI_API_KEY', 
         BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
 
-    // --- WORKERS AI (Example) ---
+    // --- WORKERS AI ---
     TEXT_TO_TEXT_WORKERS_AI: { 
         SERVICE: 'WORKERS_AI', 
         FUNCTION: placeholderFunction, 
