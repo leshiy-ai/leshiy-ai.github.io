@@ -1,209 +1,208 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { CONFIG } from './config';
-import { askLeshiy } from './leshiy-core'; // Импортируем наш новый "мозг"
+import { askLeshiy } from './leshiy-core';
 import './App.css';
 
+// Helper to convert file to Base64
+const fileToDataURL = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+};
+
 function App() {
-  const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Привет! Я Gemini-AI от Leshiy. Твой проводник в мире нейронок и файлов. Чем могу помочь?' }
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const chatEndRef = useRef(null);
-  const fileInputRef = useRef(null);
+    const [messages, setMessages] = useState([
+        { role: 'ai', text: 'Привет! Я Leshiy-AI. Спрашивай, вставляй картинки, я всё могу!' }
+    ]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    
+    // State for the selected image file and its Base64 representation
+    const [selectedImage, setSelectedImage] = useState(null); 
 
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+    const chatEndRef = useRef(null);
+    const fileInputRef = useRef(null);
 
-  useEffect(scrollToBottom, [messages]);
+    const scrollToBottom = () => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
-  const uploadFileToStorage = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    // Добавляем твой DEBUG_CHAT_ID, чтобы бот знал, чьи это файлы
-    formData.append('chat_id', "235663624"); 
+    useEffect(scrollToBottom, [messages]);
 
-    try {
-        // Шлем запрос напрямую в твой воркер (не в прокси!)
-        // Тебе нужно добавить этот URL в свой config.js как STORAGE_GATEWAY
-        const res = await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        return res.data;
-    } catch (err) {
-        console.error("Ошибка загрузки в воркер:", err);
-        throw err;
-    }
-  };
+    // Uploader for non-image files to your storage worker
+    const handleFileUpload = async (files) => {
+        for (let file of files) {
+            setMessages(prev => [...prev, { role: 'ai', text: `☁️ Загружаю ${file.name}...` }]);
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('chat_id', "235663624"); // Your user ID
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
+                await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
 
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFiles(files);
-    }
-  };
-  
-  const handlePaste = (e) => {
-    const items = e.clipboardData.items;
-    for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf("image") !== -1) {
-        const file = items[i].getAsFile();
-        if (file) {
-          handleFiles([file]);
-          e.preventDefault();
+                setMessages(prev => [...prev, { role: 'ai', text: `✅ Файл ${file.name} успешно сохранен в экосистеме!` }]);
+            } catch (err) {
+                console.error("Ошибка загрузки файла:", err);
+                setMessages(prev => [...prev, { role: 'ai', text: `❌ Не удалось сохранить ${file.name}` }]);
+            }
         }
-      }
-    }
-  };
-
-  const handleFiles = async (files) => {
-    for (let file of files) {
-      setMessages(prev => [...prev, { role: 'ai', text: `☁️ Загружаю ${file.name}...` }]);
-      try {
-        await uploadFileToStorage(file);
-        setMessages(prev => [...prev, { role: 'ai', text: `✅ Файл ${file.name} успешно сохранен в экосистеме!` }]);
-      } catch {
-        setMessages(prev => [...prev, { role: 'ai', text: `❌ Не удалось сохранить ${file.name}` }]);
-      }
-    }
-  };
-
-  // Функцию generateImage оставляем пока без изменений, она будет вызываться по экшену
-  const generateImage = async (prompt, userPrompt) => {
-    try {
-        setMessages(prev => [...prev, { role: 'ai', text: `✨ [Генератор]: Отправляю запрос на создание изображения по описанию: "${prompt}"...` }]);
-        
-        const imageGenerationPrompt = `Generate a realistic image based on the following description: "${prompt}". Focus on visual detail and composition.`;
-        
-        const MODEL = "gemini-2.5-flash";
-        const targetUrl = `${CONFIG.GEMINI_PROXY}/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-
-        const response = await axios.post(
-            targetUrl,
-            {
-                contents: [{ parts: [{ text: imageGenerationPrompt }] }]
-            },
-            { headers: { "X-Proxy-Secret": CONFIG.PROXY_SECRET } }
-        );
-
-        let imageUrl = "https://via.placeholder.com/400x300?text=Image+Generated";
-        const generatedText = response.data.candidates[0].content.parts[0].text;
-
-        const urlMatch = generatedText.match(/(https?:\/\/[^\s]+?\.(?:png|jpe?g|gif|webp))/i);
-        if (urlMatch) {
-            imageUrl = urlMatch[0];
-            setMessages(prev => [...prev, { role: 'ai', text: `Вот что я сгенерировал:`, image: imageUrl }]);
-        } else {
-            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt || prompt)}?width=800&height=600`;
-            setMessages(prev => [...prev, { role: 'ai', text: `Попробую показать тебе:`, image: imageUrl }]);
+    };
+    
+    // Handler for image selection (drag-drop, paste, click)
+    const handleImageSelection = async (files) => {
+        const imageFile = Array.from(files).find(file => file.type.startsWith('image/'));
+        if (!imageFile) {
+            // If it's not an image, use the old file upload logic
+            handleFileUpload(files);
+            return;
         }
-    } catch (err) {
-        console.error("Ошибка при генерации изображения:", err);
-        setMessages(prev => [...prev, { role: 'ai', text: "❌ Не удалось сгенерировать изображение." }]);
-    }
-  };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-  
-    const currentInput = input;
-    setMessages(prev => [...prev, { role: 'user', text: currentInput }]);
-    setInput('');
-    setIsLoading(true);
-  
-    try {
-      const aiResponse = await askLeshiy(currentInput, messages);
-  
-      if (aiResponse.action === 'storage') {
-        setMessages(prev => [...prev, { role: 'ai', text: `📁 [Хранилка]: ${aiResponse.text}` }]);
-        // Реальный вызов твоего воркера для записи текста
-        await axios.post(CONFIG.STORAGE_GATEWAY, {
-            text: aiResponse.text,
-            chat_id: "235663624"
-        });
-      } else if (aiResponse.action === 'generate') {
-        // Вызываем генерацию
-        await generateImage(aiResponse.text, currentInput);
-      } else {
-        setMessages(prev => [...prev, { role: 'ai', text: aiResponse.text }]);
-      }
-    } catch (err) {
-      setMessages(prev => [...prev, { role: 'ai', text: "❌ Леший временно недоступен." }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        try {
+            const dataUrl = await fileToDataURL(imageFile);
+            const base64 = dataUrl.split(',')[1];
+            setSelectedImage({
+                file: imageFile,
+                base64: base64,
+                mimeType: imageFile.type,
+                preview: dataUrl,
+            });
+        } catch (error) {
+            console.error("Ошибка конвертации изображения:", error);
+            setMessages(prev => [...prev, { role: 'ai', text: '❌ Не удалось обработать изображение.' }]);
+        }
+    };
 
-  return (
-    <div 
-        className={`app-container ${isDragging ? 'dragging' : ''}`}
-        onPaste={handlePaste}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-    >
-      <header className="app-header">
-        <img src="/Gemini.png" alt="Gemini AI" className="logo" />
-        <h1>Leshiy-AI <span>ECOSYSTEM</span></h1>
-        <div className="status-dots">
-          <span title="Gemini Proxy" className="dot green"></span>
-          <span title="Storage (Yandex)" className="dot blue"></span>
-        </div>
-      </header>
 
-      <div className="chat-window">
-        {messages.map((m, i) => (
-          <div key={i} className={`message ${m.role}`}>
-            <div className="bubble">
-              {m.text}
-              {m.image && <img src={m.image} alt="Generated" className="generated-image" />}
+    const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+    const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files.length > 0) {
+            handleImageSelection(e.dataTransfer.files);
+        }
+    };
+    const handlePaste = (e) => {
+        if (e.clipboardData.files.length > 0) {
+            handleImageSelection(e.clipboardData.files);
+            e.preventDefault();
+        }
+    };
+
+    const handleSend = async () => {
+        const userMessage = input.trim();
+        if (!userMessage && !selectedImage) return;
+
+        setIsLoading(true);
+
+        // Prepare user message for display
+        const messageToDisplay = { role: 'user', text: userMessage };
+        if (selectedImage) {
+            messageToDisplay.image = selectedImage.preview;
+        }
+        setMessages(prev => [...prev, messageToDisplay]);
+
+        // Clear inputs
+        setInput('');
+        setSelectedImage(null);
+
+        try {
+            // Call the core AI function with text and/or image
+            const aiResponse = await askLeshiy({
+                text: userMessage,
+                imageBase64: selectedImage?.base64,
+                mimeType: selectedImage?.mimeType,
+            });
+
+            // Handle actions or simple text responses
+            if (aiResponse.action === 'generate') {
+                // The generate function is not yet refactored, so we call it separately
+                // In the future, this could be unified
+                setMessages(prev => [...prev, { role: 'ai', text: `✨ Генерирую: "${aiResponse.text}"...` }]);
+                // await generateImage(aiResponse.text, userMessage); // Placeholder
+            } else if (aiResponse.action === 'storage') {
+                 setMessages(prev => [...prev, { role: 'ai', text: `📁 Сохраняю: "${aiResponse.text}"` }]);
+                // await saveTextToStorage(aiResponse.text); // Placeholder
+            }
+            else {
+                setMessages(prev => [...prev, { role: 'ai', text: aiResponse.text }]);
+            }
+
+        } catch (err) {
+            console.error("Ошибка отправки:", err);
+            setMessages(prev => [...prev, { role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+    return (
+        <div 
+            className={`app-container ${isDragging ? 'dragging' : ''}`}
+            onPaste={handlePaste}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+        >
+            <header className="app-header">
+                <img src="/Gemini.png" alt="Gemini AI" className="logo" />
+                <h1>Leshiy-AI <span>ECOSYSTEM</span></h1>
+                <div className="status-dots">
+                    <span title="Gemini Proxy" className="dot green"></span>
+                    <span title="Storage (Worker)" className="dot blue"></span>
+                </div>
+            </header>
+
+            <div className="chat-window">
+                {messages.map((m, i) => (
+                    <div key={i} className={`message ${m.role}`}>
+                        <div className="bubble">
+                            {m.image && <img src={m.image} alt="User upload" className="uploaded-image-preview" />}
+                            {m.text}
+                        </div>
+                    </div>
+                ))}
+                {isLoading && <div className="message ai"><div className="bubble typing">⏳ Gemini-AI думает...</div></div>}
+                <div ref={chatEndRef} />
             </div>
-          </div>
-        ))}
-        {isLoading && <div className="message ai"><div className="bubble typing">⏳ Gemini-AI думает...</div></div>}
-        <div ref={chatEndRef} />
-      </div>
 
-      <div className="input-area">
-        <input 
-          value={input} 
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Спроси о чем-нибудь или вставь картинку (Ctrl+V)..."
-        />
-        <button onClick={handleSend} disabled={isLoading}>Отправить</button>
-      </div>
+            <div className="input-area">
+                {selectedImage && (
+                    <div className="image-preview-container">
+                        <img src={selectedImage.preview} alt="Preview" className="image-preview" />
+                        <button onClick={() => setSelectedImage(null)} className="clear-image-btn">❌</button>
+                    </div>
+                )}
+                <input 
+                    value={input} 
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder={selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси о чем-нибудь или вставь картинку (Ctrl+V)..."}
+                />
+                <button onClick={handleSend} disabled={isLoading}>Отправить</button>
+            </div>
 
-      <input 
-        type="file" 
-        multiple 
-        ref={fileInputRef} 
-        style={{ display: 'none' }} 
-        onChange={(e) => handleFiles(e.target.files)}
-      />
-      <button 
-        className="upload-btn" 
-        onClick={() => fileInputRef.current.click()}
-      >
-        📎 Выбрать файлы для загрузки
-      </button>
-    </div>
-  );
+            <input 
+                type="file" 
+                multiple
+                accept="image/*,application/*,text/*"
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                onChange={(e) => handleImageSelection(e.target.files)}
+            />
+            <button className="upload-btn" onClick={() => fileInputRef.current.click()}>
+                📎 Выбрать файл
+            </button>
+        </div>
+    );
 }
 
 export default App;

@@ -14,14 +14,25 @@ body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-ser
 .message .bubble { padding: 12px 18px; border-radius: 18px; max-width: 80%; line-height: 1.4; word-wrap: break-word; }
 .message.ai .bubble { background: var(--chat-bg); border: 1px solid #333; }
 .message.user .bubble { background: var(--accent); color: white; }
-.input-area { padding: 20px 0 10px; display: flex; gap: 10px; background: var(--bg); flex-shrink: 0; }
-input { flex: 1; background: #333; border: none; padding: 15px; border-radius: 10px; color: white; outline: none; }
+.input-area { position: relative; padding: 10px 0; display: flex; gap: 10px; background: var(--bg); flex-shrink: 0; flex-wrap: wrap; }
+input { flex: 1; background: #333; border: none; padding: 15px; border-radius: 10px; color: white; outline: none; min-width: 200px; }
 button { background: var(--accent); border: none; padding: 0 25px; border-radius: 10px; color: white; cursor: pointer; font-weight: bold; }
 button:disabled { opacity: 0.5; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 5px; }
 .status-dots { margin-left: auto; }
 .green { background: #4caf50; box-shadow: 0 0 5px #4caf50; }
 .blue { background: #2196f3; box-shadow: 0 0 5px #2196f3; }
-.upload-btn { margin-top: 15px; background: #3b82f6; color: white; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; }
+.upload-btn { width: 100%; margin-top: 10px; background: #3b82f6; color: white; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; }
 .upload-btn:hover { background: #2563eb; }
 .generated-image { max-width: 100%; border-radius: 8px; margin-top: 10px; display: block; }
+.image-preview-container { position: relative; margin-bottom: 10px; }
+.image-preview { max-height: 100px; border-radius: 8px; border: 1px solid #444; }
+.clear-image-btn { position: absolute; top: -10px; right: -10px; background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+.uploaded-image-preview { max-width: 300px; border-radius: 8px; margin-bottom: 10px; }
+.message.ai .bubble.typing { background: #333; color: #aaa; }
+.typing::after { content: '...'; display: inline-block; animation: typing-dot 1s infinite step-start; }
+
+@keyframes typing-dot {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
