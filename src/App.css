@@ -36,3 +36,9 @@ button:disabled { opacity: 0.5; }
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
 }
+
+/* Mobile-specific adjustments */
+@media (max-width: 480px) { .app-container { padding: 10px; }
+  .app-header h1 span { display: block; font-size: 0.5em; line-height: 1; }
+  input { min-width: 0; }
+}
