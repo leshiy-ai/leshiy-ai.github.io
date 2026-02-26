@@ -238,7 +238,7 @@ function App() {
     };
     const handlePaste = (e) => {
         if (e.clipboardData.files.length > 0) {
-            handleImageSelection(e.clipboardData.files);
+            handleImageSelection(e.target.files);
             e.preventDefault();
         }
     };
@@ -253,7 +253,7 @@ function App() {
         if (chatWindowRef.current && chatWindowRef.current.scrollTop === 0) {
             startY.current = e.touches[0].pageY;
             isPulled.current = true;
-            setPtrState('pulling');
+            appContainerRef.current.style.transition = 'none';
         }
     };
 
@@ -263,12 +263,15 @@ function App() {
         const diff = currentY - startY.current;
         if (diff > 0) {
             e.preventDefault();
-            const pullDistance = Math.pow(diff, 0.85);
+            const pullDistance = Math.pow(diff, 0.8);
             if (appContainerRef.current) {
                 appContainerRef.current.style.transform = `translateY(${pullDistance}px)`;
             }
-            if (pullDistance > 80 && ptrState !== 'refreshing') {
-                setPtrState('refreshing');
+            const ptrText = document.getElementById('ptr-text');
+            if (pullDistance > 60) {
+                ptrText.innerText = "Отпустите для обновления";
+            } else {
+                ptrText.innerText = "Потяните для обновления";
             }
         }
     };
@@ -276,27 +279,27 @@ function App() {
     const handleTouchEnd = () => {
         if (!isPulled.current) return;
         isPulled.current = false;
+        const container = appContainerRef.current;
+        container.style.transition = 'transform 0.3s';
+        const matrix = window.getComputedStyle(container).transform;
+        const translateY = matrix !== 'none' ? parseFloat(matrix.split(',')[5]) : 0;
 
-        if (ptrState === 'refreshing') {
-            if (appContainerRef.current) {
-                appContainerRef.current.style.transition = 'transform 0.3s';
-                appContainerRef.current.style.transform = 'translateY(60px)';
-            }
+        if (translateY > 60) {
+            container.style.transform = 'translateY(60px)';
+            const ptrText = document.getElementById('ptr-text');
+            const ptrLoader = document.getElementById('ptr-loader');
+            ptrText.innerText = "Обновление...";
+            ptrLoader.style.display = 'block';
             setTimeout(() => {
                 softReload();
-                if (appContainerRef.current) {
-                    appContainerRef.current.style.transform = 'translateY(0)';
-                }
-                setPtrState('idle');
-            }, 500);
+                container.style.transform = 'translateY(0)';
+                setTimeout(() => {
+                    ptrLoader.style.display = 'none';
+                }, 300);
+            }, 1000);
         } else {
-            if (appContainerRef.current) {
-                appContainerRef.current.style.transition = 'transform 0.3s';
-                appContainerRef.current.style.transform = 'translateY(0)';
-            }
-            setPtrState('idle');
+            container.style.transform = 'translateY(0)';
         }
-        startY.current = 0;
     };
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
@@ -316,9 +319,8 @@ function App() {
             onTouchEnd={handleTouchEnd}
         >
             <div id="pull-to-refresh">
-                <div id="ptr-loader" style={{ display: ptrState === 'refreshing' ? 'block' : 'none' }}></div>
-                {ptrState === 'pulling' && "Потяните для обновления"}
-                {ptrState === 'refreshing' && "Обновление..."}
+                <div id="ptr-loader" className="loader"></div>
+                <span id="ptr-text">Потяните для обновления</span>
             </div>
 
             <header className="app-header">
