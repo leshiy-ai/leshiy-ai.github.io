@@ -371,29 +371,23 @@ function App() {
         softReload();
     };
 
-    const AdminPanel = () => {
-        const [currentModels, setCurrentModels] = useState({});
-
-        useEffect(() => {
-            const initialModels = {};
-            for (const serviceType in SERVICE_TYPE_MAP) {
-                const storedModel = localStorage.getItem(SERVICE_TYPE_MAP[serviceType].kvKey);
-                if (storedModel) {
-                    initialModels[serviceType] = storedModel;
-                } else {
-                    initialModels[serviceType] = Object.keys(AI_MODEL_MENU_CONFIG[serviceType].models)[0];
-                }
-            }
-            setCurrentModels(initialModels);
-        }, []);
+    const AdminPanel = ({ onClose }) => {
+        const [tempModels, setTempModels] = useState(() => loadActiveConfig());
 
         const handleModelChange = (serviceType, modelKey) => {
-            localStorage.setItem(SERVICE_TYPE_MAP[serviceType].kvKey, modelKey);
-            setCurrentModels(prev => ({...prev, [serviceType]: modelKey}));
+            setTempModels(prev => ({ ...prev, [serviceType]: modelKey }));
+        };
+
+        const handleSave = () => {
+            for (const serviceType in tempModels) {
+                const modelKey = tempModels[serviceType];
+                localStorage.setItem(SERVICE_TYPE_MAP[serviceType].kvKey, modelKey);
+            }
+            onClose();
         };
 
         return (
-            <div className="admin-modal-overlay" onClick={() => setShowAdminPanel(false)}>
+            <div className="admin-modal-overlay" onClick={onClose}>
                 <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
                     <h2>AI Model Configuration</h2>
                     {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
@@ -403,7 +397,7 @@ function App() {
                                 {Object.entries(serviceConfig.models).map(([modelKey, modelName]) => (
                                     <button
                                         key={modelKey}
-                                        className={`admin-model-btn ${currentModels[serviceType] === modelKey ? 'active' : ''}`}
+                                        className={`admin-model-btn ${tempModels[serviceType] === modelKey ? 'active' : ''}`}
                                         onClick={() => handleModelChange(serviceType, modelKey)}
                                     >
                                         {modelName}
@@ -412,6 +406,10 @@ function App() {
                             </div>
                         </div>
                     ))}
+                    <div className="admin-modal-footer">
+                        <button onClick={onClose} className="admin-footer-btn cancel">Отмена</button>
+                        <button onClick={handleSave} className="admin-footer-btn save">Применить</button>
+                    </div>
                 </div>
             </div>
         );
@@ -429,7 +427,7 @@ function App() {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            {showAdminPanel && <AdminPanel />}
+            {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
             <div id="pull-to-refresh">
                 <div id="ptr-loader" className="loader"></div>
                 <span id="ptr-text">Потяните для обновления</span>

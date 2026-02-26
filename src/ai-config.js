@@ -2,9 +2,6 @@
 // This is a simplified client-side adaptation of the AI configuration
 // from the provided gemini-bot and leshiy-storage-bot projects.
 
-// In a real application, the functions would make API calls.
-// Here, they are placeholders.
-
 const placeholderFunction = async (config, data, env) => {
     console.log(`Calling ${config.MODEL} via ${config.SERVICE}`);
     return { text: `Response from ${config.MODEL}` };
@@ -33,14 +30,14 @@ export const AI_MODELS = {
         FUNCTION: placeholderFunction, 
         MODEL: '@cf/qwen/qwen1.5-14b-chat-awq',
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: 'AI_RUN'
+        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID}/ai/run/`
     },
     IMAGE_TO_TEXT_WORKERS_AI: { 
         SERVICE: 'WORKERS_AI', 
         FUNCTION: placeholderFunction,
         MODEL: '@cf/unum/uform-gen2-qwen-500m', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: 'AI_RUN'
+        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID}/ai/run/`
     },
 };
 
