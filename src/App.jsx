@@ -96,10 +96,10 @@ function App() {
     const translations = {
         ru: {
             title: 'Leshiy-AI',
-            placeholder: selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси о чем-нибудь или вставь картинку (Ctrl+V)...",
+            placeholder: selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси меня о чем-нибудь или вставь картинку (Ctrl+V)...",
             send: 'Отправить',
             upload: '📎 Выбрать файл',
-            welcome: 'Привет! Я Leshiy-AI. Спрашивай, вставляй картинки, я всё могу!',
+            welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
             thinking: '⏳ Gemini-AI думает...',
             uploading: '☁️ Загружаю',
             uploadSuccess: '✅ Файл успешно сохранен в экосистеме!',
@@ -110,7 +110,7 @@ function App() {
             placeholder: selectedImage ? "Now add a text query to the picture..." : "Ask something or paste an image (Ctrl+V)...",
             send: 'Send',
             upload: '📎 Select file',
-            welcome: 'Hi! I am Leshiy-AI. Ask, insert pictures, I can do anything!',
+            welcome: 'Hi! I am Leshiy-AI. Ask me anything, insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
             thinking: '⏳ Gemini-AI is thinking...',
             uploading: '☁️ Uploading',
             uploadSuccess: '✅ File successfully saved in the ecosystem!',
