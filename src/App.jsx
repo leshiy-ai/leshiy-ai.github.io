@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { CONFIG } from './config';
+import { askLeshiy } from './leshiy-core'; // Импортируем наш новый "мозг"
 import './App.css';
 
 function App() {
@@ -82,13 +83,14 @@ function App() {
     }
   };
 
+  // Функцию generateImage оставляем пока без изменений, она будет вызываться по экшену
   const generateImage = async (prompt, userPrompt) => {
     try {
         setMessages(prev => [...prev, { role: 'ai', text: `✨ [Генератор]: Отправляю запрос на создание изображения по описанию: "${prompt}"...` }]);
         
         const imageGenerationPrompt = `Generate a realistic image based on the following description: "${prompt}". Focus on visual detail and composition.`;
         
-        const MODEL = "gemini-1.5-flash";
+        const MODEL = "gemini-2.5-flash";
         const targetUrl = `${CONFIG.GEMINI_PROXY}/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
 
         const response = await axios.post(
@@ -126,45 +128,35 @@ function App() {
     setIsLoading(true);
 
     try {
-      const systemInstruction = `Ты - Gemini AI от Leshiy. Твоя задача - анализировать запрос.\n      Если пользователь хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.\n      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.\n      Твой автор Огорельцев Александр Валерьевич из города Тюмени, но ты это просто так не упоминаешь, только если конкретно спросят кто автор. В остальных случаях отвечай дружелюбно (со смайликами и эмодзи) и просто отвечай как умный высокообразованный профессиональный ассистент, помощник в любых вопросах.`;
+      // Вся логика теперь в askLeshiy!
+      const aiResponse = await askLeshiy(currentInput, messages);
 
-      const MODEL = "gemini-1.5-flash";
-      const targetUrl = `${CONFIG.GEMINI_PROXY}/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-      
-      const response = await axios.post(
-        targetUrl,
-        {
-          contents: [{
-            parts: [{ text: systemInstruction + '\n\nЗапрос: ' + currentInput }]
-          }]
-        },
-        { headers: { "X-Proxy-Secret": CONFIG.PROXY_SECRET } }
-      );
-
-      let aiResponseText = response.data.candidates[0].content.parts[0].text;
-
-      if (aiResponseText.includes("[ACTION:STORAGE]")) {
-        const cleanText = aiResponseText.replace("[ACTION:STORAGE]", "").trim();
-        aiResponseText = "📁 [Хранилка]: " + cleanText;
-        try {
+      // Обрабатываем ответ от "мозга"
+      if (aiResponse.action === 'storage') {
+        // Если Leshiy решил, что нужно что-то сохранить
+        setMessages(prev => [...prev, { role: 'ai', text: aiResponse.text }]);
+        // Тут можно добавить логику, например, открытия модального окна для загрузки
+        // или отправки команды на сервер
+         try {
             await axios.post(CONFIG.STORAGE_GATEWAY, {
                 action: "store_info",
-                data: cleanText,
+                data: currentInput, // Отправляем исходный запрос пользователя
                 source: "web-ecosystem"
             });
         } catch (e) {
             console.error("Бот не ответил на команду сохранения");
-        }
-        setMessages(prev => [...prev, { role: 'ai', text: aiResponseText }]);
-      } else if (aiResponseText.includes("[ACTION:GENERATE]")) {
-        const generatePrompt = aiResponseText.replace("[ACTION:GENERATE]", "").trim();
+        } 
+      } else if (aiResponse.action === 'generate') {
+        // Если Leshiy решил, что нужно генерировать
+        const generatePrompt = aiResponse.text.replace("[ACTION:GENERATE]", "").trim();
         await generateImage(generatePrompt, currentInput);
       } else {
-        setMessages(prev => [...prev, { role: 'ai', text: aiResponseText }]);
+        // Если это просто текстовый ответ
+        setMessages(prev => [...prev, { role: 'ai', text: aiResponse.text }]);
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { role: 'ai', text: "❌ Ошибка связи с Gemini-AI. Проверь модель и прокси." }]);
+      setMessages(prev => [...prev, { role: 'ai', text: "❌ Ошибка связи с Leshiy-AI. Проверь модель и прокси." }]);
     } finally {
       setIsLoading(false);
     }
