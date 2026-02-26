@@ -96,7 +96,7 @@ function App() {
     const translations = {
         ru: {
             title: 'Leshiy-AI',
-            placeholder: selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси меня о чем-нибудь или вставь картинку (Ctrl+V)...",
+            placeholder: selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси меня о чем-нибудь... или вставь картинку (Ctrl+V)...",
             send: 'Отправить',
             upload: '📎 Выбрать файл',
             welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
@@ -304,7 +304,12 @@ function App() {
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
-    const closeApp = () => window.close();
+    const closeApp = () => {
+        const welcomeId = Date.now();
+        welcomeMessageIdRef.current = welcomeId;
+        setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
+        softReload();
+    };
 
     return (
         <div 
