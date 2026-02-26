@@ -3,13 +3,13 @@ import { CONFIG } from './config';
 
 // The new core function for interacting with Gemini
 export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
-    const MODEL = 'gemini-1.5-flash'; // A powerful model that supports text and images
+    const MODEL = 'gemini-2.5-flash'; // A powerful model that supports text and images
 
     // A more advanced system prompt
     const systemInstruction = {
         role: 'system',
         parts: [{
-            text: `Ты — Leshiy-AI, дружелюбный и многофункциональный ассистент. Твой создатель — Александр Огорельцев.
+            text: `Ты — Gemini-AI от Leshiy, дружелюбный и многофункциональный ассистент. Твой создатель — Александр Огорельцев.
 
 Твои возможности:
 - Вести осмысленный диалог на любые темы.

@@ -2,7 +2,7 @@
 :root { --bg: #1a1a1a; --chat-bg: #242424; --text: #e0e0e0; --accent: #4caf50; }
 html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
-.app-container { display: flex; flex-direction: column; height: 100%; border: 2px dashed transparent; padding: 15px; transition: all 0.3s ease; }
+.app-container { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; height: 100%; border: 2px dashed transparent; padding: 15px; transition: all 0.3s ease; }
 .app-container.dragging { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
 .app-header { padding: 10px 0; display: flex; align-items: center; border-bottom: 1px solid #333; flex-shrink: 0; }
 .app-header h1 { font-size: 1.5em; margin: 0; }
