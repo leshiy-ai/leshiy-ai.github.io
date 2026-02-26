@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
 import './App.css';
 
+// --- Helper Functions ---
 const fileToDataURL = (file) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -13,6 +14,70 @@ const fileToDataURL = (file) => {
     });
 };
 
+// --- Message Component for Swipe Logic ---
+const Message = ({ message, onSwipe }) => {
+    const msgRef = useRef(null);
+    const startX = useRef(0);
+    const currentX = useRef(0);
+    const isDragging = useRef(false);
+
+    const handleTouchStart = (e) => {
+        startX.current = e.touches[0].clientX;
+        isDragging.current = true;
+        if (msgRef.current) {
+            msgRef.current.style.transition = 'none';
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        if (!isDragging.current) return;
+        currentX.current = e.touches[0].clientX - startX.current;
+
+        // Allow swipe right for user, left for AI
+        if ((message.role === 'user' && currentX.current < 0) || (message.role === 'ai' && currentX.current > 0)) {
+            currentX.current = 0;
+        }
+
+        if (msgRef.current) {
+            msgRef.current.style.transform = `translateX(${currentX.current}px)`;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        isDragging.current = false;
+        if (msgRef.current) {
+            msgRef.current.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+            const threshold = msgRef.current.offsetWidth * 0.4; // 40% of width to trigger swipe
+
+            if (Math.abs(currentX.current) > threshold) {
+                const direction = currentX.current > 0 ? 1 : -1;
+                msgRef.current.style.transform = `translateX(${direction * 100}%)`;
+                msgRef.current.style.opacity = '0';
+                setTimeout(() => onSwipe(message.id), 300);
+            } else {
+                msgRef.current.style.transform = 'translateX(0)';
+            }
+        }
+        currentX.current = 0;
+    };
+
+    return (
+        <div
+            ref={msgRef}
+            className={`message-container ${message.role}`}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            <div className="bubble">
+                {message.image && <img src={message.image} alt="User upload" className="uploaded-image-preview" />}
+                {message.text}
+            </div>
+        </div>
+    );
+};
+
+
 function App() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
@@ -21,9 +86,15 @@ function App() {
     const [selectedImage, setSelectedImage] = useState(null);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
+    
+    // State for pull-to-refresh
+    const [ptrState, setPtrState] = useState('idle'); // idle, pulling, refreshing
 
     const chatEndRef = useRef(null);
     const fileInputRef = useRef(null);
+    const chatWindowRef = useRef(null); // Ref for chat window
+    const appContainerRef = useRef(null); // Ref for the main container
+    const startY = useRef(0); // For pull-to-refresh touch tracking
 
     const translations = {
         ru: {
@@ -53,8 +124,8 @@ function App() {
     const t = translations[language];
 
     useEffect(() => {
-        setMessages([{ role: 'ai', text: t.welcome }]);
-    }, []); // Пустой массив зависимостей
+        setMessages([{ id: Date.now(), role: 'ai', text: t.welcome }]);
+    }, []);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -73,7 +144,7 @@ function App() {
 
     const handleFileUpload = async (files) => {
         for (let file of files) {
-            setMessages(prev => [...prev, { role: 'ai', text: `${t.uploading} ${file.name}...` }]);
+            setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: `${t.uploading} ${file.name}...` }]);
             try {
                 const formData = new FormData();
                 formData.append('file', file);
@@ -83,10 +154,10 @@ function App() {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
 
-                setMessages(prev => [...prev, { role: 'ai', text: `✅ ${file.name} ${t.uploadSuccess}` }]);
+                setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: `✅ ${file.name} ${t.uploadSuccess}` }]);
             } catch (err) {
                 console.error("Ошибка загрузки файла:", err);
-                setMessages(prev => [...prev, { role: 'ai', text: `❌ ${t.uploadError} ${file.name}` }]);
+                setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: `❌ ${t.uploadError} ${file.name}` }]);
             }
         }
     };
@@ -109,7 +180,7 @@ function App() {
             });
         } catch (error) {
             console.error("Ошибка конвертации изображения:", error);
-            setMessages(prev => [...prev, { role: 'ai', text: '❌ Не удалось обработать изображение.' }]);
+            setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: '❌ Не удалось обработать изображение.' }]);
         }
     };
 
@@ -119,7 +190,7 @@ function App() {
 
         setIsLoading(true);
 
-        const messageToDisplay = { role: 'user', text: userMessage };
+        const messageToDisplay = { id: Date.now(), role: 'user', text: userMessage };
         if (selectedImage) {
             messageToDisplay.image = selectedImage.preview;
         }
@@ -135,20 +206,19 @@ function App() {
                 mimeType: selectedImage?.mimeType,
             });
 
-            if (aiResponse.action === 'generate') {
-                setMessages(prev => [...prev, { role: 'ai', text: `✨ Генерирую: "${aiResponse.text}"...` }]);
-            } else if (aiResponse.action === 'storage') {
-                 setMessages(prev => [...prev, { role: 'ai', text: `📁 Сохраняю: "${aiResponse.text}"` }]);
-            } else {
-                setMessages(prev => [...prev, { role: 'ai', text: aiResponse.text }]);
-            }
+            setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
+
         } catch (err) {
             console.error("Ошибка отправки:", err);
-            setMessages(prev => [...prev, { role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
+            setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
         } finally {
             setIsLoading(false);
         }
     };
+    
+    const handleSwipeMessage = useCallback((messageId) => {
+        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+    }, []);
 
     const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
     const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
@@ -165,6 +235,50 @@ function App() {
             e.preventDefault();
         }
     };
+    
+    // --- Pull to Refresh Logic ---
+    const handleTouchStart = (e) => {
+        if (chatWindowRef.current && chatWindowRef.current.scrollTop === 0) {
+            startY.current = e.touches[0].pageY;
+            setPtrState('pulling');
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        if (ptrState !== 'pulling') return;
+        const currentY = e.touches[0].pageY;
+        const diff = currentY - startY.current;
+        if (diff > 0) {
+            e.preventDefault();
+            const pullDistance = Math.pow(diff, 0.85); // Creates a rubber-band effect
+            if (appContainerRef.current) {
+                appContainerRef.current.style.transform = `translateY(${pullDistance}px)`;
+            }
+            if (pullDistance > 80) { // Threshold to trigger refresh
+                setPtrState('refreshing');
+            }
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (ptrState === 'refreshing') {
+            if (appContainerRef.current) {
+                appContainerRef.current.style.transition = 'transform 0.3s';
+                appContainerRef.current.style.transform = 'translateY(60px)';
+            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 500); // Give time for the animation
+        } else {
+            if (appContainerRef.current) {
+                appContainerRef.current.style.transition = 'transform 0.3s';
+                appContainerRef.current.style.transform = 'translateY(0)';
+            }
+            setPtrState('idle');
+        }
+        startY.current = 0;
+    };
+    // --- End Pull to Refresh ---
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
@@ -173,12 +287,22 @@ function App() {
 
     return (
         <div 
+            ref={appContainerRef}
             className={`app-container ${isDragging ? 'dragging' : ''}`}
             onPaste={handlePaste}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
+            <div id="pull-to-refresh">
+                <div id="ptr-loader" style={{ display: ptrState === 'refreshing' ? 'block' : 'none' }}></div>
+                {ptrState === 'pulling' && "Потяните для обновления"}
+                {ptrState === 'refreshing' && "Обновление..."}
+            </div>
+
             <header className="app-header">
                 <img src="/Gemini.png" alt="Gemini AI" className="logo" />
                 <h1>{t.title} <span>ECOSYSTEM</span></h1>
@@ -190,16 +314,11 @@ function App() {
                 </div>
             </header>
 
-            <div className="chat-window">
-                {messages.map((m, i) => (
-                    <div key={i} className={`message ${m.role}`}>
-                        <div className="bubble">
-                            {m.image && <img src={m.image} alt="User upload" className="uploaded-image-preview" />}
-                            {m.text}
-                        </div>
-                    </div>
+            <div className="chat-window" ref={chatWindowRef}>
+                {messages.map((m) => (
+                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} />
                 ))}
-                {isLoading && <div className="message ai"><div className="bubble typing">{t.thinking}</div></div>}
+                {isLoading && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
             </div>
 
