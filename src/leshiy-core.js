@@ -1,104 +1,95 @@
-import axios from 'axios';
 import { CONFIG } from './config';
-import { AI_MODELS, loadActiveConfig, SERVICE_TYPE_MAP } from './ai-config';
-
-// --- Specific Function for Gemini API via Proxy ---
-async function callGemini(config, { text, imageBase64, mimeType }) {
-    const modelId = config.MODEL;
-    const systemInstruction = {
-        role: 'system',
-        parts: [{ text: `Ты — Gemini-AI от Leshiy, дружелюбный и многофункциональный ассистент.` }]
-    };
-
-    const userParts = [];
-    if (text) userParts.push({ text });
-    if (imageBase64 && mimeType) {
-        userParts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
-    }
-
-    const contents = [{ role: 'user', parts: userParts }];
-
-    try {
-        const response = await axios.post(
-            // The BASE_URL for Gemini is the proxy URL
-            `${config.BASE_URL}/models/${modelId}:generateContent?key=${CONFIG.GEMINI_API_KEY}`,
-            { contents, system_instruction: systemInstruction },
-            { headers: { 'X-Proxy-Secret': CONFIG.PROXY_SECRET } }
-        );
-        return response.data.candidates[0].content.parts[0].text;
-    } catch (error) {
-        console.error('Gemini API Error:', error.response?.data || error.message);
-        throw new Error('Ошибка при обращении к Gemini AI');
-    }
-}
-
-// --- Specific Function for Cloudflare AI REST API ---
-async function callCloudflareAI(config, { text, imageBase64 }) {
-    const modelId = config.MODEL;
-    const apiToken = CONFIG.CLOUDFLARE_API_TOKEN;
-    
-    // CORRECT: Use the BASE_URL from the config object
-    const url = `${config.BASE_URL}${modelId}`;
-
-    let payload;
-    // Check if it is an image-to-text model
-    if (modelId.includes('uform')) {
-        // This model expects an image as an array of bytes
-        const imageBytes = [...new Uint8Array(atob(imageBase64).split('').map(c => c.charCodeAt(0)))];
-        payload = {
-            prompt: text || 'Describe this image',
-            image: imageBytes
-        };
-    } else {
-        // This is a text-to-text model
-        payload = {
-            messages: [
-                { role: 'system', content: 'You are a friendly assistant.' },
-                { role: 'user', content: text }
-            ]
-        };
-    }
-
-    try {
-        const response = await axios.post(url, payload, {
-            headers: {
-                'Authorization': `Bearer ${apiToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (modelId.includes('uform')) {
-            return response.data.result.description;
-        } else {
-            return response.data.result.response;
-        }
-    } catch (error) {
-        console.error('Cloudflare AI Error:', error.response?.data || error.message);
-        throw new Error('Ошибка при обращении к Cloudflare AI');
-    }
-}
+import { loadActiveModelConfig } from './ai-config';
 
 // --- Main Core Function (Dispatcher) ---
 export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
     const serviceType = imageBase64 ? 'IMAGE_TO_TEXT' : 'TEXT_TO_TEXT';
-    const modelConfig = await loadActiveConfig(serviceType);
+    const config = loadActiveModelConfig(serviceType);
 
-    try {
-        let resultText;
-        if (modelConfig.SERVICE === 'GEMINI') {
-            // Also pass the BASE_URL for Gemini to its function
-            modelConfig.BASE_URL = CONFIG.GEMINI_PROXY;
-            resultText = await callGemini(modelConfig, { text, imageBase64, mimeType });
-        } else if (modelConfig.SERVICE === 'WORKERS_AI') {
-            resultText = await callCloudflareAI(modelConfig, { text, imageBase64 });
-        } else {
-            throw new Error(`Unsupported service: ${modelConfig.SERVICE}`);
-        }
+    if (!config) {
+        return { type: 'error', text: `No model configured for ${serviceType}` };
+    }
+
+    // --- Prepare Request Details ---
+    let url, body, headers;
+
+    if (config.SERVICE === 'GEMINI') {
+        url = `${CONFIG.GEMINI_PROXY}/models/${config.MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+        headers = { 
+            'Content-Type': 'application/json',
+            'X-Proxy-Secret': CONFIG.PROXY_SECRET
+        };
         
+        const userParts = [];
+        if (text) userParts.push({ text });
+        if (imageBase64 && mimeType) {
+            userParts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
+        }
+
+        body = {
+            contents: [{ role: 'user', parts: userParts }],
+            system_instruction: { role: 'system', parts: [{ text: 'Ты — Gemini AI от Leshiy, дружелюбный и полезный ассистент.' }] }
+        };
+
+    } else if (config.SERVICE === 'CLOUDFLARE') {
+        url = `${config.BASE_URL}${config.MODEL}`;
+        headers = { 'Authorization': `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}` };
+
+        if (serviceType === 'IMAGE_TO_TEXT') {
+            const imageArray = new Uint8Array(atob(imageBase64).split('').map(c => c.charCodeAt(0)));
+            body = {
+                prompt: text || 'Опиши это изображение',
+                image: [...imageArray]
+            };
+        } else { // TEXT_TO_TEXT
+            body = {
+                messages: [
+                    { role: 'system', content: 'Ты — дружелюбный ассистент.' },
+                    { role: 'user', content: text }
+                ]
+            };
+        }
+    } else {
+        return { type: 'error', text: `Unsupported service: ${config.SERVICE}` };
+    }
+
+    // --- Execute Fetch Request ---
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API Error Response:', errorText);
+            throw new Error(`API Error (${response.status}): ${errorText.substring(0, 150)}`);
+        }
+
+        const data = await response.json();
+
+        // --- Parse Response ---
+        let resultText;
+        if (config.SERVICE === 'GEMINI') {
+            resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        } else if (config.SERVICE === 'CLOUDFLARE') {
+            if (serviceType === 'IMAGE_TO_TEXT') {
+                resultText = data.result?.description;
+            } else { // TEXT_TO_TEXT
+                resultText = data.result?.response;
+            }
+        }
+
+        if (typeof resultText !== 'string') {
+            console.error('Could not parse a valid string result from API response:', data);
+            throw new Error('Не удалось извлечь текстовый ответ от API.');
+        }
+
         return { type: 'text', text: resultText };
 
     } catch (error) {
-        console.error('askLeshiy Error:', error.message);
+        console.error('askLeshiy fetch Error:', error);
         return { type: 'error', text: error.message };
     }
 };
