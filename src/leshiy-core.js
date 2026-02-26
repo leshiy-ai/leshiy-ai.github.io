@@ -32,7 +32,7 @@ export const askLeshiy = async (userText, history = []) => {
     } catch (error) {
         // Если ловим 429, возвращаем понятную ошибку
         if (error.response?.status === 429) {
-            return { type: 'error', text: 'Леший притормозил (превышена квота). Подожди минуту.' };
+            return { type: 'error', text: 'Gemini-AI затупил (превышена квота). Подожди пару минут и повтори запрос.' };
         }
         return { type: 'error', text: 'Ошибка связи: ' + error.message };
     }
