@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
-import { AI_MODELS, SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, loadActiveConfig } from './ai-config';
+// Replaced loadActiveConfig with getActiveModelKey
+import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey } from './ai-config';
 import './App.css';
 
 const fileToDataURL = (file) => {
@@ -84,8 +85,6 @@ function App() {
     const [selectedImage, setSelectedImage] = useState(null);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
-    const [ptrState, setPtrState] = useState('idle');
-    const [isAdmin, setIsAdmin] = useState(true); // Default to true for now
     const [showAdminPanel, setShowAdminPanel] = useState(false);
 
     const chatEndRef = useRef(null);
@@ -213,73 +212,24 @@ function App() {
         }
         setMessages(prev => [...prev, messageToDisplay]);
     
-        const imageToProcess = selectedImage;
-        const textToProcess = input;
-    
+        const requestPayload = { text: input };
+        if (selectedImage) {
+            requestPayload.imageBase64 = selectedImage.base64;
+            requestPayload.mimeType = selectedImage.mimeType;
+        }
+
         setInput('');
         setSelectedImage(null);
     
-        if (imageToProcess) {
-            const lowerCaseMessage = textToProcess.toLowerCase();
-    
-            if (lowerCaseMessage.startsWith('сохрани')) {
-                let path = '';
-                if (lowerCaseMessage.startsWith('сохрани в ')) {
-                    path = textToProcess.substring('сохрани в '.length).trim();
-                }
-    
-                setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: `${t.uploading} ${imageToProcess.file.name}...` }]);
-    
-                try {
-                    const formData = new FormData();
-                    formData.append('file', imageToProcess.file);
-                    formData.append('chat_id', "235663624");
-                    if (path) {
-                        formData.append('path', path);
-                    }
-    
-                    await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
-                        headers: { 'Content-Type': 'multipart/form-data' }
-                    });
-    
-                    let successMsg = `✅ ${imageToProcess.file.name} ${t.uploadSuccess}`;
-                    if (path) {
-                        successMsg += ` в "${path}"`;
-                    }
-                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: successMsg }]);
-    
-                } catch (err) {
-                    console.error("Ошибка загрузки файла:", err);
-                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: `❌ ${t.uploadError} ${imageToProcess.file.name}` }]);
-                } finally {
-                    setIsLoading(false);
-                }
-    
-            } else {
-                try {
-                    const aiResponse = await askLeshiy({
-                        text: textToProcess,
-                        imageBase64: imageToProcess.base64,
-                        mimeType: imageToProcess.mimeType,
-                    });
-                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
-                } catch (err) {
-                    console.error("Ошибка отправки:", err);
-                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
-                } finally {
-                    setIsLoading(false);
-                }
-            }
-        } else {
-            try {
-                const aiResponse = await askLeshiy({ text: textToProcess });
-                setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
-            } catch (err) {
-                console.error("Ошибка отправки:", err);
-                setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
-            } finally {
-                setIsLoading(false);
-            }
+        try {
+            const aiResponse = await askLeshiy(requestPayload);
+            const role = aiResponse.type === 'error' ? 'ai error' : 'ai';
+            setMessages(prev => [...prev, { id: Date.now() + 1, role: role, text: aiResponse.text }]);
+        } catch (err) {
+            console.error("Ошибка отправки:", err);
+            setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai error', text: "❌ Что-то пошло не так..." }]);
+        } finally {
+            setIsLoading(false);
         }
     };
     
@@ -298,8 +248,8 @@ function App() {
     };
     const handlePaste = (e) => {
         if (e.clipboardData.files.length > 0) {
-            handleImageSelection(e.target.files);
             e.preventDefault();
+            handleImageSelection(e.clipboardData.files);
         }
     };
 
@@ -313,7 +263,9 @@ function App() {
         if (chatWindowRef.current && chatWindowRef.current.scrollTop === 0) {
             startY.current = e.touches[0].pageY;
             isPulled.current = true;
-            appContainerRef.current.style.transition = 'none';
+            if (appContainerRef.current) {
+                appContainerRef.current.style.transition = 'none';
+            }
         }
     };
 
@@ -328,10 +280,8 @@ function App() {
                 appContainerRef.current.style.transform = `translateY(${pullDistance}px)`;
             }
             const ptrText = document.getElementById('ptr-text');
-            if (pullDistance > 60) {
-                ptrText.innerText = "Отпустите для обновления";
-            } else {
-                ptrText.innerText = "Потяните для обновления";
+            if (ptrText) {
+                ptrText.innerText = pullDistance > 60 ? "Отпустите для обновления" : "Потяните для обновления";
             }
         }
     };
@@ -340,6 +290,8 @@ function App() {
         if (!isPulled.current) return;
         isPulled.current = false;
         const container = appContainerRef.current;
+        if (!container) return;
+
         container.style.transition = 'transform 0.3s';
         const matrix = window.getComputedStyle(container).transform;
         const translateY = matrix !== 'none' ? parseFloat(matrix.split(',')[5]) : 0;
@@ -348,13 +300,14 @@ function App() {
             container.style.transform = 'translateY(60px)';
             const ptrText = document.getElementById('ptr-text');
             const ptrLoader = document.getElementById('ptr-loader');
-            ptrText.innerText = "Обновление...";
-            ptrLoader.style.display = 'block';
+            if (ptrText) ptrText.innerText = "Обновление...";
+            if (ptrLoader) ptrLoader.style.display = 'block';
+
             setTimeout(() => {
                 softReload();
                 container.style.transform = 'translateY(0)';
                 setTimeout(() => {
-                    ptrLoader.style.display = 'none';
+                    if (ptrLoader) ptrLoader.style.display = 'none';
                 }, 300);
             }, 1000);
         } else {
@@ -371,17 +324,31 @@ function App() {
         softReload();
     };
 
+    // --- The Corrected AdminPanel ---
     const AdminPanel = ({ onClose }) => {
-        const [tempModels, setTempModels] = useState(() => loadActiveConfig());
+        const [tempSelections, setTempSelections] = useState({});
+
+        useEffect(() => {
+            const initialSelections = {};
+            for (const serviceType in SERVICE_TYPE_MAP) {
+                const activeKey = getActiveModelKey(serviceType);
+                if (activeKey) {
+                    initialSelections[serviceType] = activeKey;
+                }
+            }
+            setTempSelections(initialSelections);
+        }, []);
 
         const handleModelChange = (serviceType, modelKey) => {
-            setTempModels(prev => ({ ...prev, [serviceType]: modelKey }));
+            setTempSelections(prev => ({ ...prev, [serviceType]: modelKey }));
         };
 
-        const handleSave = () => {
-            for (const serviceType in tempModels) {
-                const modelKey = tempModels[serviceType];
-                localStorage.setItem(SERVICE_TYPE_MAP[serviceType].kvKey, modelKey);
+        const handleApply = () => {
+            for (const [serviceType, modelKey] of Object.entries(tempSelections)) {
+                const kvKey = SERVICE_TYPE_MAP[serviceType]?.kvKey;
+                if (kvKey && modelKey) {
+                    localStorage.setItem(kvKey, modelKey);
+                }
             }
             onClose();
         };
@@ -397,7 +364,7 @@ function App() {
                                 {Object.entries(serviceConfig.models).map(([modelKey, modelName]) => (
                                     <button
                                         key={modelKey}
-                                        className={`admin-model-btn ${tempModels[serviceType] === modelKey ? 'active' : ''}`}
+                                        className={`admin-model-btn ${tempSelections[serviceType] === modelKey ? 'active' : ''}`}
                                         onClick={() => handleModelChange(serviceType, modelKey)}
                                     >
                                         {modelName}
@@ -408,7 +375,7 @@ function App() {
                     ))}
                     <div className="admin-modal-footer">
                         <button onClick={onClose} className="admin-footer-btn cancel">Отмена</button>
-                        <button onClick={handleSave} className="admin-footer-btn save">Применить</button>
+                        <button onClick={handleApply} className="admin-footer-btn save">Применить</button>
                     </div>
                 </div>
             </div>
@@ -462,7 +429,7 @@ function App() {
                 <input 
                     value={input} 
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()} // Replaced onKeyPress with onKeyDown
                     placeholder={t.placeholder}
                 />
                 <button onClick={handleSend} disabled={isLoading}>{t.send}</button>
