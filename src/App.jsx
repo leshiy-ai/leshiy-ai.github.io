@@ -4,7 +4,6 @@ import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
 import './App.css';
 
-// --- Helper Functions ---
 const fileToDataURL = (file) => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -14,7 +13,6 @@ const fileToDataURL = (file) => {
     });
 };
 
-// --- Message Component for Swipe Logic ---
 const Message = ({ message, onSwipe }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
@@ -122,8 +120,8 @@ function App() {
     const t = translations[language];
 
     useEffect(() => {
-        setMessages([{ id: Date.now(), role: 'ai', text: t.welcome }]);
-    }, [language]);
+        setMessages([{ id: Date.now(), role: 'ai', text: translations[language].welcome }]);
+    }, []);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -132,6 +130,15 @@ function App() {
 
     useEffect(() => {
         localStorage.setItem('language', language);
+        const welcomeMessage = translations[language].welcome;
+        setMessages(prevMessages => {
+            if (prevMessages.length > 0 && prevMessages[0].role === 'ai') {
+                const newMessages = [...prevMessages];
+                newMessages[0].text = welcomeMessage;
+                return newMessages;
+            }
+            return [{ id: Date.now(), role: 'ai', text: welcomeMessage }];
+        });
     }, [language]);
 
     const scrollToBottom = () => {
