@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
-// Correctly importing getActiveModelKey
-import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey } from './ai-config';
+import { AI_MODELS, SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, loadActiveConfig } from './ai-config';
 import './App.css';
 
 const fileToDataURL = (file) => {
@@ -77,69 +75,6 @@ const Message = ({ message, onSwipe }) => {
     );
 };
 
-// --- NEW, CORRECTED ADMIN PANEL ---
-const AdminPanel = ({ onClose }) => {
-    // State to hold temporary selections before applying
-    const [tempSelections, setTempSelections] = useState({});
-
-    // On component mount, load the currently saved selections from localStorage
-    useEffect(() => {
-        const initialSelections = {};
-        for (const serviceType in SERVICE_TYPE_MAP) {
-            const activeKey = getActiveModelKey(serviceType);
-            if (activeKey) {
-                initialSelections[serviceType] = activeKey;
-            }
-        }
-        setTempSelections(initialSelections);
-    }, []);
-
-    // Update temporary state when a model button is clicked
-    const handleModelChange = (serviceType, modelKey) => {
-        setTempSelections(prev => ({ ...prev, [serviceType]: modelKey }));
-    };
-
-    // Save the temporary selections to localStorage and close the panel
-    const handleApply = () => {
-        for (const [serviceType, modelKey] of Object.entries(tempSelections)) {
-            const kvKey = SERVICE_TYPE_MAP[serviceType]?.kvKey;
-            if (kvKey && modelKey) {
-                localStorage.setItem(kvKey, modelKey);
-            }
-        }
-        onClose();
-    };
-
-    return (
-        <div className="admin-modal-overlay" onClick={onClose}>
-            <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-                <h2>AI Model Configuration</h2>
-                {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
-                    <div key={serviceType} className="admin-service-section">
-                        <h3>{serviceConfig.name}</h3>
-                        <div className="admin-buttons-container">
-                            {Object.entries(serviceConfig.models).map(([modelKey, modelName]) => (
-                                <button
-                                    key={modelKey}
-                                    // The 'active' class is now correctly applied based on tempSelections
-                                    className={`admin-model-btn ${tempSelections[serviceType] === modelKey ? 'active' : ''}`}
-                                    onClick={() => handleModelChange(serviceType, modelKey)}
-                                >
-                                    {modelName}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-                <div className="admin-modal-footer">
-                    <button onClick={onClose} className="admin-footer-btn cancel">Отмена</button>
-                    <button onClick={handleApply} className="admin-footer-btn save">Применить</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 function App() {
     const [messages, setMessages] = useState([]);
@@ -149,36 +84,42 @@ function App() {
     const [selectedImage, setSelectedImage] = useState(null);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
+    const [ptrState, setPtrState] = useState('idle');
+    const [isAdmin, setIsAdmin] = useState(true); // Default to true for now
     const [showAdminPanel, setShowAdminPanel] = useState(false);
 
     const chatEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const chatWindowRef = useRef(null);
     const appContainerRef = useRef(null);
+    const startY = useRef(0);
+    const isPulled = useRef(false);
     const welcomeMessageIdRef = useRef(null);
 
     const translations = {
         ru: {
             title: 'Leshiy-AI',
-            placeholder: selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси меня о чем-нибудь...",
+            placeholder: selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси меня о чем-нибудь... или вставь картинку (Ctrl+V)...",
             send: 'Отправить',
             upload: '📎 Выбрать файл',
-            welcome: 'Привет! Я Leshiy-AI. Спрашивай, вставляй картинки, я всё пойму.',
-            thinking: '🤖 Думаю...',
+            welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
+            thinking: '⏳ Gemini-AI думает...',
             uploading: '☁️ Загружаю',
-            uploadSuccess: '✅ Файл успешно сохранен!',
+            uploadSuccess: '✅ Файл успешно сохранен в экосистеме!',
             uploadError: '❌ Не удалось сохранить',
+            admin: '👑 Админка'
         },
         en: {
             title: 'Leshiy-AI',
-            placeholder: selectedImage ? "Now add a text query..." : "Ask me anything...",
+            placeholder: selectedImage ? "Now add a text query to the picture..." : "Ask something or paste an image (Ctrl+V)...",
             send: 'Send',
             upload: '📎 Select file',
-            welcome: 'Hi! I am Leshiy-AI. Ask me anything, paste pictures, I will understand.',
-            thinking: '🤖 Thinking...',
+            welcome: 'Hi! I am Leshiy-AI. Ask me anything, insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
+            thinking: '⏳ Gemini-AI is thinking...',
             uploading: '☁️ Uploading',
-            uploadSuccess: '✅ File saved successfully!',
+            uploadSuccess: '✅ File successfully saved in the ecosystem!',
             uploadError: '❌ Failed to save',
+            admin: '👑 Admin'
         }
     };
 
@@ -188,17 +129,24 @@ function App() {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
-    }, [language]); // Re-trigger welcome message on language change
+    }, []);
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
     }, [theme]);
-    
+
     useEffect(() => {
         localStorage.setItem('language', language);
+        const welcomeMessage = translations[language].welcome;
+        setMessages(prevMessages => 
+            prevMessages.map(msg => 
+                msg.id === welcomeMessageIdRef.current 
+                    ? { ...msg, text: welcomeMessage } 
+                    : msg
+            )
+        );
     }, [language]);
-
 
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -229,7 +177,7 @@ function App() {
     const handleImageSelection = async (files) => {
         const imageFile = Array.from(files).find(file => file.type.startsWith('image/'));
         if (!imageFile) {
-            handleFileUpload(files); // Fallback to regular file upload
+            handleFileUpload(files);
             return;
         }
 
@@ -265,25 +213,73 @@ function App() {
         }
         setMessages(prev => [...prev, messageToDisplay]);
     
-        // Prepare data for the core function
-        const requestPayload = { text: input };
-        if (selectedImage) {
-            requestPayload.imageBase64 = selectedImage.base64;
-            requestPayload.mimeType = selectedImage.mimeType;
-        }
-        
+        const imageToProcess = selectedImage;
+        const textToProcess = input;
+    
         setInput('');
         setSelectedImage(null);
     
-        try {
-            const aiResponse = await askLeshiy(requestPayload);
-            const role = aiResponse.type === 'error' ? 'ai error' : 'ai';
-            setMessages(prev => [...prev, { id: Date.now() + 1, role: role, text: aiResponse.text }]);
-        } catch (err) {
-            console.error("Ошибка отправки:", err);
-            setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai error', text: "❌ Что-то пошло не так..." }]);
-        } finally {
-            setIsLoading(false);
+        if (imageToProcess) {
+            const lowerCaseMessage = textToProcess.toLowerCase();
+    
+            if (lowerCaseMessage.startsWith('сохрани')) {
+                let path = '';
+                if (lowerCaseMessage.startsWith('сохрани в ')) {
+                    path = textToProcess.substring('сохрани в '.length).trim();
+                }
+    
+                setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: `${t.uploading} ${imageToProcess.file.name}...` }]);
+    
+                try {
+                    const formData = new FormData();
+                    formData.append('file', imageToProcess.file);
+                    formData.append('chat_id', "235663624");
+                    if (path) {
+                        formData.append('path', path);
+                    }
+    
+                    await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+    
+                    let successMsg = `✅ ${imageToProcess.file.name} ${t.uploadSuccess}`;
+                    if (path) {
+                        successMsg += ` в "${path}"`;
+                    }
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: successMsg }]);
+    
+                } catch (err) {
+                    console.error("Ошибка загрузки файла:", err);
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: `❌ ${t.uploadError} ${imageToProcess.file.name}` }]);
+                } finally {
+                    setIsLoading(false);
+                }
+    
+            } else {
+                try {
+                    const aiResponse = await askLeshiy({
+                        text: textToProcess,
+                        imageBase64: imageToProcess.base64,
+                        mimeType: imageToProcess.mimeType,
+                    });
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
+                } catch (err) {
+                    console.error("Ошибка отправки:", err);
+                    setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        } else {
+            try {
+                const aiResponse = await askLeshiy({ text: textToProcess });
+                setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiResponse.text }]);
+            } catch (err) {
+                console.error("Ошибка отправки:", err);
+                setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: err.text || "❌ Что-то пошло не так..." }]);
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
     
@@ -300,25 +296,124 @@ function App() {
             handleImageSelection(e.dataTransfer.files);
         }
     };
-
     const handlePaste = (e) => {
         if (e.clipboardData.files.length > 0) {
+            handleImageSelection(e.target.files);
             e.preventDefault();
-            handleImageSelection(e.clipboardData.files);
         }
     };
-    
+
     const softReload = () => {
         setInput('');
         setSelectedImage(null);
         setIsLoading(false);
+    };
+    
+    const handleTouchStart = (e) => {
+        if (chatWindowRef.current && chatWindowRef.current.scrollTop === 0) {
+            startY.current = e.touches[0].pageY;
+            isPulled.current = true;
+            appContainerRef.current.style.transition = 'none';
+        }
+    };
+
+    const handleTouchMove = (e) => {
+        if (!isPulled.current) return;
+        const currentY = e.touches[0].pageY;
+        const diff = currentY - startY.current;
+        if (diff > 0) {
+            e.preventDefault();
+            const pullDistance = Math.pow(diff, 0.8);
+            if (appContainerRef.current) {
+                appContainerRef.current.style.transform = `translateY(${pullDistance}px)`;
+            }
+            const ptrText = document.getElementById('ptr-text');
+            if (pullDistance > 60) {
+                ptrText.innerText = "Отпустите для обновления";
+            } else {
+                ptrText.innerText = "Потяните для обновления";
+            }
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (!isPulled.current) return;
+        isPulled.current = false;
+        const container = appContainerRef.current;
+        container.style.transition = 'transform 0.3s';
+        const matrix = window.getComputedStyle(container).transform;
+        const translateY = matrix !== 'none' ? parseFloat(matrix.split(',')[5]) : 0;
+
+        if (translateY > 60) {
+            container.style.transform = 'translateY(60px)';
+            const ptrText = document.getElementById('ptr-text');
+            const ptrLoader = document.getElementById('ptr-loader');
+            ptrText.innerText = "Обновление...";
+            ptrLoader.style.display = 'block';
+            setTimeout(() => {
+                softReload();
+                container.style.transform = 'translateY(0)';
+                setTimeout(() => {
+                    ptrLoader.style.display = 'none';
+                }, 300);
+            }, 1000);
+        } else {
+            container.style.transform = 'translateY(0)';
+        }
+    };
+
+    const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
+    const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
+    const closeApp = () => {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
+        softReload();
     };
-    
-    const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
-    const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
+
+    const AdminPanel = ({ onClose }) => {
+        const [tempModels, setTempModels] = useState(() => loadActiveConfig());
+
+        const handleModelChange = (serviceType, modelKey) => {
+            setTempModels(prev => ({ ...prev, [serviceType]: modelKey }));
+        };
+
+        const handleSave = () => {
+            for (const serviceType in tempModels) {
+                const modelKey = tempModels[serviceType];
+                localStorage.setItem(SERVICE_TYPE_MAP[serviceType].kvKey, modelKey);
+            }
+            onClose();
+        };
+
+        return (
+            <div className="admin-modal-overlay" onClick={onClose}>
+                <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+                    <h2>AI Model Configuration</h2>
+                    {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
+                        <div key={serviceType} className="admin-service-section">
+                            <h3>{serviceConfig.name}</h3>
+                            <div className="admin-buttons-container">
+                                {Object.entries(serviceConfig.models).map(([modelKey, modelName]) => (
+                                    <button
+                                        key={modelKey}
+                                        className={`admin-model-btn ${tempModels[serviceType] === modelKey ? 'active' : ''}`}
+                                        onClick={() => handleModelChange(serviceType, modelKey)}
+                                    >
+                                        {modelName}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    <div className="admin-modal-footer">
+                        <button onClick={onClose} className="admin-footer-btn cancel">Отмена</button>
+                        <button onClick={handleSave} className="admin-footer-btn save">Применить</button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div 
@@ -328,16 +423,24 @@ function App() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
-            
+            <div id="pull-to-refresh">
+                <div id="ptr-loader" className="loader"></div>
+                <span id="ptr-text">Потяните для обновления</span>
+            </div>
+
             <header className="app-header">
-                <img src="/leshiy-ai.png" alt="Leshiy AI" className="logo" />
-                <h1>{t.title} <span>ecosystem</span></h1>
+                <img src="/Gemini.png" alt="Gemini AI" className="logo" />
+                <h1>{t.title} <span>ECOSYSTEM</span></h1>
                 <div className="header-actions">
-                    <button className="action-btn" onClick={toggleLanguage}>{language === 'ru' ? 'RU' : 'EN'}</button>
+                    <button className="action-btn" onClick={toggleLanguage}>{language === 'ru' ? '🇷🇺' : '🇺🇸'}</button>
                     <button className="action-btn" onClick={toggleTheme}>{theme === 'light' ? '☀️' : '🌙'}</button>
                     <button className="action-btn" onClick={softReload}>⟳</button>
+                    <button className="action-btn close-btn" onClick={closeApp}>✕</button>
                 </div>
             </header>
 
@@ -356,11 +459,10 @@ function App() {
                         <button onClick={() => setSelectedImage(null)} className="clear-image-btn">❌</button>
                     </div>
                 )}
-                <textarea 
+                <input 
                     value={input} 
-                    rows={1}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={t.placeholder}
                 />
                 <button onClick={handleSend} disabled={isLoading}>{t.send}</button>
