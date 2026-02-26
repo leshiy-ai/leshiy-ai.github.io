@@ -7,7 +7,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
     const config = loadActiveModelConfig(serviceType);
 
     if (!config) {
-        return { type: 'error', text: `No model configured for ${serviceType}` };
+        return { type: 'error', text: `Модель для ${serviceType} не настроена` };
     }
 
     // --- Prepare Request Details ---
@@ -50,10 +50,10 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
             };
         }
     } else {
-        return { type: 'error', text: `Unsupported service: ${config.SERVICE}` };
+        return { type: 'error', text: `Неподдерживаемый сервис: ${config.SERVICE}` };
     }
 
-    // --- Execute Fetch Request ---
+    // --- Execute Fetch Request with Error Handling ---
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -62,9 +62,12 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
         });
 
         if (!response.ok) {
+            if (response.status === 429 && config.SERVICE === 'GEMINI') {
+                throw new Error('GEMINI_QUOTA');
+            }
             const errorText = await response.text();
             console.error('API Error Response:', errorText);
-            throw new Error(`API Error (${response.status}): ${errorText.substring(0, 150)}`);
+            throw new Error(`API_ERROR: ${response.status}`);
         }
 
         const data = await response.json();
@@ -83,13 +86,28 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
 
         if (typeof resultText !== 'string') {
             console.error('Could not parse a valid string result from API response:', data);
-            throw new Error('Не удалось извлечь текстовый ответ от API.');
+            throw new Error('PARSE_ERROR');
         }
 
         return { type: 'text', text: resultText };
 
     } catch (error) {
-        console.error('askLeshiy fetch Error:', error);
-        return { type: 'error', text: error.message };
+        console.error('askLeshiy fetch Error:', error.message);
+        
+        if (error.message.includes('GEMINI_QUOTA')) {
+            return { type: 'error', text: '❌ Лимит запросов к Gemini исчерпан. Выберите другую модель или проверьте биллинг.' };
+        }
+        if (error.message.includes('Failed to fetch')) {
+            return { type: 'error', text: '❌ Ошибка сети при запросе к Cloudflare. Вероятно, проблема с CORS или API.' };
+        }
+        if (error.message.includes('API_ERROR')) {
+            const status = error.message.split(': ')[1];
+            return { type: 'error', text: `❌ API вернуло ошибку ${status}.` };
+        }
+        if (error.message.includes('PARSE_ERROR')) {
+            return { type: 'error', text: '❌ Не удалось разобрать ответ от API.' };
+        }
+
+        return { type: 'error', text: '❌ Неизвестная ошибка. Проверьте консоль.' };
     }
 };
