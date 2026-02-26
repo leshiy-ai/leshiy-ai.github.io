@@ -54,7 +54,7 @@ function App() {
 
     useEffect(() => {
         setMessages([{ role: 'ai', text: t.welcome }]);
-    }, [language]);
+    }, []); // Пустой массив зависимостей
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);

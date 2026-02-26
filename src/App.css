@@ -19,7 +19,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; position: fixed; width: 100%; height: 100%; }
-.app-container { display: flex; flex-direction: column; height: 100dvh; padding: 0 10px 10px; width: 100%; margin: 0 auto; max-width: 800px; }
+.app-container { display: flex; flex-direction: column; height: 100dvh; padding: 0 10px 10px; width: 100vw; margin: 0 auto; max-width: 800px; box-sizing: border-box; }
+.input-area { position: relative; padding-top: 10px; display: flex; gap: 10px; flex-wrap: nowrap; flex-shrink: 0; align-items: center; width: 100%; }
+.input-area input { flex: 1; background: var(--panel-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 10px; color: var(--text-color); outline: none; min-width: 0; height: 50px; width: 100%; }
+.input-area button { background: var(--accent-color); border: none; padding: 0 20px; border-radius: 10px; color: white; cursor: pointer; font-weight: bold; height: 50px; flex-shrink: 0; min-width: 100px; }
 .app-header { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); flex-shrink: 0; gap: 10px; height: 60px; }
 .logo { height: 35px; flex-shrink: 0; }
 .app-header h1 { font-size: 1.3em; margin: 0; line-height: 1.2; min-width: 0; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -32,9 +35,6 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .message.user { justify-content: flex-end; }
 .message .bubble { padding: 12px 18px; border-radius: 18px; max-width: 85%; line-height: 1.4; word-wrap: break-word; background: var(--bubble-bg); border: 1px solid var(--border-color); }
 .message.user .bubble { background: var(--accent-color); color: white; border-color: var(--accent-color); }
-.input-area { position: relative; padding-top: 10px; display: flex; gap: 10px; flex-wrap: nowrap; flex-shrink: 0; align-items: center; }
-.input-area input { flex: 1; background: var(--panel-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 10px; color: var(--text-color); outline: none; min-width: 0; height: 50px; }
-.input-area button { background: var(--accent-color); border: none; padding: 0 20px; border-radius: 10px; color: white; cursor: pointer; font-weight: bold; height: 50px; flex-shrink: 0; }
 .upload-btn { width: 100%; background: #3b82f6; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; margin-top: 10px; color: white; flex-shrink: 0; }
 .image-preview-container { position: relative; margin-bottom: 10px; }
 .image-preview { max-width: 100px; max-height: 100px; border-radius: 10px; }
