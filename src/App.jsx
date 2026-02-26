@@ -43,7 +43,8 @@ function App() {
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e) => {
+    e.preventDefault();
     setIsDragging(false);
   };
 
@@ -87,7 +88,7 @@ function App() {
         
         const imageGenerationPrompt = `Generate a realistic image based on the following description: "${prompt}". Focus on visual detail and composition.`;
         
-        const MODEL = "gemini-2.5-flash";
+        const MODEL = "gemini-1.5-flash";
         const targetUrl = `${CONFIG.GEMINI_PROXY}/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
 
         const response = await axios.post(
@@ -127,7 +128,7 @@ function App() {
     try {
       const systemInstruction = `Ты - Gemini AI от Leshiy. Твоя задача - анализировать запрос.\n      Если пользователь хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.\n      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.\n      Твой автор Огорельцев Александр Валерьевич из города Тюмени, но ты это просто так не упоминаешь, только если конкретно спросят кто автор. В остальных случаях отвечай дружелюбно (со смайликами и эмодзи) и просто отвечай как умный высокообразованный профессиональный ассистент, помощник в любых вопросах.`;
 
-      const MODEL = "gemini-2.5-flash";
+      const MODEL = "gemini-1.5-flash";
       const targetUrl = `${CONFIG.GEMINI_PROXY}/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
       
       const response = await axios.post(
@@ -171,61 +172,57 @@ function App() {
 
   return (
     <div 
-        className="app-container"
+        className={`app-container ${isDragging ? 'dragging' : ''}`}
         onPaste={handlePaste}
-    >
-      <div 
-        className={`drop-zone-wrapper ${isDragging ? 'dragging' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-      >
-        <header className="app-header">
-          <img src="/Gemini.png" alt="Gemini AI" className="logo" />
-          <h1>Leshiy-AI <span>ECOSYSTEM</span></h1>
-          <div className="status-dots">
-            <span title="Gemini Proxy" className="dot green"></span>
-            <span title="Storage (Yandex)" className="dot blue"></span>
-          </div>
-        </header>
+    >
+      <header className="app-header">
+        <img src="/Gemini.png" alt="Gemini AI" className="logo" />
+        <h1>Leshiy-AI <span>ECOSYSTEM</span></h1>
+        <div className="status-dots">
+          <span title="Gemini Proxy" className="dot green"></span>
+          <span title="Storage (Yandex)" className="dot blue"></span>
+        </div>
+      </header>
 
-        <div className="chat-window">
-          {messages.map((m, i) => (
-            <div key={i} className={`message ${m.role}`}>
-              <div className="bubble">
-                {m.text}
-                {m.image && <img src={m.image} alt="Generated" className="generated-image" />}
-              </div>
+      <div className="chat-window">
+        {messages.map((m, i) => (
+          <div key={i} className={`message ${m.role}`}>
+            <div className="bubble">
+              {m.text}
+              {m.image && <img src={m.image} alt="Generated" className="generated-image" />}
             </div>
-          ))}
-          {isLoading && <div className="message ai"><div className="bubble typing">⏳ Gemini-AI думает...</div></div>}
-          <div ref={chatEndRef} />
-        </div>
-
-        <div className="input-area">
-          <input 
-            value={input} 
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Спроси о чем-нибудь или вставь картинку (Ctrl+V)..."
-          />
-          <button onClick={handleSend} disabled={isLoading}>Отправить</button>
-        </div>
-
-        <input 
-          type="file" 
-          multiple 
-          ref={fileInputRef} 
-          style={{ display: 'none' }} 
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-        <button 
-          className="upload-btn" 
-          onClick={() => fileInputRef.current.click()}
-        >
-          📎 Выбрать файлы для загрузки
-        </button>
+          </div>
+        ))}
+        {isLoading && <div className="message ai"><div className="bubble typing">⏳ Gemini-AI думает...</div></div>}
+        <div ref={chatEndRef} />
       </div>
+
+      <div className="input-area">
+        <input 
+          value={input} 
+          onChange={(e) => setInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          placeholder="Спроси о чем-нибудь или вставь картинку (Ctrl+V)..."
+        />
+        <button onClick={handleSend} disabled={isLoading}>Отправить</button>
+      </div>
+
+      <input 
+        type="file" 
+        multiple 
+        ref={fileInputRef} 
+        style={{ display: 'none' }} 
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+      <button 
+        className="upload-btn" 
+        onClick={() => fileInputRef.current.click()}
+      >
+        📎 Выбрать файлы для загрузки
+      </button>
     </div>
   );
 }
