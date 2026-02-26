@@ -27,18 +27,24 @@ function App() {
 
     try {
       // 1. Системный промпт для "Диспетчера"
-      const systemInstruction = `Ты - Leshiy-AI. Твоя задача - анализировать запрос.
-      Если юзер хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.
-      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.
-      В остальных случаях просто отвечай как умный ассистент.`;
+      const systemInstruction = `Ты - Leshiy-AI. Твоя задача - анализировать запрос.\n      Если юзер хочет что-то сохранить, найти файлы или управлять облаком, отвечай строго в формате: [ACTION:STORAGE] текст_ответа.\n      Если юзер хочет создать фото, видео или аудио, отвечай: [ACTION:GENERATE] текст_ответа.\n      В остальных случаях просто отвечай как умный ассистент.`;
+
+      // 1. Константы для удобства (можно вынести в CONFIG)
+      const MODEL = "gemini-2.5-flash";
 
       // 2. Запрос к твоему Gemini-Proxy
+      const targetUrl = `${CONFIG.GEMINI_PROXY}/models/${MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+      
       const response = await axios.post(
-        `${CONFIG.GEMINI_PROXY}/models/gemini-1.5-flash:generateContent?key=${CONFIG.GEMINI_API_KEY}`, 
+        targetUrl,
         {
-          contents: [{ parts: [{ text: systemInstruction + "\n\nЗапрос пользователя: " + input }] }]
+          contents: [{
+            parts: [{ text: systemInstruction + "\n\nЗапрос: " + input }]
+          }]
         },
-        { headers: { "X-Proxy-Secret": CONFIG.PROXY_SECRET } }
+        {
+          headers: { "X-Proxy-Secret": CONFIG.PROXY_SECRET }
+        }
       );
 
       let aiResponseText = response.data.candidates[0].content.parts[0].text;
