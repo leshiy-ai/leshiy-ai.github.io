@@ -91,6 +91,7 @@ function App() {
     const appContainerRef = useRef(null);
     const startY = useRef(0);
     const isPulled = useRef(false);
+    const welcomeMessageIdRef = useRef(null);
 
     const translations = {
         ru: {
@@ -120,7 +121,9 @@ function App() {
     const t = translations[language];
 
     useEffect(() => {
-        setMessages([{ id: Date.now(), role: 'ai', text: translations[language].welcome }]);
+        const welcomeId = Date.now();
+        welcomeMessageIdRef.current = welcomeId;
+        setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
     }, []);
 
     useEffect(() => {
@@ -131,14 +134,13 @@ function App() {
     useEffect(() => {
         localStorage.setItem('language', language);
         const welcomeMessage = translations[language].welcome;
-        setMessages(prevMessages => {
-            if (prevMessages.length > 0 && prevMessages[0].role === 'ai') {
-                const newMessages = [...prevMessages];
-                newMessages[0].text = welcomeMessage;
-                return newMessages;
-            }
-            return [{ id: Date.now(), role: 'ai', text: welcomeMessage }];
-        });
+        setMessages(prevMessages => 
+            prevMessages.map(msg => 
+                msg.id === welcomeMessageIdRef.current 
+                    ? { ...msg, text: welcomeMessage } 
+                    : msg
+            )
+        );
     }, [language]);
 
     const scrollToBottom = () => {
@@ -240,6 +242,12 @@ function App() {
             e.preventDefault();
         }
     };
+
+    const softReload = () => {
+        setInput('');
+        setSelectedImage(null);
+        setIsLoading(false);
+    };
     
     const handleTouchStart = (e) => {
         if (chatWindowRef.current && chatWindowRef.current.scrollTop === 0) {
@@ -275,7 +283,11 @@ function App() {
                 appContainerRef.current.style.transform = 'translateY(60px)';
             }
             setTimeout(() => {
-                window.location.reload();
+                softReload();
+                if (appContainerRef.current) {
+                    appContainerRef.current.style.transform = 'translateY(0)';
+                }
+                setPtrState('idle');
             }, 500);
         } else {
             if (appContainerRef.current) {
@@ -289,7 +301,6 @@ function App() {
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
-    const uiReload = () => window.location.reload();
     const closeApp = () => window.close();
 
     return (
@@ -316,7 +327,7 @@ function App() {
                 <div className="header-actions">
                     <button className="action-btn" onClick={toggleLanguage}>{language === 'ru' ? '🇷🇺' : '🇺🇸'}</button>
                     <button className="action-btn" onClick={toggleTheme}>{theme === 'light' ? '☀️' : '🌙'}</button>
-                    <button className="action-btn" onClick={uiReload}>⟳</button>
+                    <button className="action-btn" onClick={softReload}>⟳</button>
                     <button className="action-btn close-btn" onClick={closeApp}>✕</button>
                 </div>
             </header>
