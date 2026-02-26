@@ -81,7 +81,7 @@ function App() {
     }
   };
 
-  const generateImage = async (prompt) => {
+  const generateImage = async (prompt, userPrompt) => {
     try {
         setMessages(prev => [...prev, { role: 'ai', text: `✨ [Генератор]: Отправляю запрос на создание изображения по описанию: "${prompt}"...` }]);
         
@@ -106,7 +106,7 @@ function App() {
             imageUrl = urlMatch[0];
             setMessages(prev => [...prev, { role: 'ai', text: `Вот что я сгенерировал:`, image: imageUrl }]);
         } else {
-            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=400&height=300`;
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt || prompt)}?width=800&height=600`;
             setMessages(prev => [...prev, { role: 'ai', text: `Попробую показать тебе:`, image: imageUrl }]);
         }
     } catch (err) {
@@ -157,7 +157,7 @@ function App() {
         setMessages(prev => [...prev, { role: 'ai', text: aiResponseText }]);
       } else if (aiResponseText.includes("[ACTION:GENERATE]")) {
         const generatePrompt = aiResponseText.replace("[ACTION:GENERATE]", "").trim();
-        await generateImage(generatePrompt);
+        await generateImage(generatePrompt, currentInput);
       } else {
         setMessages(prev => [...prev, { role: 'ai', text: aiResponseText }]);
       }
@@ -207,7 +207,6 @@ function App() {
             value={input} 
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            onPaste={handlePaste}
             placeholder="Спроси о чем-нибудь или вставь картинку (Ctrl+V)..."
           />
           <button onClick={handleSend} disabled={isLoading}>Отправить</button>
