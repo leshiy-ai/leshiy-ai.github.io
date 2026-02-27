@@ -65,33 +65,40 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             body = { model: config.MODEL, messages: messages };
             break;
 
-        case 'CLOUDFLARE':
-        case 'WORKERS_AI':
-            const accountId = CONFIG.CLOUDFLARE_ACCOUNT_ID;
-            const cfApiKey = CONFIG.CLOUDFLARE_API_TOKEN;
-            url = `${config.BASE_URL}${accountId}/ai/run/${config.MODEL}`;
-            headers = { 
-                'Authorization': `Bearer ${cfApiKey}`,
-                'Content-Type': 'application/json'
-            };
-
-            if (serviceType === 'AUDIO_TO_TEXT' || serviceType === 'VIDEO_TO_TEXT') {
-                if (!file) return { type: 'error', text: 'Файл не найден для транскрипции.' };
-                body = await file.arrayBuffer();
-                headers['Content-Type'] = file.type;
-                isRawBody = true;
-            } else if (serviceType === 'IMAGE_TO_TEXT') {
-                if (!imageBase64) return { type: 'error', text: 'Изображение не найдено.' };
-                const byteString = atob(imageBase64);
-                const byteArray = new Uint8Array(byteString.length);
-                for (let i = 0; i < byteString.length; i++) {
-                    byteArray[i] = byteString.charCodeAt(i);
+            case 'CLOUDFLARE':
+            case 'WORKERS_AI':
+                const accountId = CONFIG.CLOUDFLARE_ACCOUNT_ID;
+                const cfApiKey = CONFIG.CLOUDFLARE_API_TOKEN;
+                
+                // ПРОВЕРКА: Cloudflare требует четкий URL
+                url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${config.MODEL}`;
+                
+                headers = { 
+                    'Authorization': `Bearer ${cfApiKey}`,
+                    'Content-Type': 'application/json'
+                };
+            
+                if (serviceType === 'AUDIO_TO_TEXT' || serviceType === 'VIDEO_TO_TEXT') {
+                    if (!file) return { type: 'error', text: 'Файл не найден' };
+                    body = await file.arrayBuffer();
+                    headers['Content-Type'] = 'application/octet-stream'; // Для аудио/видео строго так
+                    isRawBody = true;
+                } else if (serviceType === 'IMAGE_TO_TEXT') {
+                    // Cloudflare Vision ждет объект с массивом байтов
+                    const byteString = atob(imageBase64);
+                    const byteArray = new Uint8Array(byteString.length);
+                    for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
+                    body = { image: Array.from(byteArray), prompt: text || "Что на картинке?" };
+                } else { 
+                    // ТЕКСТОВЫЙ ЧАТ: Cloudflare лучше всего понимает формат messages
+                    body = { 
+                        messages: [
+                            { role: 'system', content: 'Ты ассистент Leshiy-AI.' },
+                            { role: 'user', content: text }
+                        ] 
+                    };
                 }
-                body = { image: Array.from(byteArray), prompt: text };
-            } else { // TEXT_TO_TEXT
-                body = { prompt: text };
-            }
-            break;
+                break;
 
         default:
             return { type: 'error', text: `Сервис "${config.SERVICE}" не реализован.` };
@@ -119,10 +126,10 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
                 resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
             } else if (config.SERVICE === 'BOTHUB') {
                 resultText = data.choices?.[0]?.message?.content;
-            } else if (config.SERVICE === 'CLOUDFLARE') {
-                resultText = data.result?.response;
-            } else if (config.SERVICE === 'WORKERS_AI') {
-                resultText = data.text || data.result?.response;
+            } else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
+                // Если это текстовая модель (Llama и т.д.), ответ в .response
+                // Если это Whisper (аудио), ответ в .text
+                resultText = data.result?.response || data.result?.text || "Ошибка интерпретации ответа CF";
             }
             return { type: 'text', text: resultText };
         } else {
