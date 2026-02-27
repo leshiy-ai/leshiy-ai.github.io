@@ -32,8 +32,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             }
             url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${geminiApiKey}`;
             headers = { 
-                'Content-Type': 'application/json',
-                'X-Proxy-Secret': CONFIG.PROXY_SECRET 
+                'Content-Type': 'application/json'
             };
             const geminiParts = [{ text }];
             if (imageBase64) {
@@ -106,7 +105,18 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
     // 4. Выполняем fetch-запрос
     try {
-        const response = await fetch(url, {
+        const proxyUrl = CONFIG.PROXY_URL;
+        const proxySecret = CONFIG.PROXY_SECRET_KEY;
+
+        if (!proxyUrl || !proxySecret) {
+            return { type: 'error', text: 'PROXY_URL или PROXY_SECRET_KEY не настроены в config.js' };
+        }
+
+        const finalUrl = proxyUrl;
+        headers['X-Target-URL'] = url;
+        headers['X-Proxy-Secret'] = proxySecret;
+
+        const response = await fetch(finalUrl, {
             method: 'POST',
             headers: headers,
             body: isRawBody ? body : JSON.stringify(body),

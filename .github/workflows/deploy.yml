@@ -30,7 +30,7 @@ jobs:
         env:
           VITE_GEMINI_PROXY: ${{ secrets.VITE_GEMINI_PROXY }}
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-          VITE_PROXY_SECRET: ${{ secrets.VITE_PROXY_SECRET }}
+          VITE_PROXY_SECRET_KEY: ${{ secrets.VITE_PROXY_SECRET_KEY }}
           VITE_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.VITE_CLOUDFLARE_ACCOUNT_ID }}
           VITE_CLOUDFLARE_API_TOKEN: ${{ secrets.VITE_CLOUDFLARE_API_TOKEN }}
           VITE_BOTHUB_API_KEY: ${{ secrets.VITE_BOTHUB_API_KEY }}
