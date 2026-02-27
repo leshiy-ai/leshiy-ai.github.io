@@ -40,7 +40,15 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
                 for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
                 body = { image: Array.from(byteArray), prompt: text || "Describe this" };
             } else {
-                body = { messages: [{ role: 'system', content: 'You are Leshiy AI' }, { role: 'user', content: text }] };
+                body = {
+                    messages: [
+                        { role: 'system', content: 'Ты ассистент Leshiy-AI.' },
+                        { role: 'user', content: text }
+                    ],
+                    stream: false,
+                    max_tokens: 1000,
+                    temperature: 0.7
+                };
             }
             break;
 
