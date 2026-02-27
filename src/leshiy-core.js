@@ -8,7 +8,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     if (file) {
         if (file.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
         else if (file.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
-        else serviceType = 'IMAGE_TO_TEXT'; // Запасной вариант для других типов файлов
+        else serviceType = 'IMAGE_TO_TEXT';
     } else if (imageBase64) {
         serviceType = 'IMAGE_TO_TEXT';
     } else {
@@ -20,16 +20,15 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
         return { type: 'error', text: `Модель для ${serviceType} не настроена` };
     }
 
-    // 2. Готовим детали запроса - они будут зависеть от конкретного сервиса
     let url, body, headers;
-
-    const apiKey = CONFIG[config.API_KEY];
+    let isRawBody = false; // Флаг для тел запроса, которые не нужно превращать в JSON
 
     // 3. Собираем запрос в зависимости от сервиса
     switch (config.SERVICE) {
         case 'GEMINI':
-            // Запросы к Gemini проксируются, BASE_URL - это URL прокси.
-            url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${apiKey}`;
+            // ✅ ПРАВИЛЬНЫЙ ВЫЗОВ ПРОКСИ: Ключ API ДОЛЖЕН добавляться на стороне прокси-воркера.
+            // Клиент отправляет только секрет для аутентификации на самом прокси.
+            url = `${config.BASE_URL}/models/${config.MODEL}:generateContent`;
             headers = { 
                 'Content-Type': 'application/json',
                 'X-Proxy-Secret': CONFIG.PROXY_SECRET
@@ -42,11 +41,10 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             break;
 
         case 'BOTHUB':
-            // Bothub использует OpenAI-совместимые эндпоинты
             url = `${config.BASE_URL}/chat/completions`;
             headers = { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'Authorization': `Bearer ${CONFIG.BOTHUB_API_KEY}` // Вам нужно будет добавить VITE_BOTHUB_API_KEY в config.js
             };
             const messages = [{ role: 'user', content: text }];
             if (imageBase64) {
@@ -60,28 +58,37 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
         case 'CLOUDFLARE':
         case 'WORKERS_AI':
-            // ПРЯМОЙ вызов API Cloudflare. 
-            // ACCOUNT_ID должен быть внедрен в код на этапе сборки (build).
             const accountId = CONFIG.CLOUDFLARE_ACCOUNT_ID;
-            if (!accountId) {
-                // Эта ошибка теперь будет возникать только если переменная VITE_CLOUDFLARE_ACCOUNT_ID не была установлена при сборке.
+            const apiKey = CONFIG.CLOUDFLARE_API_TOKEN;
+            if (!accountId || !apiKey) {
+                // Эта ошибка продолжит появляться, пока проблема со сборкой не будет решена.
                 return { 
                     type: 'error', 
-                    text: '❌ Ошибка сборки: CLOUDFLARE_ACCOUNT_ID не был найден. Проверьте переменные окружения в GitHub Actions.' 
+                    text: '❌ Ошибка сборки: CLOUDFLARE_ACCOUNT_ID или API_TOKEN не найдены. Проверьте переменные окружения в GitHub Actions.' 
                 };
             }
             url = `${config.BASE_URL}${accountId}/ai/run/${config.MODEL}`;
-            headers = { 'Authorization': `Bearer ${apiKey}` };
-            // Тело запроса для Cloudflare зависит от модели. Это базовый пример для text-to-text.
-            // Для других типов (image-to-text и т.д.) потребуется более сложная логика.
-            if (imageBase64) {
-                 body = { image: Array.from(Buffer.from(imageBase64, 'base64')), prompt: text };
-            } else if (file) {
-                // Для работы с файлами напрямую, их нужно передавать как ArrayBuffer
-                const fileBuffer = await file.arrayBuffer();
-                body = Array.from(new Uint8Array(fileBuffer));
+            headers = { 
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json' // По умолчанию, может быть переопределено ниже
+            };
+
+            // Логика для разных типов моделей Cloudflare
+            if (serviceType === 'AUDIO_TO_TEXT' || serviceType === 'VIDEO_TO_TEXT') {
+                if (!file) return { type: 'error', text: 'Файл не найден для транскрипции.' };
+                body = await file.arrayBuffer(); // Тело - это сырые байты файла
                 headers['Content-Type'] = file.type;
-            } else {
+                isRawBody = true;
+            } else if (serviceType === 'IMAGE_TO_TEXT') {
+                if (!imageBase64) return { type: 'error', text: 'Изображение не найдено.' };
+                // ✅ ИСПРАВЛЕНО: Конвертация Base64 в массив байт без Node.js API (Buffer)
+                const byteString = atob(imageBase64);
+                const byteArray = new Uint8Array(byteString.length);
+                for (let i = 0; i < byteString.length; i++) {
+                    byteArray[i] = byteString.charCodeAt(i);
+                }
+                body = { image: Array.from(byteArray), prompt: text };
+            } else { // По умолчанию TEXT_TO_TEXT
                 body = { prompt: text };
             }
             break;
@@ -95,8 +102,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
         const response = await fetch(url, {
             method: 'POST',
             headers: headers,
-            // Тело для файловых запросов к CF не нужно оборачивать в JSON.stringify
-            body: (config.SERVICE === 'WORKERS_AI' && file) ? body : JSON.stringify(body),
+            body: isRawBody ? body : JSON.stringify(body), // Используем флаг для определения типа тела
         });
 
         if (!response.ok) {
@@ -105,7 +111,6 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             throw new Error(`Вызов API завершился с ошибкой, статус ${response.status}`);
         }
         
-        // Разбор ответа зависит от типа контента
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
             const data = await response.json();
@@ -115,17 +120,15 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             } else if (config.SERVICE === 'BOTHUB') {
                 resultText = data.choices?.[0]?.message?.content;
             } else if (config.SERVICE === 'CLOUDFLARE') {
-                // У Cloudflare разные форматы ответа, это для text-to-text
                 resultText = data.result?.response;
-            } else if (config.SERVICE === 'WORKERS_AI' && serviceType === 'AUDIO_TO_TEXT') {
-                resultText = data.text;
+            } else if (config.SERVICE === 'WORKERS_AI') {
+                resultText = data.text || data.result?.response;
             }
             return { type: 'text', text: resultText };
         } else {
-            // Для аудио-файлов и т.д.
             const blob = await response.blob();
             const blobUrl = URL.createObjectURL(blob);
-            return { type: 'audio', url: blobUrl }; // Возвращаем URL для проигрывания
+            return { type: 'audio', url: blobUrl };
         }
 
     } catch (error) {
