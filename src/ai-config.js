@@ -48,15 +48,9 @@ export const AI_MODELS = {
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
-    TEXT_TO_TEXT_LLAMA: { 
-        SERVICE: 'CLOUDFLARE', 
-        MODEL: '@cf/google/gemma-2b-it-lora',
-        API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
-    },
     // ✅ [Аудио в Текст]
-    AUDIO_TO_TEXT_WORKERS_AI: { 
-        SERVICE: 'WORKERS_AI', 
+    AUDIO_TO_TEXT_CLOUDFLARE: { 
+        SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/openai/whisper', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
@@ -69,42 +63,43 @@ export const AI_MODELS = {
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
     // ✅ [Текст в Голос]
-    TEXT_TO_AUDIO_WORKERS_AI: { 
-        SERVICE: 'WORKERS_AI', 
+    TEXT_TO_AUDIO_CLOUDFLARE: { 
+        SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/deepgram/aura-1', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
     // ✅ [Изображение в Текст (Видение)]
-    IMAGE_TO_TEXT_WORKERS_AI: { 
-        SERVICE: 'WORKERS_AI', 
+    IMAGE_TO_TEXT_CLOUDFLARE: { 
+        SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/unum/uform-gen2-qwen-500m', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
     // ✅ [Текст в Изображение]
-    TEXT_TO_IMAGE_WORKERS_AI: { 
-        SERVICE: 'WORKERS_AI', 
+    TEXT_TO_IMAGE_CLOUDFLARE: { 
+        SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/stabilityai/stable-diffusion-xl-base-1.0', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
     // ✅ [Изображение в Изображение]
-    IMAGE_TO_IMAGE_WORKERS_AI: { 
-        SERVICE: 'WORKERS_AI', 
+    IMAGE_TO_IMAGE_CLOUDFLARE: { 
+        SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/runwayml/stable-diffusion-v1-5-img2img', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
     // ✅ [Видео в Текст]
-    VIDEO_TO_TEXT_WORKERS_AI: { 
-        SERVICE: 'WORKERS_AI', 
+    VIDEO_TO_TEXT_CLOUDFLARE: { 
+        SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/openai/whisper', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
 
     // --- Модели Bothub (OpenAI-совместимые) ---
+    
     TEXT_TO_TEXT_BOTHUB: { 
         SERVICE: 'BOTHUB',       
         MODEL: 'gemini-2.5-flash',       

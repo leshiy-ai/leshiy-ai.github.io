@@ -26,30 +26,34 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     // 3. Собираем запрос в зависимости от сервиса
     switch (config.SERVICE) {
         case 'GEMINI':
-            // Ключ API ДОЛЖЕН передаваться в URL, так как прокси просто перенаправляет запрос.
-            const apiKey = CONFIG[config.API_KEY]; // This gets VITE_GEMINI_API_KEY
-            if (!apiKey) {
-                 return { type: 'error', text: 'Ключ GEMINI_API_KEY не найден. Проверьте конфигурацию.' };
+            const geminiApiKey = CONFIG[config.API_KEY];
+            if (!geminiApiKey) {
+                 return { type: 'error', text: `Ключ ${config.API_KEY} не найден. Проверьте конфигурацию.` };
             }
-            url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${apiKey}`;
+            url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${geminiApiKey}`;
             headers = { 
                 'Content-Type': 'application/json',
-                // Секрет нужен для аутентификации на самом прокси
                 'X-Proxy-Secret': CONFIG.PROXY_SECRET 
             };
             const geminiParts = [{ text }];
             if (imageBase64) {
                 geminiParts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
             }
-            body = { contents: [{ parts: geminiParts }] };
+            body = {
+                contents: [{ parts: geminiParts }],
+                systemInstruction: { parts: [{ text: 'Ты — многофункциональный AI-ассистент "Gemini AI" от Leshiy, отвечающий на русском языке.' }] } 
+            };
             break;
 
         case 'BOTHUB':
-            // This part seems correct based on OpenAI standard
+            const bothubApiKey = CONFIG[config.API_KEY];
+            if (!bothubApiKey) {
+                return { type: 'error', text: `Ключ ${config.API_KEY} не найден. Проверьте конфигурацию.` };
+            }
             url = `${config.BASE_URL}/chat/completions`;
             headers = { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${CONFIG.BOTHUB_API_KEY}` // You would need to add VITE_BOTHUB_API_KEY
+                'Authorization': `Bearer ${bothubApiKey}`
             };
             const messages = [{ role: 'user', content: text }];
             if (imageBase64) {
@@ -65,12 +69,6 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
         case 'WORKERS_AI':
             const accountId = CONFIG.CLOUDFLARE_ACCOUNT_ID;
             const cfApiKey = CONFIG.CLOUDFLARE_API_TOKEN;
-            if (!accountId || !cfApiKey) {
-                return { 
-                    type: 'error', 
-                    text: '❌ Ошибка сборки: CLOUDFLARE_ACCOUNT_ID или API_TOKEN не найдены. Проверьте переменные окружения в GitHub Actions.' 
-                };
-            }
             url = `${config.BASE_URL}${accountId}/ai/run/${config.MODEL}`;
             headers = { 
                 'Authorization': `Bearer ${cfApiKey}`,
