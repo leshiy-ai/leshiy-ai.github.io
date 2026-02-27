@@ -6,37 +6,37 @@ export const AI_MODELS = {
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash',
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
+        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
     AUDIO_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash', 
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
+        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
     VIDEO_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash', 
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
+        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
     TEXT_TO_AUDIO_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash-preview-tts', 
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
+        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
     IMAGE_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash',
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
+        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
     VIDEO_TO_ANALYSIS_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash', 
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
+        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
 
     // --- Модели Cloudflare ---
@@ -226,8 +226,7 @@ export const AI_MODEL_MENU_CONFIG = generateModelMenuConfig(AI_MODELS);
 /**
  * Получает ключ для текущей активной модели для заданного типа сервиса.
  * Сначала проверяет localStorage, а затем возвращает первую доступную модель в качестве запасного варианта.
- * @param {string} serviceType - Тип сервиса (например, 'TEXT_TO_TEXT').
- * @returns {string|null} Ключ активной модели или null.
+ * @param {string} serviceType - Тип сервиса (например, 'TEXT_TO_TEXT').n * @returns {string|null} Ключ активной модели или null.
  */
 export function getActiveModelKey(serviceType) {
     const serviceConfig = SERVICE_TYPE_MAP[serviceType];
@@ -245,8 +244,7 @@ export function getActiveModelKey(serviceType) {
 
 /**
  * Загружает полный объект конфигурации для активной модели указанного типа сервиса.
- * @param {string} serviceType - Тип сервиса (например, 'TEXT_TO_TEXT').
- * @returns {object|null} Полный объект конфигурации модели или null.
+ * @param {string} serviceType - Тип сервиса (например, 'TEXT_TO_TEXT').n * @returns {object|null} Полный объект конфигурации модели или null.
  */
 export function loadActiveModelConfig(serviceType) {
     const modelKey = getActiveModelKey(serviceType);
