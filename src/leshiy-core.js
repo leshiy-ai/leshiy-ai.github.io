@@ -1,155 +1,90 @@
 import { CONFIG } from './config';
 import { loadActiveModelConfig } from './ai-config';
 
-// --- Основная функция-диспетчер для всех AI-запросов ---
 export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
-    // 1. Определяем основной тип сервиса по входным данным
-    let serviceType;
+    // 1. Определяем тип контента
+    let serviceType = 'TEXT_TO_TEXT';
     if (file) {
-        if (file.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
-        else if (file.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
-        else serviceType = 'IMAGE_TO_TEXT';
+        serviceType = file.type.startsWith('audio/') ? 'AUDIO_TO_TEXT' : 
+                      file.type.startsWith('video/') ? 'VIDEO_TO_TEXT' : 'IMAGE_TO_TEXT';
     } else if (imageBase64) {
         serviceType = 'IMAGE_TO_TEXT';
-    } else {
-        serviceType = 'TEXT_TO_TEXT';
     }
 
     const config = loadActiveModelConfig(serviceType);
-    if (!config) {
-        return { type: 'error', text: `Модель для ${serviceType} не настроена` };
-    }
+    if (!config) return { type: 'error', text: `Модель для ${serviceType} не настроена` };
 
-    let url, body, headers;
-    let isRawBody = false; // Флаг для тел запроса, которые не нужно превращать в JSON
+    let url, body, authHeader;
+    let isRawBody = false;
 
-    // 3. Собираем запрос в зависимости от сервиса
+    // 2. Формируем данные под конкретный сервис
     switch (config.SERVICE) {
         case 'GEMINI':
-            const geminiApiKey = CONFIG[config.API_KEY];
-            if (!geminiApiKey) {
-                 return { type: 'error', text: `Ключ ${config.API_KEY} не найден. Проверьте конфигурацию.` };
+            url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
+            const parts = [{ text: text || "Опиши это" }];
+            if (imageBase64) parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
+            body = { contents: [{ parts }], systemInstruction: { parts: [{ text: 'Ты — Leshiy AI.' }] } };
+            break;
+
+        case 'CLOUDFLARE':
+        case 'WORKERS_AI':
+            url = `https://api.cloudflare.com/client/v4/accounts/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
+            authHeader = `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}`;
+            
+            if (serviceType.includes('AUDIO')) {
+                body = await file.arrayBuffer();
+                isRawBody = true;
+            } else if (imageBase64) {
+                const byteString = atob(imageBase64);
+                const byteArray = new Uint8Array(byteString.length);
+                for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
+                body = { image: Array.from(byteArray), prompt: text || "Describe this" };
+            } else {
+                body = { messages: [{ role: 'system', content: 'You are Leshiy AI' }, { role: 'user', content: text }] };
             }
-            url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${geminiApiKey}`;
-            headers = { 
-                'Content-Type': 'application/json'
-            };
-            const geminiParts = [{ text }];
-            if (imageBase64) {
-                geminiParts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
-            }
-            body = {
-                contents: [{ parts: geminiParts }],
-                systemInstruction: { parts: [{ text: 'Ты — многофункциональный AI-ассистент "Gemini AI" от Leshiy, отвечающий на русском языке.' }] } 
-            };
             break;
 
         case 'BOTHUB':
-            const bothubApiKey = CONFIG[config.API_KEY];
-            if (!bothubApiKey) {
-                return { type: 'error', text: `Ключ ${config.API_KEY} не найден. Проверьте конфигурацию.` };
-            }
             url = `${config.BASE_URL}/chat/completions`;
-            headers = { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${bothubApiKey}`
-            };
-            const messages = [{ role: 'user', content: text }];
-            if (imageBase64) {
-                messages[0].content = [
-                    { type: 'text', text },
-                    { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
-                ];
-            }
-            body = { model: config.MODEL, messages: messages };
+            authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+            const msgs = [{ role: 'user', content: text }];
+            if (imageBase64) msgs[0].content = [{ type: 'text', text }, { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }];
+            body = { model: config.MODEL, messages: msgs };
             break;
-
-            case 'CLOUDFLARE':
-            case 'WORKERS_AI':
-                const accountId = CONFIG.CLOUDFLARE_ACCOUNT_ID;
-                const cfApiKey = CONFIG.CLOUDFLARE_API_TOKEN;
-                
-                // ПРОВЕРКА: Cloudflare требует четкий URL
-                url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${config.MODEL}`;
-                
-                headers = { 
-                    'Authorization': `Bearer ${cfApiKey}`,
-                    'Content-Type': 'application/json'
-                };
-            
-                if (serviceType === 'AUDIO_TO_TEXT' || serviceType === 'VIDEO_TO_TEXT') {
-                    if (!file) return { type: 'error', text: 'Файл не найден' };
-                    body = await file.arrayBuffer();
-                    headers['Content-Type'] = 'application/octet-stream'; // Для аудио/видео строго так
-                    isRawBody = true;
-                } else if (serviceType === 'IMAGE_TO_TEXT') {
-                    // Cloudflare Vision ждет объект с массивом байтов
-                    const byteString = atob(imageBase64);
-                    const byteArray = new Uint8Array(byteString.length);
-                    for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
-                    body = { image: Array.from(byteArray), prompt: text || "Что на картинке?" };
-                } else { 
-                    // ТЕКСТОВЫЙ ЧАТ: Cloudflare лучше всего понимает формат messages
-                    body = { 
-                        messages: [
-                            { role: 'system', content: 'Ты ассистент Leshiy-AI.' },
-                            { role: 'user', content: text }
-                        ] 
-                    };
-                }
-                break;
-
-        default:
-            return { type: 'error', text: `Сервис "${config.SERVICE}" не реализован.` };
     }
 
-    // 4. Выполняем fetch-запрос
+    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ (Критически важная часть)
     try {
-        const proxyUrl = CONFIG.PROXY_URL;
-        const proxySecret = CONFIG.PROXY_SECRET_KEY;
+        const proxyHeaders = {
+            'X-Target-URL': url,
+            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+            'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
+        };
 
-        if (!proxyUrl || !proxySecret) {
-            return { type: 'error', text: 'PROXY_URL или PROXY_SECRET_KEY не настроены в config.js' };
-        }
+        if (authHeader) proxyHeaders['Authorization'] = authHeader;
 
-        const finalUrl = proxyUrl;
-        headers['X-Target-URL'] = url;
-        headers['X-Proxy-Secret'] = proxySecret;
-
-        const response = await fetch(finalUrl, {
+        const response = await fetch(CONFIG.PROXY_URL, {
             method: 'POST',
-            headers: headers,
+            headers: proxyHeaders,
             body: isRawBody ? body : JSON.stringify(body),
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Ошибка API:', `URL: ${url}`, `Статус: ${response.status}`, `Ответ: ${errorText}`);
-            throw new Error(`Вызов API завершился с ошибкой, статус ${response.status}`);
-        }
-        
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            const data = await response.json();
-            let resultText = 'Не удалось разобрать JSON ответ.';
-            if (config.SERVICE === 'GEMINI') {
-                resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            } else if (config.SERVICE === 'BOTHUB') {
-                resultText = data.choices?.[0]?.message?.content;
-            } else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
-                // Если это текстовая модель (Llama и т.д.), ответ в .response
-                // Если это Whisper (аудио), ответ в .text
-                resultText = data.result?.response || data.result?.text || "Ошибка интерпретации ответа CF";
-            }
-            return { type: 'text', text: resultText };
-        } else {
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            return { type: 'audio', url: blobUrl };
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.errors?.[0]?.message || `Ошибка API ${response.status}`);
         }
 
+        const data = await response.json();
+        
+        // 4. Парсинг ответа
+        let resultText = '';
+        if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
+        else resultText = data.result?.response || data.result?.text || "Нет ответа";
+
+        return { type: 'text', text: resultText };
+
     } catch (error) {
-        console.error('Ошибка fetch в askLeshiy:', error.message);
-        return { type: 'error', text: `❌ Критическая ошибка: ${error.message}. Проверьте консоль.` };
+        return { type: 'error', text: `❌ ${error.message}` };
     }
 };
