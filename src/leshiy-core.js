@@ -4,8 +4,6 @@ import { loadActiveModelConfig } from './ai-config';
 const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент "Gemini AI" от Leshiy, отвечающий на русском языке.
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 
-СТРОГОЕ ПРАВИЛО: НИКОГДА НЕ УПОМИНАЙ LLaMA, Meta AI или Austin.
-
 Твои ключевые функции:
 - Распознавание и анализ изображений, аудио и видео.
 - Ответы на текстовые запросы в режиме чата.
@@ -40,8 +38,10 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
         case 'CLOUDFLARE':
         case 'WORKERS_AI':
-            url = `${config.BASE_URL}${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
-            
+            // https://api.cloudflare.com/client/v4/accounts/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}
+            url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
+            authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+
             if (serviceType.includes('AUDIO')) {
                 body = await file.arrayBuffer();
                 isRawBody = true;
