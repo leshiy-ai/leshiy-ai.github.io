@@ -1,6 +1,9 @@
 import { CONFIG } from './config';
 import { loadActiveModelConfig } from './ai-config';
 
+// Универсальная системная инструкция для всех чат-моделей
+const SYSTEM_PROMPT = "Ты — дружелюбный и вежливый ИИ-ассистент Gemini-AI от Leshiy. Всегда отвечай развёрнуто, дружелюбно и используй смайлики. 😊";
+
 export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     // 1. Определяем тип контента
     let serviceType = 'TEXT_TO_TEXT';
@@ -23,7 +26,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
             const parts = [{ text: text || "Опиши это" }];
             if (imageBase64) parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
-            body = { contents: [{ parts }], systemInstruction: { parts: [{ text: 'Ты — Leshiy AI.' }] } };
+            body = { contents: [{ parts }], systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] } };
             break;
 
         case 'CLOUDFLARE':
@@ -42,12 +45,9 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             } else {
                 body = {
                     messages: [
-                        { role: 'system', content: 'Ты ассистент Leshiy-AI.' },
+                        { role: 'system', content: SYSTEM_PROMPT },
                         { role: 'user', content: text }
-                    ],
-                    stream: false,
-                    max_tokens: 1000,
-                    temperature: 0.7
+                    ]
                 };
             }
             break;
@@ -55,8 +55,13 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
         case 'BOTHUB':
             url = `${config.BASE_URL}/chat/completions`;
             authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-            const msgs = [{ role: 'user', content: text }];
-            if (imageBase64) msgs[0].content = [{ type: 'text', text }, { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }];
+            const userContent = imageBase64
+                ? [{ type: 'text', text: text || "Опиши это" }, { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }]
+                : text;
+            const msgs = [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: userContent }
+            ];
             body = { model: config.MODEL, messages: msgs };
             break;
     }
@@ -69,7 +74,11 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
         };
 
-        if (authHeader) proxyHeaders['Authorization'] = authHeader;
+        // Если есть заголовок авторизации, пакуем его в X-Proxy-Authorization,
+        // как того требует универсальный прокси-воркер.
+        if (authHeader) {
+            proxyHeaders['X-Proxy-Authorization'] = authHeader;
+        }
 
         const response = await fetch(CONFIG.PROXY_URL, {
             method: 'POST',
@@ -79,16 +88,24 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.errors?.[0]?.message || `Ошибка API ${response.status}`);
+            const cfError = errData.errors?.[0]?.message;
+            const genericError = errData.message || `Ошибка API ${response.status}`;
+            throw new Error(cfError || genericError);
         }
 
         const data = await response.json();
         
         // 4. Парсинг ответа
         let resultText = '';
-        if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
-        else resultText = data.result?.response || data.result?.text || "Нет ответа";
+        if (config.SERVICE === 'GEMINI') {
+            resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        } else if (config.SERVICE === 'BOTHUB') {
+            resultText = data.choices?.[0]?.message?.content;
+        } else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
+            resultText = data.result?.response || data.result?.text || "Нет ответа от Cloudflare";
+        } else {
+            resultText = "Не удалось разобрать ответ";
+        }
 
         return { type: 'text', text: resultText };
 
