@@ -27,12 +27,16 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
         }
 
         body = {
-            contents: [{ role: 'user', parts: userParts }],
-            system_instruction: { role: 'system', parts: [{ text: 'Ты — Gemini AI от Leshiy, дружелюбный и полезный ассистент.' }] }
+            contents: [
+                { role: 'user', parts: userParts }
+            ],
+            system_instruction: {
+                parts: [{ text: 'Ты — Gemini AI от Leshiy, дружелюбный и полезный ассистент.' }]
+            }
         };
 
     } else if (config.SERVICE === 'CLOUDFLARE') {
-        url = `${config.BASE_URL}${config.MODEL}`;
+        url = `${config.BASE_URL}/run/${config.MODEL}`;
         headers = { 'Authorization': `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}` };
 
         if (serviceType === 'IMAGE_TO_TEXT') {
@@ -62,8 +66,9 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
         });
 
         if (!response.ok) {
-            if (response.status === 429 && config.SERVICE === 'GEMINI') {
-                throw new Error('GEMINI_QUOTA');
+            if (response.status === 429) {
+                if (config.SERVICE === 'GEMINI') throw new Error('GEMINI_QUOTA');
+                if (config.SERVICE === 'CLOUDFLARE') throw new Error('CLOUDFLARE_QUOTA');
             }
             const errorText = await response.text();
             console.error('API Error Response:', errorText);
@@ -97,8 +102,11 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
         if (error.message.includes('GEMINI_QUOTA')) {
             return { type: 'error', text: '❌ Лимит запросов к Gemini исчерпан. Выберите другую модель или проверьте биллинг.' };
         }
+        if (error.message.includes('CLOUDFLARE_QUOTA')) {
+            return { type: 'error', text: '❌ Лимит запросов к Cloudflare исчерпан. Проверьте ваш тарифный план.' };
+        }
         if (error.message.includes('Failed to fetch')) {
-            return { type: 'error', text: '❌ Ошибка сети при запросе к Cloudflare. Вероятно, проблема с CORS или API.' };
+            return { type: 'error', text: `❌ Ошибка сети при запросе к ${config.SERVICE}. Вероятно, проблема с CORS или API.` };
         }
         if (error.message.includes('API_ERROR')) {
             const status = error.message.split(': ')[1];
