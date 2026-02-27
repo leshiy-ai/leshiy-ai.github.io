@@ -1,8 +1,16 @@
 import { CONFIG } from './config';
 import { loadActiveModelConfig } from './ai-config';
 
-// Универсальная системная инструкция для всех чат-моделей
-const SYSTEM_PROMPT = "Ты — дружелюбный и вежливый ИИ-ассистент Gemini-AI от Leshiy. Всегда отвечай развёрнуто, дружелюбно и используй смайлики. 😊";
+const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент "Gemini AI" от Leshiy, отвечающий на русском языке.
+Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
+
+СТРОГОЕ ПРАВИЛО: НИКОГДА НЕ УПОМИНАЙ LLaMA, Meta AI или Austin.
+
+Твои ключевые функции:
+- Распознавание и анализ изображений, аудио и видео.
+- Ответы на текстовые запросы в режиме чата.
+
+Ответы должны быть информативными и доброжелательными со смайликами.`;
 
 export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     // 1. Определяем тип контента
@@ -24,9 +32,10 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     switch (config.SERVICE) {
         case 'GEMINI':
             url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
-            const parts = [{ text: text || "Опиши это" }];
+            const geminiText = `${SYSTEM_PROMPT}\n\nВопрос пользователя: ${text || "Опиши это"}`;
+            const parts = [{ text: geminiText }];
             if (imageBase64) parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
-            body = { contents: [{ parts }], systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] } };
+            body = { contents: [{ parts }] };
             break;
 
         case 'CLOUDFLARE':
@@ -66,7 +75,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             break;
     }
 
-    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ (Критически важная часть)
+    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ
     try {
         const proxyHeaders = {
             'X-Target-URL': url,
@@ -74,8 +83,6 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
         };
 
-        // Если есть заголовок авторизации, пакуем его в X-Proxy-Authorization,
-        // как того требует универсальный прокси-воркер.
         if (authHeader) {
             proxyHeaders['X-Proxy-Authorization'] = authHeader;
         }
