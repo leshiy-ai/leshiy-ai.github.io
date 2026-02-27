@@ -14,6 +14,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
     let url, body, headers;
 
     if (config.SERVICE === 'GEMINI') {
+        // For Gemini, use the proxy and API key as before.
         url = `${CONFIG.GEMINI_PROXY}/models/${config.MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
         headers = { 
             'Content-Type': 'application/json',
@@ -36,7 +37,9 @@ export const askLeshiy = async ({ text, imageBase64, mimeType }) => {
         };
 
     } else if (config.SERVICE === 'CLOUDFLARE') {
-        url = `${config.BASE_URL}/run/${config.MODEL}`;
+        // *** THE FIX IS HERE ***
+        // Construct the full Cloudflare URL dynamically, ensuring CLOUDFLARE_ACCOUNT_ID is available.
+        url = `${config.BASE_URL}${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
         headers = { 'Authorization': `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}` };
 
         if (serviceType === 'IMAGE_TO_TEXT') {
