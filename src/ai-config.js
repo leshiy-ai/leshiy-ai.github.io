@@ -1,6 +1,5 @@
 
 // This file is adapted from the user's working configuration in gemini-bot and leshiy-storage-bot.
-// The user has explicitly requested to use gemini-1.5-flash.
 
 const CLOUDFLARE_ACCOUNT_ID = import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID;
 
@@ -8,13 +7,13 @@ export const AI_MODELS = {
     // --- Gemini Models ---
     TEXT_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
-        MODEL: 'gemini-1.5-flash',
+        MODEL: 'gemini-2.5-flash',
         API_KEY: 'GEMINI_API_KEY', 
         BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
     IMAGE_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
-        MODEL: 'gemini-1.5-flash',
+        MODEL: 'gemini-2.5-flash',
         API_KEY: 'GEMINI_API_KEY', 
         BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
     },
