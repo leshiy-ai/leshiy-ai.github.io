@@ -1,7 +1,7 @@
 import { CONFIG } from './config';
 import { loadActiveModelConfig } from './ai-config';
 
-const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент "Gemini AI" от Leshiy, отвечающий на русском языке.
+const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент \"Gemini AI\" от Leshiy, отвечающий на русском языке.
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 
 Твои ключевые функции:
@@ -55,7 +55,8 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
                     messages: [
                         { role: 'system', content: SYSTEM_PROMPT },
                         { role: 'user', content: text }
-                    ]
+                    ],
+                    stream: false
                 };
             }
             break;
@@ -74,23 +75,39 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             break;
     }
 
-    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ
+    // 3. ОТПРАВКА ЗАПРОСА
     try {
-        const proxyHeaders = {
-            'X-Target-URL': url,
-            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-            'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
-        };
+        let response;
 
-        if (authHeader) {
-            proxyHeaders['X-Proxy-Authorization'] = authHeader;
+        // ЕСЛИ ЭТО CLOUDFLARE - ИДЁМ НАПРЯМУЮ
+        if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
+            const directHeaders = {
+                'Authorization': authHeader,
+                'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
+            };
+            response = await fetch(url, {
+                method: 'POST',
+                headers: directHeaders,
+                body: isRawBody ? body : JSON.stringify(body),
+            });
+        } else {
+            // ДЛЯ ВСЕХ ОСТАЛЬНЫХ - ИСПОЛЬЗУЕМ ПРОКСИ
+            const proxyHeaders = {
+                'X-Target-URL': url,
+                'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+                'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
+            };
+
+            if (authHeader) {
+                proxyHeaders['X-Proxy-Authorization'] = authHeader;
+            }
+
+            response = await fetch(CONFIG.PROXY_URL, {
+                method: 'POST',
+                headers: proxyHeaders,
+                body: isRawBody ? body : JSON.stringify(body),
+            });
         }
-
-        const response = await fetch(CONFIG.PROXY_URL, {
-            method: 'POST',
-            headers: proxyHeaders,
-            body: isRawBody ? body : JSON.stringify(body),
-        });
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
