@@ -1,5 +1,6 @@
+import { CONFIG } from './config.js';
 
-// This file is adapted from the user's working configuration in gemini-bot and leshiy-storage-bot.
+const CLOUDFLARE_ACCOUNT_ID = CONFIG.CLOUDFLARE_ACCOUNT_ID;
 
 export const AI_MODELS = {
     // --- Gemini Models ---
@@ -21,19 +22,19 @@ export const AI_MODELS = {
         SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/qwen/qwen1.5-14b-chat-awq',
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
+        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai`
     },
     TEXT_TO_TEXT_LLAMA: { 
         SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/meta/llama-3-8b-instruct',
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
+        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai`
     },
     IMAGE_TO_TEXT_CLOUDFLARE: { 
         SERVICE: 'CLOUDFLARE',
         MODEL: '@cf/unum/uform-gen2-qwen-500m', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
+        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai`
     },
 };
 
