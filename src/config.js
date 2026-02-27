@@ -12,7 +12,8 @@ export const CONFIG = {
     GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY,
     CLOUDFLARE_API_TOKEN: import.meta.env.VITE_CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ACCOUNT_ID: import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID,
-    
+    BOTHUB_API_KEY: import.meta.env.VITE_BOTHUB_API_KEY,
+        
     // Твоя Хранилка (Яндекс)
     STORAGE_GATEWAY: "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net",
     // Твой медиа-бот (Cloudflare)
