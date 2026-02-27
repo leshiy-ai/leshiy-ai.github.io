@@ -39,7 +39,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
         case 'CLOUDFLARE':
         case 'WORKERS_AI':
             url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
-            authHeader = `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}`;
+            authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
 
             if (serviceType.includes('AUDIO')) {
                 body = await file.arrayBuffer();
@@ -55,7 +55,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
                         { role: 'system', content: SYSTEM_PROMPT },
                         { role: 'user', content: text }
                     ],
-                    stream: false // Добавлено по вашей правке
+                    stream: false
                 };
             }
             break;
@@ -74,7 +74,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             break;
     }
 
-    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ (ЕДИНСТВЕННЫЙ СПОСОБ)
+    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ (реализация вашей гениальной гипотезы)
     try {
         const proxyHeaders = {
             'X-Target-URL': url,
@@ -83,7 +83,14 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
         };
 
         if (authHeader) {
-            proxyHeaders['X-Proxy-Authorization'] = authHeader;
+            // Если это Cloudflare, передаем авторизацию напрямую.
+            // Прокси должен быть настроен так, чтобы пересылать этот заголовок.
+            if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
+                proxyHeaders['Authorization'] = authHeader;
+            } else {
+                // Для остальных сервисов используем старый метод.
+                proxyHeaders['X-Proxy-Authorization'] = authHeader;
+            }
         }
 
         const response = await fetch(CONFIG.PROXY_URL, {
