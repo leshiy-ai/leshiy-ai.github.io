@@ -74,7 +74,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             break;
     }
 
-    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ (реализация вашей гениальной гипотезы)
+    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ
     try {
         const proxyHeaders = {
             'X-Target-URL': url,
@@ -83,14 +83,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
         };
 
         if (authHeader) {
-            // Если это Cloudflare, передаем авторизацию напрямую.
-            // Прокси должен быть настроен так, чтобы пересылать этот заголовок.
-            if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
-                proxyHeaders['Authorization'] = authHeader;
-            } else {
-                // Для остальных сервисов используем старый метод.
-                proxyHeaders['X-Proxy-Authorization'] = authHeader;
-            }
+            proxyHeaders['X-Proxy-Authorization'] = authHeader;
         }
 
         const response = await fetch(CONFIG.PROXY_URL, {
