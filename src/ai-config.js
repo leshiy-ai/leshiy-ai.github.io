@@ -1,21 +1,19 @@
 
 // This file is adapted from the user's working configuration in gemini-bot and leshiy-storage-bot.
 
-const CLOUDFLARE_ACCOUNT_ID = import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID;
-
 export const AI_MODELS = {
     // --- Gemini Models ---
     TEXT_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash',
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
+        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
     },
     IMAGE_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash',
         API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
+        BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
     },
 
     // --- Cloudflare Models ---
@@ -23,19 +21,19 @@ export const AI_MODELS = {
         SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/qwen/qwen1.5-14b-chat-awq',
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai`
+        BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
     TEXT_TO_TEXT_LLAMA: { 
         SERVICE: 'CLOUDFLARE', 
         MODEL: '@cf/meta/llama-3-8b-instruct',
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai`
+        BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
     IMAGE_TO_TEXT_CLOUDFLARE: { 
         SERVICE: 'CLOUDFLARE',
         MODEL: '@cf/unum/uform-gen2-qwen-500m', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
-        BASE_URL: `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai`
+        BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
 };
 
