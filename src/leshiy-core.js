@@ -40,8 +40,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
         case 'CLOUDFLARE':
         case 'WORKERS_AI':
-            url = `https://api.cloudflare.com/client/v4/accounts/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
-            authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+            url = `${config.BASE_URL}${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
             
             if (serviceType.includes('AUDIO')) {
                 body = await file.arrayBuffer();
