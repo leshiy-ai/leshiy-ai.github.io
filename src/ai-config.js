@@ -1,7 +1,7 @@
-// This file is adapted from the user's working configuration in gemini-bot and leshiy-storage-bot.
+// Этот файл адаптирован из рабочей конфигурации пользователя в gemini-bot и leshiy-storage-bot.
 
 export const AI_MODELS = {
-    // --- Gemini Models ---
+    // --- Модели Gemini ---
     TEXT_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash',
@@ -39,7 +39,7 @@ export const AI_MODELS = {
         BASE_URL: 'https://gemini-proxy.leshiyalex.workers.dev/v1beta'
     },
 
-    // --- Cloudflare Models ---
+    // --- Модели Cloudflare ---
 
     // ✅ [Текст в Текст]
     TEXT_TO_TEXT_CLOUDFLARE: { 
@@ -68,7 +68,7 @@ export const AI_MODELS = {
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
-    // ✅ [Текст в Голос] - убогий перевод
+    // ✅ [Текст в Голос]
     TEXT_TO_AUDIO_WORKERS_AI: { 
         SERVICE: 'WORKERS_AI', 
         MODEL: '@cf/deepgram/aura-1', 
@@ -82,14 +82,14 @@ export const AI_MODELS = {
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
-    // ✅ [Текст в Изображение - /create]
+    // ✅ [Текст в Изображение]
     TEXT_TO_IMAGE_WORKERS_AI: { 
         SERVICE: 'WORKERS_AI', 
         MODEL: '@cf/stabilityai/stable-diffusion-xl-base-1.0', 
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
-    // ✅ [Изображение в Изображение - /photo]
+    // ✅ [Изображение в Изображение]
     IMAGE_TO_IMAGE_WORKERS_AI: { 
         SERVICE: 'WORKERS_AI', 
         MODEL: '@cf/runwayml/stable-diffusion-v1-5-img2img', 
@@ -104,7 +104,7 @@ export const AI_MODELS = {
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts/'
     },
 
-    // --- BOTHUB TEXT --- (БЕСПЛАТНО)
+    // --- Модели Bothub (OpenAI-совместимые) ---
     TEXT_TO_TEXT_BOTHUB: { 
         SERVICE: 'BOTHUB',       
         MODEL: 'gemini-2.5-flash',       
@@ -117,42 +117,36 @@ export const AI_MODELS = {
         API_KEY: 'BOTHUB_API_KEY', 
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     },
-    // --- BOTHUB WHISPER-1 --- (ПЛАТНО)
     AUDIO_TO_TEXT_BOTHUB: { 
         SERVICE: 'BOTHUB', 
         MODEL: 'whisper-1', 
         API_KEY: 'BOTHUB_API_KEY', 
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     },
-    // --- BOTHUB VISION --- (ПЛАТНО и нестабильно)
     IMAGE_TO_TEXT_BOTHUB: { 
         SERVICE: 'BOTHUB',   
         MODEL: 'gemini-2.5-flash',         
         API_KEY: 'BOTHUB_API_KEY', 
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     },
-    // [DALL-E-3 - /create] (ПЛАТНЫЙ - 33000 CAPS / 5,19 ₽ за шт.)
     TEXT_TO_IMAGE_BOTHUB: { 
         SERVICE: 'BOTHUB', 
         MODEL: 'dall-e-3', 
         API_KEY: 'BOTHUB_API_KEY',
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     },
-    // [gemini-2.5-flash-image для /photo] (Через BotHub API, ПЛАТНЫЙ)
     IMAGE_TO_IMAGE_BOTHUB: { 
         SERVICE: 'BOTHUB', 
         MODEL: 'gemini-2.5-flash-image', 
         API_KEY: 'BOTHUB_API_KEY',
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     }, 
-    // --- BOTHUB WHISPER-1 --- (ПЛАТНО)
     VIDEO_TO_TEXT_BOTHUB: { 
         SERVICE: 'BOTHUB', 
         MODEL: 'whisper-1', 
         API_KEY: 'BOTHUB_API_KEY', 
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     },
-    // --- BOTHUB VIDEO VISION --- (ПЛАТНО)
     VIDEO_TO_ANALYSIS_BOTHUB: { 
         SERVICE: 'BOTHUB', 
         MODEL: 'gemini-2.5-flash',         
@@ -160,23 +154,19 @@ export const AI_MODELS = {
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     },
 
-    // [FUSIONBRAIN Kandinsky - /create] (Тестовый, ПЛАТНЫЙ попытки 88/100 до 01.01.2026)
+    // --- Прочие модели ---
     TEXT_TO_IMAGE_KANDINSKY: { 
         SERVICE: 'FUSIONBRAIN', 
         MODEL: 'kandinsky', 
         API_KEY: 'FUSIONBRAIN_API_KEY',
         BASE_URL: 'https://api-key.fusionbrain.ai'
     },
-
-    // Текст в голос - говорилка для /say
     TEXT_TO_AUDIO_VOICERSS: { 
         SERVICE: 'VOICERSS', 
         MODEL: 'hl=ru-ru&v=TTS-Model&c=MP3',
         API_KEY: 'VOICERSS_API_KEY', 
         BASE_URL: 'http://api.voicerss.org'
     },
-
-    // --- DEEPSEEK ---
     TEXT_TO_TEXT_DEEPSEEK: { 
         SERVICE: 'DEEPSEEK', 
         MODEL: 'deepseek-chat', 
@@ -204,15 +194,15 @@ export const SERVICE_TYPE_MAP = {
 };
 
 /**
- * Generates a configuration for the AI model selection menu.
- * It iterates over all defined models and groups them by their service type
- * (e.g., TEXT_TO_TEXT, IMAGE_TO_TEXT) based on the model key prefix.
- * @param {object} models - The AI_MODELS object.
- * @returns {object} A configuration object for the UI menu.
+ * Генерирует конфигурацию для меню выбора AI-моделей.
+ * Функция проходит по всем определенным моделям и группирует их по типу сервиса
+ * (например, TEXT_TO_TEXT, IMAGE_TO_TEXT) на основе префикса ключа модели.
+ * @param {object} models - Объект AI_MODELS.
+ * @returns {object} Объект конфигурации для UI-меню.
  */
 export function generateModelMenuConfig(models) {
   const config = {};
-  // Initialize the config object with all possible service types from the map
+  // Инициализируем объект конфигурации всеми возможными типами сервисов из карты
   for (const serviceType in SERVICE_TYPE_MAP) {
       config[serviceType] = {
           name: SERVICE_TYPE_MAP[serviceType].name,
@@ -221,14 +211,14 @@ export function generateModelMenuConfig(models) {
       };
   }
 
-  // Iterate over each model and place it in the correct service type category
+  // Проходим по каждой модели и помещаем ее в правильную категорию сервиса
   for (const [modelKey, modelDetails] of Object.entries(models)) {
-    // Find the service type that is a prefix of the model key
-    // For example, "TEXT_TO_TEXT_GEMINI" matches "TEXT_TO_TEXT"
+    // Находим тип сервиса, который является префиксом ключа модели
+    // Например, "TEXT_TO_TEXT_GEMINI" соответствует "TEXT_TO_TEXT"
     const matchingServiceType = Object.keys(SERVICE_TYPE_MAP).find(serviceType => modelKey.startsWith(serviceType));
 
     if (matchingServiceType) {
-        // Create a user-friendly name for the model dropdown
+        // Создаем понятное имя для выпадающего списка моделей
         const friendlyName = `${modelDetails.SERVICE}: ${modelDetails.MODEL.split('/').pop()}`;
         config[matchingServiceType].models[modelKey] = friendlyName;
     }
@@ -236,14 +226,13 @@ export function generateModelMenuConfig(models) {
   return config;
 }
 
-
 export const AI_MODEL_MENU_CONFIG = generateModelMenuConfig(AI_MODELS);
 
 /**
- * Gets the key for the currently active model for a given service type.
- * It checks localStorage first, and falls back to the first available model.
- * @param {string} serviceType - The type of service (e.g., 'TEXT_TO_TEXT').
- * @returns {string|null} The key of the active model or null.
+ * Получает ключ для текущей активной модели для заданного типа сервиса.
+ * Сначала проверяет localStorage, а затем возвращает первую доступную модель в качестве запасного варианта.
+ * @param {string} serviceType - Тип сервиса (например, 'TEXT_TO_TEXT').
+ * @returns {string|null} Ключ активной модели или null.
  */
 export function getActiveModelKey(serviceType) {
     const serviceConfig = SERVICE_TYPE_MAP[serviceType];
@@ -254,15 +243,15 @@ export function getActiveModelKey(serviceType) {
         return storedModelKey;
     }
     
-    // Fallback to the first model in the list for that service type
+    // Запасной вариант: первая модель в списке для данного типа сервиса
     const defaultModelKey = Object.keys(AI_MODEL_MENU_CONFIG[serviceType]?.models || {})[0];
     return defaultModelKey || null;
 }
 
 /**
- * Loads the full configuration object for the active model of a service type.
- * @param {string} serviceType - The type of service (e.g., 'TEXT_TO_TEXT').
- * @returns {object|null} The full model configuration object or null.
+ * Загружает полный объект конфигурации для активной модели указанного типа сервиса.
+ * @param {string} serviceType - Тип сервиса (например, 'TEXT_TO_TEXT').
+ * @returns {object|null} Полный объект конфигурации модели или null.
  */
 export function loadActiveModelConfig(serviceType) {
     const modelKey = getActiveModelKey(serviceType);
