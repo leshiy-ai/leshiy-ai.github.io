@@ -38,9 +38,8 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
         case 'CLOUDFLARE':
         case 'WORKERS_AI':
-            // https://api.cloudflare.com/client/v4/accounts/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}
             url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
-            authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+            authHeader = `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}`;
 
             if (serviceType.includes('AUDIO')) {
                 body = await file.arrayBuffer();
@@ -56,7 +55,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
                         { role: 'system', content: SYSTEM_PROMPT },
                         { role: 'user', content: text }
                     ],
-                    stream: false
+                    stream: false // Добавлено по вашей правке
                 };
             }
             break;
@@ -75,39 +74,23 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             break;
     }
 
-    // 3. ОТПРАВКА ЗАПРОСА
+    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ (ЕДИНСТВЕННЫЙ СПОСОБ)
     try {
-        let response;
+        const proxyHeaders = {
+            'X-Target-URL': url,
+            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+            'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
+        };
 
-        // ЕСЛИ ЭТО CLOUDFLARE - ИДЁМ НАПРЯМУЮ
-        if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
-            const directHeaders = {
-                'Authorization': authHeader,
-                'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
-            };
-            response = await fetch(url, {
-                method: 'POST',
-                headers: directHeaders,
-                body: isRawBody ? body : JSON.stringify(body),
-            });
-        } else {
-            // ДЛЯ ВСЕХ ОСТАЛЬНЫХ - ИСПОЛЬЗУЕМ ПРОКСИ
-            const proxyHeaders = {
-                'X-Target-URL': url,
-                'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-                'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
-            };
-
-            if (authHeader) {
-                proxyHeaders['X-Proxy-Authorization'] = authHeader;
-            }
-
-            response = await fetch(CONFIG.PROXY_URL, {
-                method: 'POST',
-                headers: proxyHeaders,
-                body: isRawBody ? body : JSON.stringify(body),
-            });
+        if (authHeader) {
+            proxyHeaders['X-Proxy-Authorization'] = authHeader;
         }
+
+        const response = await fetch(CONFIG.PROXY_URL, {
+            method: 'POST',
+            headers: proxyHeaders,
+            body: isRawBody ? body : JSON.stringify(body),
+        });
 
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
