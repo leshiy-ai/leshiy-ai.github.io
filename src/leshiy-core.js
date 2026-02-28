@@ -14,8 +14,13 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     // 1. Определяем тип контента
     let serviceType = 'TEXT_TO_TEXT';
     if (file) {
-        serviceType = file.type.startsWith('audio/') ? 'AUDIO_TO_TEXT' : 
-                      file.type.startsWith('video/') ? 'VIDEO_TO_TEXT' : 'IMAGE_TO_TEXT';
+        if (file.type.startsWith('audio/')) {
+            serviceType = 'AUDIO_TO_TEXT';
+        } else if (file.type.startsWith('video/')) {
+            serviceType = 'VIDEO_TO_TEXT';
+        } else if (file.type.startsWith('image/')) {
+            serviceType = 'IMAGE_TO_TEXT';
+        } // Можно добавить другие типы файлов
     } else if (imageBase64) {
         serviceType = 'IMAGE_TO_TEXT';
     }
@@ -30,9 +35,10 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     switch (config.SERVICE) {
         case 'GEMINI':
             url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
-            const geminiText = `${SYSTEM_PROMPT}\n\nВопрос пользователя: ${text || "Опиши это"}`;
+            const geminiText = `${SYSTEM_PROMPT}\n\nВопрос пользователя: ${text || "Проанализируй этот файл"}`;
             const parts = [{ text: geminiText }];
             if (imageBase64) parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
+            // TODO: Добавить обработку других типов файлов для Gemini, если API поддерживает
             body = { contents: [{ parts }] };
             break;
 
@@ -41,7 +47,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
             authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
 
-            if (serviceType.includes('AUDIO')) {
+            if (serviceType.includes('AUDIO') || serviceType.includes('VIDEO')) {
                 body = await file.arrayBuffer();
                 isRawBody = true;
             } else if (imageBase64) {
@@ -70,6 +76,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
                 { role: 'system', content: SYSTEM_PROMPT },
                 { role: 'user', content: userContent }
             ];
+            // TODO: Добавить обработку других типов файлов для Bothub
             body = { model: config.MODEL, messages: msgs };
             break;
     }

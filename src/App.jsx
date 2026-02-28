@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
-// Replaced loadActiveConfig with getActiveModelKey
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey } from './ai-config';
 import './App.css';
 
@@ -76,13 +75,12 @@ const Message = ({ message, onSwipe }) => {
     );
 };
 
-
 function App() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [selectedImage, setSelectedImage] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -98,7 +96,7 @@ function App() {
     const translations = {
         ru: {
             title: 'Leshiy-AI',
-            placeholder: selectedImage ? "Теперь добавь текстовый запрос к картинке..." : "Спроси меня о чем-нибудь... или вставь картинку (Ctrl+V)...",
+            placeholder: selectedFile ? "Теперь добавь текстовый запрос к файлу..." : "Спроси меня о чем-нибудь... или вставь файл (Ctrl+V)...",
             send: 'Отправить',
             upload: '📎 Выбрать файл',
             welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
@@ -110,7 +108,7 @@ function App() {
         },
         en: {
             title: 'Leshiy-AI',
-            placeholder: selectedImage ? "Now add a text query to the picture..." : "Ask something or paste an image (Ctrl+V)...",
+            placeholder: selectedFile ? "Now add a text query to the file..." : "Ask something or paste a file (Ctrl+V)...",
             send: 'Send',
             upload: '📎 Select file',
             welcome: 'Hi! I am Leshiy-AI. Ask me anything, insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
@@ -173,25 +171,40 @@ function App() {
         }
     };
 
-    const handleImageSelection = async (files) => {
-        const imageFile = Array.from(files).find(file => file.type.startsWith('image/'));
-        if (!imageFile) {
-            handleFileUpload(files);
+    const handleFileSelect = async (files) => {
+        const file = files[0];
+        if (!file) {
+            handleFileUpload(files.length ? files : []);
             return;
         }
 
-        try {
-            const dataUrl = await fileToDataURL(imageFile);
-            const base64 = dataUrl.split(',')[1];
-            setSelectedImage({
-                file: imageFile,
-                base64: base64,
-                mimeType: imageFile.type,
-                preview: dataUrl,
+        const isImage = file.type.startsWith('image/');
+        const isAudio = file.type.startsWith('audio/');
+        const isVideo = file.type.startsWith('video/');
+
+        if (isImage) {
+            try {
+                const dataUrl = await fileToDataURL(file);
+                const base64 = dataUrl.split(',')[1];
+                setSelectedFile({
+                    file: file,
+                    base64: base64,
+                    mimeType: file.type,
+                    preview: dataUrl,
+                });
+            } catch (error) {
+                console.error("Ошибка конвертации изображения:", error);
+                setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: '❌ Не удалось обработать изображение.' }]);
+            }
+        } else if (isAudio || isVideo) {
+            setSelectedFile({
+                file: file,
+                base64: null,
+                mimeType: file.type,
+                preview: null, 
             });
-        } catch (error) {
-            console.error("Ошибка конвертации изображения:", error);
-            setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: '❌ Не удалось обработать изображение.' }]);
+        } else {
+            handleFileUpload(files);
         }
     };
 
@@ -202,24 +215,29 @@ function App() {
             return;
         }
         const userMessage = input.trim();
-        if (!userMessage && !selectedImage) return;
+        if (!userMessage && !selectedFile) return;
     
         setIsLoading(true);
     
         const messageToDisplay = { id: Date.now(), role: 'user', text: userMessage };
-        if (selectedImage) {
-            messageToDisplay.image = selectedImage.preview;
+        if (selectedFile && selectedFile.preview) {
+            messageToDisplay.image = selectedFile.preview;
         }
+        
         setMessages(prev => [...prev, messageToDisplay]);
     
         const requestPayload = { text: input };
-        if (selectedImage) {
-            requestPayload.imageBase64 = selectedImage.base64;
-            requestPayload.mimeType = selectedImage.mimeType;
+        if (selectedFile) {
+            if (selectedFile.base64) { 
+                requestPayload.imageBase64 = selectedFile.base64;
+                requestPayload.mimeType = selectedFile.mimeType;
+            } else { 
+                requestPayload.file = selectedFile.file;
+            }
         }
 
         setInput('');
-        setSelectedImage(null);
+        setSelectedFile(null);
     
         try {
             const aiResponse = await askLeshiy(requestPayload);
@@ -243,19 +261,19 @@ function App() {
         e.preventDefault();
         setIsDragging(false);
         if (e.dataTransfer.files.length > 0) {
-            handleImageSelection(e.dataTransfer.files);
+            handleFileSelect(e.dataTransfer.files);
         }
     };
     const handlePaste = (e) => {
         if (e.clipboardData.files.length > 0) {
             e.preventDefault();
-            handleImageSelection(e.clipboardData.files);
+            handleFileSelect(e.clipboardData.files);
         }
     };
 
     const softReload = () => {
         setInput('');
-        setSelectedImage(null);
+        setSelectedFile(null);
         setIsLoading(false);
     };
     
@@ -324,7 +342,6 @@ function App() {
         softReload();
     };
 
-    // --- The Corrected AdminPanel ---
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
 
@@ -420,16 +437,22 @@ function App() {
             </div>
 
             <div className="input-area">
-                {selectedImage && (
-                    <div className="image-preview-container">
-                        <img src={selectedImage.preview} alt="Preview" className="image-preview" />
-                        <button onClick={() => setSelectedImage(null)} className="clear-image-btn">❌</button>
+                {selectedFile && (
+                    <div className="file-preview-container">
+                        {selectedFile.preview ? (
+                            <img src={selectedFile.preview} alt="Preview" className="image-preview" />
+                        ) : (
+                            <div className="file-info-preview">
+                                <span>📎 {selectedFile.file.name}</span>
+                            </div>
+                        )}
+                        <button onClick={() => setSelectedFile(null)} className="clear-file-btn">❌</button>
                     </div>
                 )}
                 <input 
                     value={input} 
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()} // Replaced onKeyPress with onKeyDown
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={t.placeholder}
                 />
                 <button onClick={handleSend} disabled={isLoading}>{t.send}</button>
@@ -438,10 +461,10 @@ function App() {
             <input 
                 type="file" 
                 multiple
-                accept="image/*,application/*,text/*"
+                accept="image/*,audio/*,video/*"
                 ref={fileInputRef} 
                 style={{ display: 'none' }} 
-                onChange={(e) => handleImageSelection(e.target.files)}
+                onChange={(e) => handleFileSelect(e.target.files)}
             />
             <button className="upload-btn" onClick={() => fileInputRef.current.click()}>
                 {t.upload}
