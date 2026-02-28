@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey } from './ai-config';
@@ -69,7 +70,7 @@ const Message = ({ message, onSwipe }) => {
         >
             <div className="bubble">
                 {message.image && <img src={message.image} alt="User upload" className="uploaded-image-preview" />}
-                {message.text}
+                <ReactMarkdown>{message.text}</ReactMarkdown>
             </div>
         </div>
     );
@@ -446,7 +447,7 @@ function App() {
                                 <span>📎 {selectedFile.file.name}</span>
                             </div>
                         )}
-                        <button onClick={() => setSelectedFile(null)} className="clear-file-btn">❌</button>
+                        <button onClick={() => setSelectedFile(null)} className="clear-file-btn">✕</button>
                     </div>
                 )}
                 <input 
