@@ -1,7 +1,7 @@
 import { CONFIG } from './config';
 import { loadActiveModelConfig } from './ai-config';
 
-const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент \"Gemini AI\" от Leshiy, отвечающий на русском языке.
+const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент Gemini AI от Leshiy, отвечающий на русском языке.
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 
 Твои ключевые функции:
