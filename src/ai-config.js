@@ -178,14 +178,14 @@ export const SERVICE_TYPE_MAP = {
     'TEXT_TO_AUDIO': { name: '🔊 Text → Audio', kvKey: 'ACTIVE_MODEL_TEXT_TO_AUDIO' },
     'TEXT_TO_IMAGE': { name: '📖 Text → Image', kvKey: 'ACTIVE_MODEL_TEXT_TO_IMAGE' },
     'IMAGE_TO_IMAGE': { name: '✨ Image → Image', kvKey: 'ACTIVE_MODEL_IMAGE_TO_IMAGE' },
-    'TEXT_TO_VIDEO': { name: '📹 Text → Video', kvKey: 'ACTIVE_MODEL_TEXT_TO_VIDEO' },
-    'IMAGE_TO_VIDEO': { name: '🎬 Image → Video', kvKey: 'ACTIVE_MODEL_IMAGE_TO_VIDEO' },
-    'VIDEO_TO_VIDEO': { name: '🎥 Video → Video', kvKey: 'ACTIVE_MODEL_VIDEO_TO_VIDEO' },
-    'AUDIO_TO_AUDIO': { name: '💿 Audio → Audio', kvKey: 'ACTIVE_MODEL_AUDIO_TO_AUDIO' },
-    'AUDIO_TO_VIDEO': { name: '🗣 Audio → Video', kvKey: 'ACTIVE_MODEL_AUDIO_TO_VIDEO' },
-    'IMAGE_TO_UPSCALE' : {name: '📈 Image → Upscale', kvKey: 'ACTIVE_MODEL_IMAGE_TO_UPSCALE' },
-    'VIDEO_TO_UPSCALE' : {name: '📺 Video → Upscale', kvKey: 'ACTIVE_MODEL_VIDEO_TO_UPSCALE' },
-    'VIDEO_TO_ANALYSIS' : {name: '👀 Video → Analysis', kvKey: 'ACTIVE_MODEL_VIDEO_TO_ANALYSIS' },
+    //'TEXT_TO_VIDEO': { name: '📹 Text → Video', kvKey: 'ACTIVE_MODEL_TEXT_TO_VIDEO' },
+    //'IMAGE_TO_VIDEO': { name: '🎬 Image → Video', kvKey: 'ACTIVE_MODEL_IMAGE_TO_VIDEO' },
+    //'VIDEO_TO_VIDEO': { name: '🎥 Video → Video', kvKey: 'ACTIVE_MODEL_VIDEO_TO_VIDEO' },
+    //'AUDIO_TO_AUDIO': { name: '💿 Audio → Audio', kvKey: 'ACTIVE_MODEL_AUDIO_TO_AUDIO' },
+    //'AUDIO_TO_VIDEO': { name: '🗣 Audio → Video', kvKey: 'ACTIVE_MODEL_AUDIO_TO_VIDEO' },
+    //'IMAGE_TO_UPSCALE' : {name: '📈 Image → Upscale', kvKey: 'ACTIVE_MODEL_IMAGE_TO_UPSCALE' },
+    //'VIDEO_TO_UPSCALE' : {name: '📺 Video → Upscale', kvKey: 'ACTIVE_MODEL_VIDEO_TO_UPSCALE' },
+    //'VIDEO_TO_ANALYSIS' : {name: '👀 Video → Analysis', kvKey: 'ACTIVE_MODEL_VIDEO_TO_ANALYSIS' },
 };
 
 /**
