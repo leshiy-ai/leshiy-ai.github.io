@@ -11,8 +11,10 @@ const SYSTEM_PROMPT = `Ты — многофункциональный AI-асс
 Ответы должны быть информативными и доброжелательными со смайликами.`;
 
 export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
-    // 1. Определяем тип контента
+    // 1. Определяем тип контента и наличие файла
     let serviceType = 'TEXT_TO_TEXT';
+    const hasFile = file || imageBase64; 
+
     if (file) {
         if (file.type.startsWith('audio/')) {
             serviceType = 'AUDIO_TO_TEXT';
@@ -20,7 +22,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             serviceType = 'VIDEO_TO_TEXT';
         } else if (file.type.startsWith('image/')) {
             serviceType = 'IMAGE_TO_TEXT';
-        } // Можно добавить другие типы файлов
+        }
     } else if (imageBase64) {
         serviceType = 'IMAGE_TO_TEXT';
     }
@@ -35,9 +37,17 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
     switch (config.SERVICE) {
         case 'GEMINI':
             url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
-            const geminiText = `${SYSTEM_PROMPT}\n\nВопрос пользователя: ${text || "Проанализируй этот файл"}`;
+            
+            const userQuery = hasFile
+                ? `Запрос пользователя к файлу: ${text || "Проанализируй этот файл"}`
+                : `Вопрос пользователя: ${text}`;
+            
+            const geminiText = `${SYSTEM_PROMPT}\n\n${userQuery}`;
             const parts = [{ text: geminiText }];
-            if (imageBase64) parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
+
+            if (imageBase64) {
+                parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
+            }
             // TODO: Добавить обработку других типов файлов для Gemini, если API поддерживает
             body = { contents: [{ parts }] };
             break;
