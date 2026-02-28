@@ -69,7 +69,13 @@ const Message = ({ message, onSwipe }) => {
             onTouchEnd={handleTouchEnd}
         >
             <div className="bubble">
-                {message.image && <img src={message.image} alt="User upload" className="uploaded-image-preview" />}
+                {message.images && message.images.length > 0 && (
+                    <div className="image-previews-container">
+                        {message.images.map((imgSrc, index) => (
+                            <img key={index} src={imgSrc} alt={`User upload ${index + 1}`} className="uploaded-image-preview" />
+                        ))}
+                    </div>
+                )}
                 <ReactMarkdown>{message.text}</ReactMarkdown>
             </div>
         </div>
@@ -81,7 +87,7 @@ function App() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [selectedFile, setSelectedFile] = useState(null);
+    const [files, setFiles] = useState([]);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -97,7 +103,7 @@ function App() {
     const translations = {
         ru: {
             title: 'Leshiy-AI',
-            placeholder: selectedFile ? "Теперь добавь текстовый запрос к файлу..." : "Спроси меня о чем-нибудь... или вставь файл (Ctrl+V)...",
+            placeholder: files.length > 0 ? "Теперь добавь текстовый запрос к файлам..." : "Спроси меня о чем-нибудь... или вставь файл (Ctrl+V)...",
             send: 'Отправить',
             upload: '📎 Выбрать файл',
             welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
@@ -109,7 +115,7 @@ function App() {
         },
         en: {
             title: 'Leshiy-AI',
-            placeholder: selectedFile ? "Now add a text query to the file..." : "Ask something or paste a file (Ctrl+V)...",
+            placeholder: files.length > 0 ? "Now add a text query to the files..." : "Ask something or paste a file (Ctrl+V)...",
             send: 'Send',
             upload: '📎 Select file',
             welcome: 'Hi! I am Leshiy-AI. Ask me anything, insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
@@ -152,8 +158,8 @@ function App() {
 
     useEffect(scrollToBottom, [messages]);
 
-    const handleFileUpload = async (files) => {
-        for (let file of files) {
+    const handleFileUpload = async (filesToUpload) => {
+        for (let file of filesToUpload) {
             setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: `${t.uploading} ${file.name}...` }]);
             try {
                 const formData = new FormData();
@@ -172,41 +178,52 @@ function App() {
         }
     };
 
-    const handleFileSelect = async (files) => {
-        const file = files[0];
-        if (!file) {
-            handleFileUpload(files.length ? files : []);
-            return;
-        }
+    const handleFileSelect = async (selectedFiles) => {
+        const newFiles = Array.from(selectedFiles);
+        const processedFiles = [];
+        const otherFiles = [];
 
-        const isImage = file.type.startsWith('image/');
-        const isAudio = file.type.startsWith('audio/');
-        const isVideo = file.type.startsWith('video/');
+        for (const file of newFiles) {
+            const isImage = file.type.startsWith('image/');
+            const isAudio = file.type.startsWith('audio/');
+            const isVideo = file.type.startsWith('video/');
 
-        if (isImage) {
-            try {
-                const dataUrl = await fileToDataURL(file);
-                const base64 = dataUrl.split(',')[1];
-                setSelectedFile({
+            if (isImage) {
+                try {
+                    const dataUrl = await fileToDataURL(file);
+                    processedFiles.push({
+                        id: Date.now() + Math.random(),
+                        file: file,
+                        base64: dataUrl.split(',')[1],
+                        mimeType: file.type,
+                        preview: dataUrl,
+                    });
+                } catch (error) {
+                    console.error("Ошибка конвертации изображения:", error);
+                    setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: '❌ Не удалось обработать изображение.' }]);
+                }
+            } else if (isAudio || isVideo) {
+                processedFiles.push({
+                    id: Date.now() + Math.random(),
                     file: file,
-                    base64: base64,
+                    base64: null,
                     mimeType: file.type,
-                    preview: dataUrl,
+                    preview: null,
                 });
-            } catch (error) {
-                console.error("Ошибка конвертации изображения:", error);
-                setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: '❌ Не удалось обработать изображение.' }]);
+            } else {
+                otherFiles.push(file);
             }
-        } else if (isAudio || isVideo) {
-            setSelectedFile({
-                file: file,
-                base64: null,
-                mimeType: file.type,
-                preview: null, 
-            });
-        } else {
-            handleFileUpload(files);
         }
+        
+        setFiles(prev => [...prev, ...processedFiles]);
+
+        if (otherFiles.length > 0) {
+            handleFileUpload(otherFiles);
+        }
+    };
+    
+    const removeFile = (fileId) => {
+        setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
 
     const handleSend = async () => {
@@ -216,29 +233,26 @@ function App() {
             return;
         }
         const userMessage = input.trim();
-        if (!userMessage && !selectedFile) return;
+        if (!userMessage && files.length === 0) return;
     
         setIsLoading(true);
     
-        const messageToDisplay = { id: Date.now(), role: 'user', text: userMessage };
-        if (selectedFile && selectedFile.preview) {
-            messageToDisplay.image = selectedFile.preview;
-        }
+        const messageToDisplay = { 
+            id: Date.now(), 
+            role: 'user', 
+            text: userMessage,
+            images: files.filter(f => f.preview).map(f => f.preview)
+        };
         
         setMessages(prev => [...prev, messageToDisplay]);
     
-        const requestPayload = { text: input };
-        if (selectedFile) {
-            if (selectedFile.base64) { 
-                requestPayload.imageBase64 = selectedFile.base64;
-                requestPayload.mimeType = selectedFile.mimeType;
-            } else { 
-                requestPayload.file = selectedFile.file;
-            }
-        }
+        const requestPayload = { 
+            text: input,
+            files: files 
+        };
 
         setInput('');
-        setSelectedFile(null);
+        setFiles([]);
     
         try {
             const aiResponse = await askLeshiy(requestPayload);
@@ -274,7 +288,7 @@ function App() {
 
     const softReload = () => {
         setInput('');
-        setSelectedFile(null);
+        setFiles([]);
         setIsLoading(false);
     };
     
@@ -438,16 +452,20 @@ function App() {
             </div>
 
             <div className="input-area">
-                {selectedFile && (
+                {files.length > 0 && (
                     <div className="file-preview-container">
-                        {selectedFile.preview ? (
-                            <img src={selectedFile.preview} alt="Preview" className="image-preview" />
-                        ) : (
-                            <div className="file-info-preview">
-                                <span>📎 {selectedFile.file.name}</span>
+                       {files.map(file => (
+                            <div key={file.id} className="file-preview-item">
+                                {file.preview ? (
+                                    <img src={file.preview} alt="Preview" className="image-preview" />
+                                ) : (
+                                    <div className="file-info-preview">
+                                        <span>📎 {file.file.name}</span>
+                                    </div>
+                                )}
+                                <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
                             </div>
-                        )}
-                        <button onClick={() => setSelectedFile(null)} id="clear-file-btn">✕</button>
+                        ))}
                     </div>
                 )}
                 <input 

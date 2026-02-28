@@ -10,21 +10,19 @@ const SYSTEM_PROMPT = `Ты — многофункциональный AI-асс
 
 Ответы должны быть информативными и доброжелательными со смайликами.`;
 
-export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
-    // 1. Определяем тип контента и наличие файла
+export const askLeshiy = async ({ text, files = [] }) => {
+    // 1. Определяем тип сервиса на основе файлов
     let serviceType = 'TEXT_TO_TEXT';
-    const hasFile = file || imageBase64; 
+    const firstFile = files.length > 0 ? files[0].file : null;
 
-    if (file) {
-        if (file.type.startsWith('audio/')) {
+    if (firstFile) {
+        if (firstFile.type.startsWith('image/')) {
+            serviceType = 'IMAGE_TO_TEXT'; 
+        } else if (firstFile.type.startsWith('audio/')) {
             serviceType = 'AUDIO_TO_TEXT';
-        } else if (file.type.startsWith('video/')) {
+        } else if (firstFile.type.startsWith('video/')) {
             serviceType = 'VIDEO_TO_TEXT';
-        } else if (file.type.startsWith('image/')) {
-            serviceType = 'IMAGE_TO_TEXT';
         }
-    } else if (imageBase64) {
-        serviceType = 'IMAGE_TO_TEXT';
     }
 
     const config = loadActiveModelConfig(serviceType);
@@ -32,23 +30,25 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
     let url, body, authHeader;
     let isRawBody = false;
+    const hasFiles = files.length > 0;
 
-    // 2. Формируем данные под конкретный сервис
+    // 2. Формируем тело запроса в зависимости от сервиса
     switch (config.SERVICE) {
         case 'GEMINI':
             url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
             
-            const userQuery = hasFile
-                ? `Запрос пользователя к файлу: ${text || "Проанализируй этот файл"}`
+            const userQuery = hasFiles
+                ? `Запрос пользователя к файлу(ам): ${text || "Проанализируй эти файлы"}`
                 : `Вопрос пользователя: ${text}`;
             
-            const geminiText = `${SYSTEM_PROMPT}\n\n${userQuery}`;
-            const parts = [{ text: geminiText }];
+            const parts = [{ text: `${SYSTEM_PROMPT}\n\n${userQuery}` }];
 
-            if (imageBase64) {
-                parts.push({ inline_data: { mime_type: mimeType, data: imageBase64 } });
-            }
-            // TODO: Добавить обработку других типов файлов для Gemini, если API поддерживает
+            files.forEach(fileData => {
+                if (fileData.base64) { // Это изображение
+                    parts.push({ inline_data: { mime_type: fileData.mimeType, data: fileData.base64 } });
+                }
+            });
+            
             body = { contents: [{ parts }] };
             break;
 
@@ -57,15 +57,23 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
             authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
 
+            const firstFileData = files.length > 0 ? files[0] : null;
+
             if (serviceType.includes('AUDIO') || serviceType.includes('VIDEO')) {
-                body = await file.arrayBuffer();
+                if (!firstFileData) {
+                     return { type: 'error', text: `Для этого типа модели (${serviceType}) требуется файл.` };
+                }
+                body = await firstFileData.file.arrayBuffer();
                 isRawBody = true;
-            } else if (imageBase64) {
-                const byteString = atob(imageBase64);
+            } else if (serviceType.includes('IMAGE')) {
+                 if (!firstFileData || !firstFileData.base64) {
+                     return { type: 'error', text: `Для этого типа модели (${serviceType}) требуется изображение.` };
+                }
+                const byteString = atob(firstFileData.base64);
                 const byteArray = new Uint8Array(byteString.length);
                 for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
-                body = { image: Array.from(byteArray), prompt: text || "Describe this" };
-            } else {
+                body = { image: Array.from(byteArray), prompt: text || "Опиши это изображение" };
+            } else { // TEXT_TO_TEXT
                 body = {
                     messages: [
                         { role: 'system', content: SYSTEM_PROMPT },
@@ -76,22 +84,31 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
             }
             break;
 
-        case 'BOTHUB':
+        case 'BOTHUB': // OpenAI-совместимый
             url = `${config.BASE_URL}/chat/completions`;
             authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-            const userContent = imageBase64
-                ? [{ type: 'text', text: text || "Опиши это" }, { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }]
-                : text;
+            
+            const userContent = [{ type: 'text', text: text || (hasFiles ? "Опиши содержимое" : "Привет") }];
+
+            files.forEach(fileData => {
+                if (fileData.base64) { // Это изображение
+                    userContent.push({ 
+                        type: 'image_url', 
+                        image_url: { url: `data:${fileData.mimeType};base64,${fileData.base64}` } 
+                    });
+                }
+            });
+
             const msgs = [
                 { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: userContent }
+                { role: 'user', content: userContent.length === 1 ? userContent[0].text : userContent }
             ];
-            // TODO: Добавить обработку других типов файлов для Bothub
+            
             body = { model: config.MODEL, messages: msgs };
             break;
     }
 
-    // 3. ОТПРАВКА ЧЕРЕЗ ПРОКСИ
+    // 3. Отправляем запрос через прокси
     try {
         const proxyHeaders = {
             'X-Target-URL': url,
@@ -118,7 +135,7 @@ export const askLeshiy = async ({ text, imageBase64, mimeType, file }) => {
 
         const data = await response.json();
         
-        // 4. Парсинг ответа
+        // 4. Парсим ответ
         let resultText = '';
         if (config.SERVICE === 'GEMINI') {
             resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
