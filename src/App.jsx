@@ -447,7 +447,7 @@ function App() {
                                 <span>📎 {selectedFile.file.name}</span>
                             </div>
                         )}
-                        <button onClick={() => setSelectedFile(null)} className="clear-file-btn">✕</button>
+                        <button onClick={() => setSelectedFile(null)} id="clear-file-btn">✕</button>
                     </div>
                 )}
                 <input 

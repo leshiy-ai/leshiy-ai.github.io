@@ -41,8 +41,8 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .image-preview { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
 .file-info-preview { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); flex-grow: 1; overflow: hidden; }
 .file-info-preview span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.clear-file-btn { position: absolute; top: -8px; right: -8px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 50%; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; transition: all 0.2s; z-index: 1; }
-.clear-file-btn:hover { transform: scale(1.1); background: var(--accent-color); color: white; border-color: var(--accent-color); }
+#clear-file-btn { position: absolute; top: -8px; right: -8px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 50%; width: 28px; height: 28px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1; transition: all 0.2s; z-index: 1; padding: 0; min-width: auto; }
+#clear-file-btn:hover { transform: scale(1.1); background: var(--accent-color); color: white; border-color: var(--accent-color); }
 #pull-to-refresh { position: absolute; top: -60px; left: 0; right: 0; height: 60px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px; gap: 10px; }
 #ptr-loader { border: 3px solid var(--border-color); border-top: 3px solid var(--accent-color); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
