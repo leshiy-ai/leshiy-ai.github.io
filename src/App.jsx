@@ -76,7 +76,7 @@ const Message = ({ message, onSwipe }) => {
                         ))}
                     </div>
                 )}
-                <ReactMarkdown>{message.text}</ReactMarkdown>
+                {message.text && <ReactMarkdown>{message.text}</ReactMarkdown>}
             </div>
         </div>
     );
