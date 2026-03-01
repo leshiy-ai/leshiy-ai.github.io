@@ -11,8 +11,8 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
     // 1. ОБЪЯВЛЯЕМ ВСЕ ПЕРЕМЕННЫЕ (чтобы не было ошибок "is not defined")
-    const vk_app_id = "54419010"; 
-    const redirect_uri = encodeURIComponent("https://leshiy-ai.github.io/");
+    const vk_app_id = "54467300";
+    const redirect_uri = encodeURIComponent("https://leshiy-ai.github.io");
     
     // Пытаемся безопасно достать ID из URL (на случай если мы только что вернулись из ВК)
     const params = new URLSearchParams(window.location.search);
