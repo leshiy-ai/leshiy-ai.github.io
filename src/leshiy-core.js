@@ -50,7 +50,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
             ]
         };
     }
-    
+
     // ИНВАЙТ-ССЫЛКА
     if (lowerQuery === '/storage_invite') {
         try {
@@ -111,6 +111,21 @@ export const askLeshiy = async ({ text, files = [] }) => {
         } catch (e) { return { type: 'error', text: '❌ Ошибка: Облако не отвечает.' }; }
     }
 
+    if (lowerQuery.startsWith('/set_folder_')) {
+        const folderId = lowerQuery.replace('/set_folder_', '');
+        try {
+            // Отправляем на твой бэк команду смены папки
+            await axios.get(`${gateway}/api/set-active-folder?vk_user_id=${currentUserId}&folder_id=${folderId}`);
+            return { 
+                type: 'text', 
+                text: `📁 Папка успешно изменена!\nТеперь все файлы будут сохраняться сюда.`,
+                buttons: [{ text: '🔙 В меню', action: '/storage' }]
+            };
+        } catch (e) {
+            return { type: 'error', text: '❌ Ошибка при смене папки.' };
+        }
+    }
+    
     // ЗАГРУЗКА ФАЙЛОВ
     if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload") || hasFiles) {
         if (!hasFiles) return { type: 'text', text: "Прикрепите файл! 📎" };
