@@ -15,7 +15,7 @@ const fileToDataURL = (file) => {
     });
 };
 
-const Message = ({ message, onSwipe }) => {
+const Message = ({ message, onSwipe, onAction }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
     const currentX = useRef(0);
@@ -77,6 +77,20 @@ const Message = ({ message, onSwipe }) => {
                     </div>
                 )}
                 {message.text && <ReactMarkdown>{message.text}</ReactMarkdown>}
+                
+                {message.buttons && (
+                    <div className="message-buttons">
+                        {message.buttons.map((btn, idx) => (
+                            <button 
+                                key={idx} 
+                                onClick={() => onAction(btn.action)}
+                                className="menu-btn"
+                            >
+                                {btn.text}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -226,43 +240,65 @@ function App() {
         setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
 
-    const handleSend = async () => {
-        if (input.trim().toLowerCase() === '/admin') {
+    const handleSend = async (commandOverride) => {
+        const textToSend = typeof commandOverride === 'string' ? commandOverride : input;
+        const userMessage = textToSend.trim();
+
+        if (userMessage.toLowerCase() === '/admin') {
             setShowAdminPanel(true);
             setInput('');
             return;
         }
-        const userMessage = input.trim();
+
         if (!userMessage && files.length === 0) return;
-    
+
         setIsLoading(true);
-    
-        const messageToDisplay = { 
-            id: Date.now(), 
+
+        const messageId = Date.now();
+        setMessages(prev => [...prev, { 
+            id: messageId, 
             role: 'user', 
             text: userMessage,
             images: files.filter(f => f.preview).map(f => f.preview)
-        };
-        
-        setMessages(prev => [...prev, messageToDisplay]);
-    
+        }]);
+
         const requestPayload = { 
-            text: input,
+            text: userMessage,
             files: files 
         };
 
-        setInput('');
-        setFiles([]);
-    
+        if (typeof commandOverride !== 'string') {
+            setInput('');
+            setFiles([]);
+        }
+
         try {
             const aiResponse = await askLeshiy(requestPayload);
-            const role = aiResponse.type === 'error' ? 'ai error' : 'ai';
-            setMessages(prev => [...prev, { id: Date.now() + 1, role: role, text: aiResponse.text }]);
+            
+            setMessages(prev => [...prev, { 
+                id: Date.now() + 1, 
+                role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
+                text: aiResponse.text,
+                buttons: aiResponse.buttons
+            }]);
         } catch (err) {
             console.error("Ошибка отправки:", err);
-            setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai error', text: "❌ Что-то пошло не так..." }]);
+            setMessages(prev => [...prev, { 
+                id: Date.now() + 1, 
+                role: 'ai error', 
+                text: "❌ Связь с экосистемой прервана..." 
+            }]);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleMenuAction = (action) => {
+        if (action.startsWith('auth_')) {
+            const provider = action.replace('auth_', '');
+            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?user_id=235663624`, '_blank');
+        } else {
+            handleSend(`/${action}`); 
         }
     };
     
@@ -445,7 +481,7 @@ function App() {
 
             <div className="chat-window" ref={chatWindowRef}>
                 {messages.map((m) => (
-                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} />
+                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} />
                 ))}
                 {isLoading && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
@@ -456,13 +492,7 @@ function App() {
                     <div className="file-preview-container">
                        {files.map(file => (
                             <div key={file.id} className="file-preview-item">
-                                {file.preview ? (
-                                    <img src={file.preview} alt="Preview" className="image-preview" />
-                                ) : (
-                                    <div className="file-info-preview">
-                                        <span>📎 {file.file.name}</span>
-                                    </div>
-                                )}
+                                {file.preview ? <img src={file.preview} className="image-preview" /> : <span>📎</span>}
                                 <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
                             </div>
                         ))}
@@ -474,7 +504,7 @@ function App() {
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={t.placeholder}
                 />
-                <button onClick={handleSend} disabled={isLoading}>{t.send}</button>
+                <button onClick={() => handleSend()} disabled={isLoading}>{t.send}</button>
             </div>
 
             <input 
