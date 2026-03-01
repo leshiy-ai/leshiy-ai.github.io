@@ -32,8 +32,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
         // Если пользователь еще не авторизован через ВК (нет ID в памяти)
         if (!localStorage.getItem('vk_user_id') && !urlId) {
             // Чистая ссылка без лишних scope
-            const vkAuthUrl = `https://oauth.vk.com/authorize?client_id=54419010&display=page&redirect_uri=https://leshiy-ai.github.io/&response_type=code&v=5.131`;
-            
+            const vkAuthUrl = `https://oauth.vk.com/authorize?client_id=54419010&display=page&redirect_uri=https://leshiy-ai.github.io/&response_type=token&v=5.131`;
             return {
                 type: 'menu',
                 text: `👋 **Добро пожаловать в Хранилку!**\n\nДля работы с облачными дисками нужно авторизоваться через ВК.`,

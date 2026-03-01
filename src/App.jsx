@@ -294,10 +294,17 @@ function App() {
     const handleMenuAction = (action) => {
         // ПРОВЕРКА: Если это ссылка — открываем её в браузере
         if (action.startsWith('http')) {
-            window.location.href = action; 
+            // Открываем в новой вкладке
+            const newWindow = window.open(action, '_blank', 'noopener,noreferrer');
+            
+            // Если браузер заблокировал всплывающее окно (такое бывает)
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                // Фоллбэк: открываем в текущем окне, если новое заблокировано
+                window.location.href = action;
+            }
             return;
         }
-        
+
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
             // Используй темплейтную строку для ID, если он меняется
