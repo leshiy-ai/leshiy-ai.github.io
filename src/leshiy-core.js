@@ -10,21 +10,23 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const userQuery = text?.trim() || "";
     const lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
-    // 1. Получаем ID из URL (после редиректа ВК) или из localStorage
-    const params = new URLSearchParams(window.location.search);
-    const urlId = params.get('user_id') || params.get('state');
-    if (urlId) {
-        localStorage.setItem('vk_user_id', urlId);
-        // Убираем ID из адресной строки для чистоты
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    // 1. ОБЪЯВЛЯЕМ ВСЕ ПЕРЕМЕННЫЕ (чтобы не было ошибок "is not defined")
+    const vk_app_id = "54419010"; 
+    const redirect_uri = encodeURIComponent("https://leshiy-ai.github.io/");
     
-    // Текущий ID пользователя (приоритет: URL -> LocalStorage -> AdminID как крайний случай)
+    // Пытаемся безопасно достать ID из URL (на случай если мы только что вернулись из ВК)
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+    const urlId = params.get('user_id') || hashParams.get('user_id');
+    
+    // Итоговый userId для запросов к Хранилке
     const userId = urlId || localStorage.getItem('vk_user_id') || CONFIG.ADMIN_CHAT_ID || "3930898";
     const gateway = CONFIG.STORAGE_GATEWAY;
-    const VK_APP_ID = "54419010";
-    const redirect_uri = encodeURIComponent("https://leshiy-ai.github.io/");
 
+    // Сохраняем ID в память, если он пришел в URL
+    if (urlId) {
+        localStorage.setItem('vk_user_id', urlId);
+    }
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ГЛАВНОЕ МЕНЮ И КОМАНДЫ
     // ==========================================================
