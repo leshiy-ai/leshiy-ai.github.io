@@ -258,17 +258,30 @@ export const askLeshiy = async ({ text, files = [] }) => {
         if (!hasFiles) return { type: 'text', text: "Прикрепите файл! 📎" };
 
         try {
-            const formData = new FormData();
-            files.forEach((f, i) => {
-                formData.append(`file${i}`, f.file); 
-            });
+            for (const f of files) {
+                const formData = new FormData();
+                // Используем строго ключ 'file', который ожидает бэкенд
+                formData.append('file', f.file); 
+                
+                // Добавляем chat_id прямо в тело, как требует handleVkUpload
+                formData.append('chat_id', userId);
 
-            await axios.post(`${gateway}/api/upload-multipart`, formData, {
-                headers: { 'x-vk-user-id': userId }
-            });
+                // Меняем на эндпоинт, который специально прописан для VK Mini App
+                const uploadUrl = `${gateway}/api/upload-from-vk`;
+
+                await axios.post(uploadUrl, formData, {
+                    headers: { 
+                        'Content-Type': 'multipart/form-data',
+                        'x-vk-user-id': userId // Этот заголовок проверяется в leshiy-storage-bot.js
+                    }
+                });
+            }
 
             return { type: 'text', text: '✅ Файлы успешно улетели в облако!' };
-        } catch (e) { return { type: 'error', text: '❌ Ошибка загрузки: ' + e.message }; }
+        } catch (e) { 
+            console.error("Upload error details:", e.response?.data || e.message);
+            return { type: 'error', text: '❌ Ошибка загрузки: ' + (e.response?.data?.error || e.message) }; 
+        }
     }
 
     // ==========================================================
