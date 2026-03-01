@@ -10,7 +10,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const userQuery = text?.trim() || "";
     const lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
-    const userId = CONFIG.ADMIN_CHAT_ID || "235663624";
+    const userId = CONFIG.ADMIN_CHAT_ID || "3930898";
 
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ПЕРЕХВАТ КОМАНД ДЛЯ ХРАНИЛКИ
