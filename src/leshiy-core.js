@@ -11,12 +11,15 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
     const userId = CONFIG.ADMIN_CHAT_ID || "3930898";
+    
+    // Используем шлюз из твоего конфига
+    const gateway = CONFIG.STORAGE_GATEWAY;
 
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ПЕРЕХВАТ КОМАНД ДЛЯ ХРАНИЛКИ
     // ==========================================================
     
-    // ГЛАВНОЕ МЕНЮ /STORAGE
+    // ГЛАВНОЕ МЕНЮ
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
         return {
             type: 'menu',
@@ -31,34 +34,26 @@ export const askLeshiy = async ({ text, files = [] }) => {
         };
     }
 
-    // МЕНЮ ВСЕХ ДОСТУПНЫХ ДИСКОВ (/storage_auth)
+    // МЕНЮ АВТОРИЗАЦИИ
     if (lowerQuery === '/storage_auth') {
         return {
             type: 'menu',
             text: '🌐 **Доступные сервисы**\nВыбери, что хочешь подключить:',
             buttons: [
-                // OAuth сервисы (идут через твой API GW)
-                { text: '🔵 Яндекс Диск', action: `${STORAGE_GATEWAY}/auth/yandex?state=${userId}` },
-                { text: '🟠 Google Drive', action: `${STORAGE_GATEWAY}/auth/google?state=${userId}` },
-                { text: '🔵 Dropbox', action: `${STORAGE_GATEWAY}/auth/dropbox?state=${userId}` },
-                
-                // Сервисы с ручной настройкой (через веб-интерфейс приложения)
-                { text: '🟣 Облако Mail.ru (WebDAV)', action: `${STORAGE_GATEWAY}/vk#webdav` },
-                { text: '📁 FTP / SFTP Server', action: `${STORAGE_GATEWAY}/vk#ftp` },
-                { text: '🔌 Свой WebDAV', action: `${STORAGE_GATEWAY}/vk#webdav` },
-                
+                { text: '🔵 Яндекс Диск', action: `${gateway}/auth/yandex?state=${userId}` },
+                { text: '🟠 Google Drive', action: `${gateway}/auth/google?state=${userId}` },
+                { text: '🔵 Dropbox', action: `${gateway}/auth/dropbox?state=${userId}` },
+                { text: '⚙️ Настройки в App', action: `https://vk.com/app${VK_APP_ID}` },
                 { text: '🔙 Назад', action: '/storage' }
             ]
         };
     }
 
-    // ХРАНИЛКА ПО ССЫЛКЕ (Инвайты)
+    // ИНВАЙТ-ССЫЛКА
     if (lowerQuery === '/storage_invite') {
         try {
-            // Создаем инвайт-код через твой эндпоинт /api/create-invite
-            const res = await axios.get(`${STORAGE_GATEWAY}/api/create-invite?userId=${userId}`);
-            const inviteCode = res.data.inviteCode;
-            const inviteLink = `https://vk.com/app51745507#invite=${inviteCode}`;
+            const res = await axios.get(`${gateway}/api/create-invite?userId=${userId}`);
+            const inviteLink = `https://vk.com/app${VK_APP_ID}#ref=${res.data.inviteCode}`;
 
             return {
                 type: 'text',
@@ -66,16 +61,15 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 buttons: [{ text: '🔙 Назад', action: '/storage' }]
             };
         } catch (e) {
-            return { type: 'error', text: '❌ Не удалось создать инвайт-ссылку.' };
+            return { type: 'error', text: '❌ Ошибка API при создании инвайта.' };
         }
     }
 
     // СТАТУС (КВОТА)
     if (lowerQuery === '/storage_status' || lowerQuery === 'статус') {
         try {
-            const res = await axios.get(`${STORAGE_GATEWAY}/api/get-quota?vk_user_id=${userId}`);
+            const res = await axios.get(`${gateway}/api/get-quota?vk_user_id=${userId}`);
             const { used, total, providerName } = res.data;
-            
             const usedGB = (used / (1024 ** 3)).toFixed(2);
             const totalGB = (total / (1024 ** 3)).toFixed(2);
             
@@ -90,7 +84,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
         } catch (e) {
             return { 
                 type: 'text', 
-                text: '❌ Облако не подключено или сессия истекла.',
+                text: '❌ Облако не подключено.',
                 buttons: [{ text: '🔗 Подключить', action: '/storage_auth' }]
             };
         }
@@ -99,9 +93,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // СПИСОК ПАПОК
     if (lowerQuery === '/storage_list') {
         try {
-            const res = await axios.get(`${STORAGE_GATEWAY}/api/list-folders?vk_user_id=${userId}`);
-            
-            // Твой бэк возвращает массив объектов [{id, name}, ...]
+            const res = await axios.get(`${gateway}/api/list-folders?vk_user_id=${userId}`);
             if (Array.isArray(res.data) && res.data.length > 0) {
                 const folderButtons = res.data.map(f => ({
                     text: `📂 ${f.name}`,
@@ -109,31 +101,25 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 }));
                 return {
                     type: 'menu',
-                    text: '📁 **Ваши папки в облаке:**\nВыберите папку назначения:',
+                    text: '📁 **Ваши папки в облаке:**',
                     buttons: [...folderButtons.slice(0, 8), { text: '🔙 Назад', action: '/storage' }]
                 };
             }
-            return { 
-                type: 'text', 
-                text: '⚠️ Папки не найдены.\nУбедитесь, что сервис выбран по умолчанию в приложении ВК.',
-                buttons: [{ text: '🔗 Подключить диск', action: '/storage_auth' }]
-            };
+            return { type: 'text', text: '⚠️ Папки не найдены.' };
         } catch (e) { return { type: 'error', text: '❌ Ошибка: Облако не отвечает.' }; }
     }
 
-    // ЗАГРУЗКА ФАЙЛОВ (/api/upload-multipart)
-    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload") || files.length > 0) {
-        if (files.length === 0) return { type: 'text', text: "Прикрепите файл, и я отправлю его в Хранилку! 📎" };
+    // ЗАГРУЗКА ФАЙЛОВ
+    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload") || hasFiles) {
+        if (!hasFiles) return { type: 'text', text: "Прикрепите файл! 📎" };
 
         try {
             const formData = new FormData();
-            // Твой обработчик handleVkUploadMultipart ожидает файлы в стандартном формате
             files.forEach((f, i) => {
-                // Если у тебя base64, конвертируем в Blob или шлем как есть, если бэк готов
                 formData.append(`file${i}`, f.file); 
             });
 
-            const res = await axios.post(`${STORAGE_GATEWAY}/api/upload-multipart`, formData, {
+            await axios.post(`${gateway}/api/upload-multipart`, formData, {
                 headers: { 'x-vk-user-id': userId }
             });
 
