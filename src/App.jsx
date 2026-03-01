@@ -292,6 +292,12 @@ function App() {
     };
 
     const handleMenuAction = (action) => {
+        // ПРОВЕРКА: Если это ссылка — открываем её в браузере
+        if (action.startsWith('http')) {
+            window.location.href = action; 
+            return;
+        }
+        
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
             // Используй темплейтную строку для ID, если он меняется
