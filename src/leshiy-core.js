@@ -15,27 +15,31 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const vk_app_id = "54467300";
     const gateway = CONFIG.STORAGE_GATEWAY;
     
-    // Пытаемся достать ID (из URL или локально)
+    // Пытаемся достать ID
     const params = new URLSearchParams(window.location.search);
     const urlId = params.get('user_id');
     if (urlId) localStorage.setItem('vk_user_id', urlId);
 
-    const userId = urlId || localStorage.getItem('vk_user_id') || CONFIG.ADMIN_CHAT_ID;
+    const currentUserId = localStorage.getItem('vk_user_id') || urlId;
+    const userId = currentUserId || CONFIG.ADMIN_CHAT_ID;
 
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ГЛАВНОЕ МЕНЮ И КОМАНДЫ
     // ==========================================================
     
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
-        const currentUserId = localStorage.getItem('vk_user_id') || urlId;
-
-        // --- СЦЕНАРИЙ А: ПОЛЬЗОВАТЕЛЬ НЕ АВТОРИЗОВАН ---
+        // --- СЦЕНАРИЙ А: НУЖНА АВТОРИЗАЦИЯ ---
         if (!currentUserId) {
+            console.log("Запуск процесса VK ID Auth...");
             const VKID = window.VKIDSDK;
             const container = document.getElementById('vk_auth_container');
 
-            if (VKID && container) {
-                // Делаем контейнер видимым (он должен быть настроен в index.html как flex)
+            if (!VKID) {
+                return { type: 'error', text: 'Ошибка: Библиотека VK ID не загружена. Обновите страницу.' };
+            }
+
+            if (container) {
+                container.innerHTML = ''; // Очищаем контейнер перед рендером
                 container.style.display = 'flex';
 
                 VKID.Config.init({
@@ -47,7 +51,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
 
                 const oneTap = new VKID.OneTap();
                 oneTap.render({
-                    container: container, // Рендерим в наш спец. контейнер
+                    container: container,
                     showAlternativeLogin: true,
                     oauthList: ['mail_ru', 'ok_ru']
                 })
@@ -57,34 +61,35 @@ export const askLeshiy = async ({ text, files = [] }) => {
                             const vkid = data.user_id || data.id; 
                             if (vkid) {
                                 localStorage.setItem('vk_user_id', vkid);
-                                container.style.display = 'none'; // Скрываем после успеха
-                                alert("✅ Авторизация успешна! Напиши 'Хранилка' снова.");
-                                location.reload(); 
+                                container.style.display = 'none';
+                                alert("✅ Авторизация успешна!");
+                                window.location.reload(); 
                             }
                         })
                         .catch(err => {
-                            console.error("Ошибка обмена:", err);
+                            console.error("Ошибка обмена кодом:", err);
+                            alert("Ошибка при входе. Попробуйте еще раз.");
                             container.style.display = 'none';
                         });
                 });
 
+                // Возвращаем ответ и ВЫХОДИМ, чтобы ИИ не подрывался
                 return {
                     type: 'text',
-                    text: `👋 **Для входа в Хранилку выберите ваш профиль в появившемся окне.**`,
+                    text: `⚙️ **Открываю защищенный вход VK ID...**\nПожалуйста, выберите профиль в появившемся окне.`,
                 };
             }
         }
 
-        // --- СЦЕНАРИЙ Б: ПОЛЬЗОВАТЕЛЬ АВТОРИЗОВАН (Тянем квоту) ---
+        // --- СЦЕНАРИЙ Б: УЖЕ АВТОРИЗОВАН (Запрос квоты) ---
         try {
+            console.log("Запрос квоты для ID:", currentUserId);
             const res = await axios.get(`${gateway}/api/get-quota?vk_user_id=${currentUserId}`);
             const { used, total, providerName } = res.data;
-            const usedGB = (used / (1024 ** 3)).toFixed(2);
-            const totalGB = (total / (1024 ** 3)).toFixed(2);
-
+            
             return {
                 type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${providerName || 'Облако'}\n📊 Место: ${usedGB} ГБ из ${totalGB} ГБ`,
+                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${providerName || 'Облако'}\n📊 Место: ${(used / 1e9).toFixed(2)} ГБ из ${(total / 1e9).toFixed(2)} ГБ`,
                 buttons: [
                     { text: '📁 Мои Папки', action: '/storage_list' },
                     { text: '🔗 Подключить Диск', action: '/storage_auth' },
@@ -93,9 +98,10 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 ]
             };
         } catch (e) {
+            console.error("Ошибка API Хранилки:", e);
             return {
                 type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n⚠️ Диск не подключен или ошибка API.`,
+                text: `🗄 **Главное меню Хранилки**\n\n⚠️ Диск не подключен или сервер недоступен.`,
                 buttons: [
                     { text: '🔗 Подключить Диск', action: '/storage_auth' },
                     { text: '🤝 Хранилка по ссылке', action: '/storage_invite' },
@@ -104,6 +110,8 @@ export const askLeshiy = async ({ text, files = [] }) => {
             };
         }
     }
+
+    // АВТОРИЗАЦИЯ ОБЛАКОВ
     if (lowerQuery === '/storage_auth') {
         return {
             type: 'menu',
@@ -124,7 +132,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     if (lowerQuery === '/storage_invite') {
         try {
             const res = await axios.get(`${gateway}/api/create-invite?userId=${userId}`);
-            const inviteLink = `https://vk.com/app${VK_APP_ID}#ref=${res.data.inviteCode}`;
+            const inviteLink = `https://vk.com/app${vk_app_id}#ref=${res.data.inviteCode}`;
 
             return {
                 type: 'text',
