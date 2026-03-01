@@ -34,21 +34,23 @@ export const askLeshiy = async ({ text, files = [] }) => {
         };
     }
 
-    // МЕНЮ АВТОРИЗАЦИИ
+    // АВТОРИЗАЦИЯ (ВЕРНУЛ ВНУТРЕННИЕ ЭКШЕНЫ)
     if (lowerQuery === '/storage_auth') {
         return {
             type: 'menu',
-            text: '🌐 **Доступные сервисы**\nВыбери, что хочешь подключить:',
+            text: '🔗 **Подключение облака**\nВыберите провайдера для авторизации:',
             buttons: [
-                { text: '🔵 Яндекс Диск', action: `${gateway}/auth/yandex?state=${userId}` },
-                { text: '🟠 Google Drive', action: `${gateway}/auth/google?state=${userId}` },
-                { text: '🔵 Dropbox', action: `${gateway}/auth/dropbox?state=${userId}` },
-                { text: '⚙️ Настройки в App', action: `https://vk.com/app${VK_APP_ID}` },
+                { text: '🔵 Yandex Disk', action: 'auth_yandex' },
+                { text: '🟠 Google Drive', action: 'auth_google' },
+                { text: '🔵 Dropbox', action: 'auth_dropbox' },
+                { text: '🟣 Mail.ru (WebDAV)', action: 'auth_mailru' },
+                { text: '📁 FTP/SFTP', action: 'auth_ftp' },
+                { text: '🔌 Свой WebDAV', action: 'auth_webdav' },
                 { text: '🔙 Назад', action: '/storage' }
             ]
         };
     }
-
+    
     // ИНВАЙТ-ССЫЛКА
     if (lowerQuery === '/storage_invite') {
         try {
