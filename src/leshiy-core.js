@@ -10,11 +10,56 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const userQuery = text?.trim() || "";
     const lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
+    const userId = CONFIG.ADMIN_CHAT_ID || "235663624";
 
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ПЕРЕХВАТ КОМАНД ДЛЯ ХРАНИЛКИ
     // ==========================================================
-    if (lowerQuery.includes('/storage') || lowerQuery.includes('хранил')) {
+    // 1. Главное меню
+    if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
+        return {
+        type: 'menu',
+        text: '📂 Меню Хранилки Leshiy-AI\nВыберите действие:',
+        buttons: [
+            { text: '📁 Выбрать папку', action: '/storage_list' },
+            { text: '⚙️ Статус дисков', action: '/storage_status' },
+            { text: '🔗 Привязать диск', action: '/storage_auth' }
+        ]
+        };
+    }
+    
+    // 2. Эндпоинт статуса
+    if (lowerQuery === '/storage_status') {
+        try {
+        const res = await axios.get(CONFIG.STORAGE_GATEWAY + '?user_id=' + userId + '&action=status');
+        return {
+            type: 'text',
+            text: '📊 Статус:\n' + (res.data.message || 'Система готова'),
+            buttons: [{ text: '🔙 Назад', action: '/storage' }]
+        };
+        } catch (e) { return { type: 'error', text: '❌ Ошибка API статуса' }; }
+    }
+    
+    // 3. Динамический список папок
+    if (lowerQuery === '/storage_list') {
+        try {
+        const res = await axios.get(CONFIG.STORAGE_GATEWAY + '?user_id=' + userId + '&action=list_folders');
+        if (res.data.folders && res.data.folders.length > 0) {
+            const folderButtons = res.data.folders.map(f => ({
+            text: '📂 ' + f.name,
+            action: '/set_folder_' + f.id
+            }));
+            return {
+            type: 'menu',
+            text: '📁 Выберите папку в облаке:',
+            buttons: [...folderButtons, { text: '🔙 Назад', action: '/storage' }]
+            };
+        }
+        return { type: 'text', text: '⚠️ Папки не найдены. Проверьте авторизацию.' };
+        } catch (e) { return { type: 'error', text: '❌ Ошибка получения списка папок' }; }
+    }
+    // 4. Меню авторизации
+    if (lowerQuery === '/storage_auth') {
         return {
             type: 'menu',
             text: '📂 **Меню Хранилки Leshiy-AI**\nВыберите облачный сервис для настройки или авторизации:',
@@ -33,29 +78,21 @@ export const askLeshiy = async ({ text, files = [] }) => {
         if (!hasFiles) return { type: 'error', text: "❌ Нечего сохранять. Прикрепите файлы!" };
         
         try {
-            // Обрабатываем все прикрепленные файлы
-            for (const fileData of files) {
-                const formData = new FormData();
-                // Если есть живой файл (Blob/File) из инпута
-                if (fileData.file) {
-                    formData.append('file', fileData.file);
-                } 
-                // Если есть только base64 (например, вставка из буфера), конвертируем в Blob
-                else if (fileData.base64) {
-                    const blob = await (await fetch(`data:${fileData.mimeType};base64,${fileData.base64}`)).blob();
-                    formData.append('file', blob, `upload_${Date.now()}.${fileData.mimeType.split('/')[1]}`);
-                }
-                
-                formData.append('chat_id', CONFIG.ADMIN_CHAT_ID || "235663624");
-
-                // Шлем в твой STORAGE_GATEWAY (как в leshiy-storage-bot.js)
-                await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+            const response = await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        
+            // ВСТАВКА НОВОЙ ЛОГИКИ ПРОВЕРКИ:
+            const resData = response.data;
+            if (resData && (resData.status === 'error' || resData.error)) {
+                throw new Error(resData.message || resData.error || 'Ошибка шлюза');
             }
-            return { type: 'text', text: "✅ **Экосистема: Хранилка**\nВсе файлы успешно приняты и отправлены в твоё облако! ☁️" };
-        } catch (err) {
-            return { type: 'error', text: `❌ Ошибка Хранилки: ${err.message}` };
+            
+            // Если всё ок, продолжаем...
+            return { success: true, message: "Файл успешно сохранен!" };
+        } catch (error) {
+            console.error("Ошибка загрузки:", error.message);
+            return { success: false, error: error.message };
         }
     }
 
