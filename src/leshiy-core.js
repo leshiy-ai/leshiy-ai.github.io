@@ -12,7 +12,8 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const hasFiles = files.length > 0;
     
     // 1. ПЕРЕМЕННЫЕ
-    const vk_app_id = "54467300";
+    const SITE_APP_ID = "54467300"; // ID для авторизации на сайте
+    const VK_MINI_APP_ID = "54419010"; // ID мини-приложения Хранилка
     const gateway = CONFIG.STORAGE_GATEWAY;
     
     // Пытаемся достать ID
@@ -30,20 +31,16 @@ export const askLeshiy = async ({ text, files = [] }) => {
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
         // --- СЦЕНАРИЙ А: НУЖНА АВТОРИЗАЦИЯ ---
         if (!currentUserId) {
-            console.log("Запуск процесса VK ID Auth...");
             const VKID = window.VKIDSDK;
+            const overlay = document.getElementById('vk_auth_overlay');
             const container = document.getElementById('vk_auth_container');
 
-            if (!VKID) {
-                return { type: 'error', text: 'Ошибка: Библиотека VK ID не загружена. Обновите страницу.' };
-            }
-
-            if (container) {
-                container.innerHTML = ''; // Очищаем контейнер перед рендером
-                container.style.display = 'flex';
+            if (overlay && container) {
+                container.innerHTML = ''; 
+                overlay.style.display = 'flex'; // Показываем все красивое окно
 
                 VKID.Config.init({
-                    app: 54467300,
+                    app: SITE_APP_ID, // Тут оставляем ID сайта (он нужен для SDK)
                     redirectUrl: 'https://leshiy-ai.github.io',
                     responseMode: VKID.ConfigResponseMode.Callback,
                     source: VKID.ConfigSource.LOWCODE,
@@ -61,22 +58,16 @@ export const askLeshiy = async ({ text, files = [] }) => {
                             const vkid = data.user_id || data.id; 
                             if (vkid) {
                                 localStorage.setItem('vk_user_id', vkid);
-                                container.style.display = 'none';
+                                overlay.style.display = 'none';
                                 alert("✅ Авторизация успешна!");
                                 window.location.reload(); 
                             }
-                        })
-                        .catch(err => {
-                            console.error("Ошибка обмена кодом:", err);
-                            alert("Ошибка при входе. Попробуйте еще раз.");
-                            container.style.display = 'none';
                         });
                 });
 
-                // Возвращаем ответ и ВЫХОДИМ, чтобы ИИ не подрывался
                 return {
                     type: 'text',
-                    text: `⚙️ **Открываю защищенный вход VK ID...**\nПожалуйста, выберите профиль в появившемся окне.`,
+                    text: `⚙️ **Открываю окно входа...**`,
                 };
             }
         }
@@ -132,7 +123,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     if (lowerQuery === '/storage_invite') {
         try {
             const res = await axios.get(`${gateway}/api/create-invite?userId=${userId}`);
-            const inviteLink = `https://vk.com/app${vk_app_id}#ref=${res.data.inviteCode}`;
+            const inviteLink = `https://vk.com/app${VK_MINI_APP_ID}#ref=${res.data.inviteCode}`;
 
             return {
                 type: 'text',
