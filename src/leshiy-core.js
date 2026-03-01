@@ -42,8 +42,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 type: 'menu',
                 text: '🔐 **Вход в Хранилку**\n\nДля доступа к вашим файлам необходимо авторизоваться через VK ID.',
                 buttons: [
-                    { text: '🆔 Войти через VK ID', action: '/auth_init_vk' },
-                    { text: '🔙 Назад', action: '/start' }
+                    { text: '🆔 Войти через VK ID', action: '/auth_init_vk' }
                 ]
             };
         }
@@ -60,7 +59,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                     buttons: [
                         { text: '🔗 Подключить Диск', action: '/storage_auth' },
                         { text: '🤝 Хранилка друга', action: '/storage_invite' },
-                        { text: '🔙 Назад', action: '/start' }
+                        { text: '🔙 Назад', action: '/storage' }
                     ]
                 };
             }
@@ -75,7 +74,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                     { text: '📁 Мои Папки', action: '/storage_list' },
                     { text: '➕ Создать папку', action: '/storage_folder_prompt' },
                     { text: '🤝 Поделиться', action: '/storage_invite' },
-                    { text: '🔌 Отключить', action: '/storage_disconnect' }
+                    { text: '🔙 Назад', action: '/storage' }
                 ]
             };
         } catch (e) {
@@ -156,20 +155,6 @@ export const askLeshiy = async ({ text, files = [] }) => {
             };
         } catch (e) {
             return { type: 'error', text: '❌ Ошибка API при создании инвайта.' };
-        }
-    }
-
-    // ОТКЛЮЧЕНИЕ ОБЛАКА
-    if (lowerQuery === '/storage_disconnect') {
-        try {
-            await axios.post(`${gateway}/api/disconnect`, { userId: userId });
-            return { 
-                type: 'text', 
-                text: '📴 **Диск успешно отключен.**\nАвтозагрузка прекращена, данные в облаке сохранены.',
-                buttons: [{ text: '🔙 В меню', action: '/storage' }]
-            };
-        } catch (e) {
-            return { type: 'error', text: '❌ Ошибка при отключении.' };
         }
     }
 
