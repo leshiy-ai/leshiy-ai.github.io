@@ -10,72 +10,101 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const userQuery = text?.trim() || "";
     const lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
-    // 1. ОБЪЯВЛЯЕМ ВСЕ ПЕРЕМЕННЫЕ (чтобы не было ошибок "is not defined")
+    
+    // 1. ПЕРЕМЕННЫЕ
     const vk_app_id = "54467300";
-    const redirect_uri = encodeURIComponent("https://leshiy-ai.github.io");
-    
-    // Пытаемся безопасно достать ID из URL (на случай если мы только что вернулись из ВК)
-    const params = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
-    const urlId = params.get('user_id') || hashParams.get('user_id');
-    
-    // Итоговый userId для запросов к Хранилке
-    const userId = urlId || localStorage.getItem('vk_user_id') || CONFIG.ADMIN_CHAT_ID || "3930898";
     const gateway = CONFIG.STORAGE_GATEWAY;
+    
+    // Пытаемся достать ID (из URL или локально)
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('user_id');
+    if (urlId) localStorage.setItem('vk_user_id', urlId);
 
-    // Сохраняем ID в память, если он пришел в URL
-    if (urlId) {
-        localStorage.setItem('vk_user_id', urlId);
-    }
+    const userId = urlId || localStorage.getItem('vk_user_id') || CONFIG.ADMIN_CHAT_ID;
+
     // ==========================================================
-    // 1. ЛОГИКА ЭКОСИСТЕМЫ: ГЛАВНОЕ МЕНЮ И КОМАНДЫ
+    // 1. ЛОГИКА ХРАНИЛКИ
     // ==========================================================
     
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
         // Если пользователь еще не авторизован через ВК (нет ID в памяти)
         if (!localStorage.getItem('vk_user_id') && !urlId) {
-            // Чистая ссылка без лишних scope
-            const vkAuthUrl = `https://oauth.vk.com/authorize?client_id=${vk_app_id}&display=page&redirect_uri=${redirect_uri}&response_type=token&v=5.131`;
-            return {
-                type: 'menu',
-                text: `👋 **Добро пожаловать в Хранилку!**\n\nДля работы с облачными дисками нужно авторизоваться через ВК.`,
-                buttons: [
-                    { 
-                        text: '🔐 Войти через VK OAuth', 
-                        action: vkAuthUrl // Теперь handleMenuAction поймет, что это ссылка
-                    },
-                    { text: '🤖 Спросить ИИ', action: '/ai_help' }
-                ]
-            };
-        }
+            const savedId = localStorage.getItem('vk_user_id');
 
-        // Если авторизован — СРАЗУ тянем квоту и показываем статус в меню
-        try {
-            const res = await axios.get(`${gateway}/api/get-quota?vk_user_id=${userId}`);
-            const { used, total, providerName } = res.data;
-            const usedGB = (used / (1024 ** 3)).toFixed(2);
-            const totalGB = (total / (1024 ** 3)).toFixed(2);
+            if (!savedId) {
+                const VKID = window.VKIDSDK;
 
-            return {
-                type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${providerName || 'Облако'}\n📊 Место: ${usedGB} ГБ из ${totalGB} ГБ`,
-                buttons: [
-                    { text: '📁 Мои Папки', action: '/storage_list' },
-                    { text: '🔗 Подключить Диск', action: '/storage_auth' },
-                    { text: '🤝 Хранилка друга', action: '/storage_invite' },
-                    { text: '🤖 Спросить ИИ', action: '/ai_help' }
-                ]
-            };
-        } catch (e) {
-            return {
-                type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n⚠️ Диск не подключен или ошибка API.`,
-                buttons: [
-                    { text: '🔗 Подключить Диск', action: '/storage_auth' },
-                    { text: '🤝 Хранилка по ссылке', action: '/storage_invite' },
-                    { text: '🔙 Назад', action: '/start' }
-                ]
-            };
+                // 1. Инициализация (данные из твоего кабинета)
+                VKID.Config.init({
+                    app: vk_app_id,
+                    redirectUrl: 'https://leshiy-ai.github.io',
+                    responseMode: VKID.ConfigResponseMode.Callback,
+                    source: VKID.ConfigSource.LOWCODE,
+                });
+
+                // 2. Создаем шторку (OneTap)
+                const oneTap = new VKID.OneTap();
+
+                // 3. Рисуем её. Чтобы она не перекрывала всё, 
+                // мы укажем ей контейнер 'root' или создадим свой.
+                oneTap.render({
+                    container: document.getElementById('root'), // Рендерим в корень сайта
+                    showAlternativeLogin: true,
+                    oauthList: ['mail_ru', 'ok_ru']
+                })
+                .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+                    const code = payload.code;
+                    const deviceId = payload.device_id;
+
+                    // 4. Сам SDK обменяет код на токен/ID
+                    VKID.Auth.exchangeCode(code, deviceId)
+                        .then((data) => {
+                            // ТУТ МЫ ПОЛУЧАЕМ ID!
+                            const vkid = data.user_id || data.id; 
+                            if (vkid) {
+                                localStorage.setItem('vk_user_id', vkid);
+                                alert("✅ Авторизация успешна! Напиши 'Хранилка' снова.");
+                                // Закрываем шторку (удаляем её из DOM, если нужно)
+                                location.reload(); // Простой способ обновить состояние
+                            }
+                        })
+                        .catch(err => console.error("Ошибка обмена:", err));
+                });
+
+                return {
+                    type: 'text',
+                    text: `👋 **Для входа в Хранилку выберите ваш профиль в появившемся окне ВК.**`,
+                };
+            }
+
+            // Если авторизован — СРАЗУ тянем квоту и показываем статус в меню
+            try {
+                const res = await axios.get(`${gateway}/api/get-quota?vk_user_id=${userId}`);
+                const { used, total, providerName } = res.data;
+                const usedGB = (used / (1024 ** 3)).toFixed(2);
+                const totalGB = (total / (1024 ** 3)).toFixed(2);
+
+                return {
+                    type: 'menu',
+                    text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${providerName || 'Облако'}\n📊 Место: ${usedGB} ГБ из ${totalGB} ГБ`,
+                    buttons: [
+                        { text: '📁 Мои Папки', action: '/storage_list' },
+                        { text: '🔗 Подключить Диск', action: '/storage_auth' },
+                        { text: '🤝 Хранилка друга', action: '/storage_invite' },
+                        { text: '🤖 Спросить ИИ', action: '/ai_help' }
+                    ]
+                };
+            } catch (e) {
+                return {
+                    type: 'menu',
+                    text: `🗄 **Главное меню Хранилки**\n\n⚠️ Диск не подключен или ошибка API.`,
+                    buttons: [
+                        { text: '🔗 Подключить Диск', action: '/storage_auth' },
+                        { text: '🤝 Хранилка по ссылке', action: '/storage_invite' },
+                        { text: '🔙 Назад', action: '/start' }
+                    ]
+                };
+            }
         }
     }
 
