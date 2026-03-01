@@ -34,52 +34,22 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ГЛАВНОЕ МЕНЮ И КОМАНДЫ
     // ==========================================================
     
+    // Команда вызова меню Хранилки
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
-        // --- СЦЕНАРИЙ А: НУЖНА АВТОРИЗАЦИЯ В VK ---
+        // Если НЕ авторизован — показываем только кнопку входа
         if (!currentUserId) {
-            const VKID = window.VKIDSDK;
-            const overlay = document.getElementById('vk_auth_overlay');
-            const container = document.getElementById('vk_auth_container');
-
-            if (overlay && container) {
-                container.innerHTML = ''; 
-                overlay.style.display = 'flex'; 
-
-                VKID.Config.init({
-                    app: SITE_APP_ID, 
-                    redirectUrl: 'https://leshiy-ai.github.io',
-                    responseMode: VKID.ConfigResponseMode.Callback,
-                    source: VKID.ConfigSource.LOWCODE,
-                });
-
-                const oneTap = new VKID.OneTap();
-                oneTap.render({
-                    container: container,
-                    showAlternativeLogin: true,
-                    oauthList: ['mail_ru', 'ok_ru']
-                })
-                .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
-                    VKID.Auth.exchangeCode(payload.code, payload.device_id)
-                        .then((data) => {
-                            const vkid = data.user_id || data.id; 
-                            if (vkid) {
-                                localStorage.setItem('vk_user_id', vkid);
-                                overlay.style.display = 'none';
-                                // 1. Генерируем событие для UI (чтобы в чате появилось сообщение "/storage")
-                                window.dispatchEvent(new CustomEvent('send-bot-command', { 
-                                    detail: '/storage' 
-                                }));
-                            }
-                        });
-                });
-
-                return { type: 'text', text: `⚙️ **Открываю окно входа...**` };
-            }
+            return {
+                type: 'menu',
+                text: '🔐 **Вход в Хранилку**\n\nДля доступа к вашим файлам необходимо авторизоваться через VK ID.',
+                buttons: [
+                    { text: '🆔 Войти через VK ID', action: '/auth_init_vk' },
+                    { text: '🔙 Назад', action: '/start' }
+                ]
+            };
         }
 
-        // --- СЦЕНАРИЙ Б: УЖЕ АВТОРИЗОВАН (Запрос статуса и квоты) ---
+        // --- ЕСЛИ АВТОРИЗОВАН (Запрос статуса и квоты) ---
         try {
-            // Сначала берем общий статус (там providerName и currentFolder)
             const statusRes = await axios.get(`${gateway}/?action=get-status&userId=${userId}`);
             const status = statusRes.data;
 
@@ -95,13 +65,12 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 };
             }
 
-            // Затем берем квоту
             const quotaRes = await axios.get(`${gateway}/api/get-quota?vk_user_id=${userId}`);
             const { used, total } = quotaRes.data;
             
             return {
                 type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${status.providerName || 'Облако'}\n📂 Папка: \`${status.currentFolder || 'Root'}\`\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
+                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${status.providerName}\n📂 Папка: \`${status.currentFolder || 'Root'}\`\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
                 buttons: [
                     { text: '📁 Мои Папки', action: '/storage_list' },
                     { text: '➕ Создать папку', action: '/storage_folder_prompt' },
@@ -110,12 +79,49 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 ]
             };
         } catch (e) {
-            console.error("Ошибка API Хранилки:", e);
-            return {
-                type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n⚠️ Ошибка связи с сервером.`,
-                buttons: [{ text: '🔙 Назад', action: '/start' }]
-            };
+            return { type: 'menu', text: `⚠️ Ошибка связи с сервером.`, buttons: [{ text: '🔙 Назад', action: '/start' }] };
+        }
+    }
+
+    // НОВЫЙ ОБРАБОТЧИК: Инициализация VK ID по клику
+    if (lowerQuery === '/auth_init_vk') {
+        const VKID = window.VKIDSDK;
+        const overlay = document.getElementById('vk_auth_overlay');
+        const container = document.getElementById('vk_auth_container');
+
+        if (overlay && container) {
+            container.innerHTML = ''; 
+            overlay.style.display = 'flex'; 
+
+            VKID.Config.init({
+                app: SITE_APP_ID, 
+                redirectUrl: 'https://leshiy-ai.github.io',
+                responseMode: VKID.ConfigResponseMode.Callback,
+                source: VKID.ConfigSource.LOWCODE,
+            });
+
+            const oneTap = new VKID.OneTap();
+            oneTap.render({
+                container: container,
+                showAlternativeLogin: true,
+                oauthList: ['mail_ru', 'ok_ru']
+            })
+            .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+                VKID.Auth.exchangeCode(payload.code, payload.device_id)
+                    .then((data) => {
+                        const vkid = data.user_id || data.id; 
+                        if (vkid) {
+                            localStorage.setItem('vk_user_id', vkid);
+                            overlay.style.display = 'none';
+                            // Бросаем событие для глобального стейта
+                            window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: vkid }));
+                            // Авто-переход в меню
+                            window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
+                        }
+                    });
+            });
+
+            return { type: 'text', text: '⚡️ **Окно входа открыто!**' };
         }
     }
 

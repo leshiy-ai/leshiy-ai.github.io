@@ -8,3 +8,8 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>,
 )
+
+window.addEventListener('vk-auth-success', (event) => {
+  const newUserId = event.detail;
+  console.log("Система: Пользователь авторизован!", newUserId);
+});

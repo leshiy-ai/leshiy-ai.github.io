@@ -105,6 +105,9 @@ function App() {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    
+    // Динамический ID пользователя
+    const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('vk_user_id') || "guest");
 
     const chatEndRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -143,10 +146,32 @@ function App() {
 
     const t = translations[language];
 
+    // Инициализация и слушатели событий
     useEffect(() => {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
+
+        // Слушаем успешную авторизацию из main.jsx
+        const handleAuthSuccess = (event) => {
+            const newUserId = event.detail;
+            setCurrentUserId(newUserId);
+            console.log("App: Авторизация получена, ID обновлен:", newUserId);
+        };
+
+        // Слушаем команду на авто-отправку (например, после логина)
+        const handleBotCommand = (event) => {
+            const command = event.detail;
+            handleSend(command);
+        };
+
+        window.addEventListener('vk-auth-success', handleAuthSuccess);
+        window.addEventListener('send-bot-command', handleBotCommand);
+
+        return () => {
+            window.removeEventListener('vk-auth-success', handleAuthSuccess);
+            window.removeEventListener('send-bot-command', handleBotCommand);
+        };
     }, []);
 
     useEffect(() => {
@@ -178,7 +203,8 @@ function App() {
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-                formData.append('chat_id', "3930898");
+                // Используем текущий ID вместо хардкода
+                formData.append('chat_id', currentUserId);
 
                 await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -241,11 +267,9 @@ function App() {
     };
 
     const handleSend = async (commandOverride) => {
-        // 1. Четко определяем текст: либо из кнопки, либо из инпута
         const rawText = typeof commandOverride === 'string' ? commandOverride : input;
-        const userMessageText = rawText.trim(); // Убираем пробелы!
+        const userMessageText = rawText.trim();
     
-        // Проверка на админку
         if (userMessageText.toLowerCase() === '/admin') {
             setShowAdminPanel(true);
             setInput('');
@@ -257,7 +281,6 @@ function App() {
         setIsLoading(true);
         const messageId = Date.now();
     
-        // Добавляем сообщение пользователя в чат
         setMessages(prev => [...prev, { 
             id: messageId, 
             role: 'user', 
@@ -265,46 +288,43 @@ function App() {
             images: files.filter(f => f.preview).map(f => f.preview)
         }]);
     
-        // Очищаем инпут СРАЗУ
         setInput('');
-        const currentFiles = [...files]; // Копируем файлы для запроса
+        const currentFiles = [...files];
         setFiles([]);
     
         try {
-            // ОТПРАВЛЯЕМ В CORE
+            // Передаем currentUserId в ядро
             const aiResponse = await askLeshiy({ 
                 text: userMessageText, 
-                files: currentFiles 
+                files: currentFiles,
+                userId: currentUserId 
             });
             
-            // Добавляем ответ (текст + кнопки!)
             setMessages(prev => [...prev, { 
                 id: Date.now() + 1, 
                 role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
                 text: aiResponse.text,
-                buttons: aiResponse.buttons // Проверь, что это поле тут есть!
+                buttons: aiResponse.buttons 
             }]);
         } catch (err) {
-            // ... твой catch
+            console.error("Ошибка AI:", err);
+            setMessages(prev => [...prev, { id: Date.now(), role: 'ai error', text: 'Произошла ошибка при обращении к лешему.' }]);
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleMenuAction = (action) => {
-        // ПРОВЕРКА: Если это ссылка — открываем её в браузере
         if (action.startsWith('http')) {
             window.open(action, '_blank', 'noopener,noreferrer');
-            return; // Сразу выходим, чтобы ничего больше не срабатывало
+            return;
         }
 
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
-            // Используй темплейтную строку для ID, если он меняется
-            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?user_id=3930898`, '_blank');
+            // Используем актуальный ID
+            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?user_id=${currentUserId}`, '_blank');
         } else {
-            // Если это просто команда (например storage_status), 
-            // добавляем слэш только если его нет
             const command = action.startsWith('/') ? action : `/${action}`;
             handleSend(command); 
         }
