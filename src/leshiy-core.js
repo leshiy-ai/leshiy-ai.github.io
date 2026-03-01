@@ -259,28 +259,31 @@ export const askLeshiy = async ({ text, files = [] }) => {
 
         try {
             for (const f of files) {
-                const formData = new FormData();
-                // Используем строго ключ 'file', который ожидает бэкенд
-                formData.append('file', f.file); 
-                
-                // Добавляем chat_id прямо в тело, как требует handleVkUpload
-                formData.append('chat_id', userId);
+                // 1. Читаем файл как ArrayBuffer (чистые байты), чтобы бэк не тупил
+                const arrayBuffer = await f.file.arrayBuffer();
 
-                // Меняем на эндпоинт, который специально прописан для VK Mini App
-                const uploadUrl = `${gateway}/api/upload-from-vk`;
+                // 2. Шлем на эндпоинт загрузки буфера
+                const uploadUrl = `${gateway}/api/upload-buffer`; 
 
-                await axios.post(uploadUrl, formData, {
+                await axios.post(uploadUrl, arrayBuffer, {
+                    params: {
+                        // Передаем параметры через URL, так как тело занято байтами
+                        chat_id: userId,
+                        filename: f.file.name
+                    },
                     headers: { 
-                        'Content-Type': 'multipart/form-data',
-                        'x-vk-user-id': userId // Этот заголовок проверяется в leshiy-storage-bot.js
+                        'Content-Type': f.file.type || 'application/octet-stream',
+                        'x-vk-user-id': userId,
+                        'x-file-name': encodeURI(f.file.name), // Бэк может брать имя отсюда
+                        'x-file-size': f.file.size
                     }
                 });
             }
 
             return { type: 'text', text: '✅ Файлы успешно улетели в облако!' };
         } catch (e) { 
-            console.error("Upload error details:", e.response?.data || e.message);
-            return { type: 'error', text: '❌ Ошибка загрузки: ' + (e.response?.data?.error || e.message) }; 
+            console.error("Критическая ошибка аплоада:", e.response?.data || e.message);
+            return { type: 'error', text: '❌ Ошибка: ' + (e.response?.data?.error || e.message) }; 
         }
     }
 
