@@ -76,10 +76,10 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .bubble p:last-child { margin-bottom: 0; }
 .bubble pre { background-color: var(--panel-bg); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 10px 0; border: 1px solid var(--border-color); }
 .bubble code { font-family: monospace; background-color: var(--bg-color); padding: 2px 4px; border-radius: 4px; font-size: 0.9em; }
-.attachments-container { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.file-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 60px; height: 60px; background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; }
-.file-badge span { font-size: 8px; margin-top: 2px; font-weight: bold; color: #aaa; text-transform: uppercase; }
-.file-badge.video { background: rgba(255,87,34,0.1); border-color: rgba(255,87,34,0.4); }
-.file-badge.audio { background: rgba(33,150,243,0.1); border-color: rgba(33,150,243,0.4); }
-.media-placeholder { font-style: italic; opacity: 0.5; margin: 4px 0; font-size: 0.9em; }
-.uploaded-image-preview { max-width: 100%; max-height: 200px; border-radius: 8px; object-fit: cover; display: block; }
+.attachments-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.file-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 70px; height: 74px; background: rgba(255,255,255,0.08); border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); position: relative; overflow: hidden; }
+.file-icon { font-size: 22px; margin-top: -10px; }
+.file-name { font-size: 9px; color: #fff; margin-top: 4px; text-align: center; width: 90%; overflow: hidden; }
+.file-label { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.3); font-size: 7px; text-align: center; padding: 2px 0; font-weight: bold; color: #ccc; }
+.file-badge.video { border-color: #ff5722; } .file-badge.audio { border-color: #2196f3; } .file-badge.archive { border-color: #ffc107; } .file-badge.doc { border-color: #4caf50; }
+.media-msg-label { font-style: italic; opacity: 0.6; font-size: 0.9em; margin: 4px 0; }

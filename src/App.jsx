@@ -54,69 +54,38 @@ const Message = ({ message, onSwipe, onAction }) => {
     };
 
     // Функция для отрисовки иконок вложений
-    const renderAttachments = () => {
-        // Проверяем и старое поле images, и новое поле files (если будешь его использовать)
-        const allFiles = message.files || (message.images ? message.images.map(img => ({ preview: img, mimeType: 'image/' })) : []);
+    const renderFile = (file, i) => {
+        const type = file.type || '';
+        const name = file.name || '';
+        const isImg = type.startsWith('image/') || (file.preview && !type);
+        const isVid = type.startsWith('video/');
+        const isAud = type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.ogg') || name.endsWith('.wav');
+        const isZip = name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z');
+        const isDoc = name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf') || name.endsWith('.xls') || name.endsWith('.xlsx');
+
+        if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" />;
         
-        if (allFiles.length === 0) return null;
+        let icon = '📎'; let label = 'FILE';
+        if (isVid) { icon = '🎬'; label = 'VIDEO'; }
+        else if (isAud) { icon = '🎵'; label = 'AUDIO'; }
+        else if (isZip) { icon = '📦'; label = 'ARCHIVE'; }
+        else if (isDoc) { icon = '📄'; label = 'DOC'; }
 
         return (
-            <div className="attachments-container">
-                {allFiles.map((file, index) => {
-                    const isImage = file.mimeType?.startsWith('image/') || typeof file === 'string';
-                    const isVideo = file.mimeType?.startsWith('video/');
-                    const isAudio = file.mimeType?.startsWith('audio/');
-
-                    return (
-                        <div key={index} className="attachment-item">
-                            {isImage ? (
-                                <img src={file.preview || file} alt="upload" className="uploaded-image-preview" />
-                            ) : isVideo ? (
-                                <div className="file-icon-badge video">🎬 <span>VIDEO</span></div>
-                            ) : isAudio ? (
-                                <div className="file-icon-badge audio">🎵 <span>AUDIO</span></div>
-                            ) : (
-                                <div className="file-icon-badge doc">📎 <span>FILE</span></div>
-                            )}
-                        </div>
-                    );
-                })}
+            <div key={i} className={`file-badge ${label.toLowerCase()}`}>
+                <span className="file-icon">{icon}</span>
+                <span className="file-name">{name.length > 10 ? name.substring(0,7)+'...' : name}</span>
+                <span className="file-label">{label}</span>
             </div>
         );
     };
 
     return (
-        <div
-            ref={msgRef}
-            className={`message-container ${message.role}`}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-        >
+        <div ref={msgRef} className={`message-container ${message.role}`} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
             <div className="bubble">
-                {/* Рендерим вложения (картинки, видео, аудио) */}
-                {renderAttachments()}
-
-                {/* Рендерим текст или заглушку, если текста нет, но есть файлы */}
-                {message.text ? (
-                    <ReactMarkdown>{message.text}</ReactMarkdown>
-                ) : (message.images?.length > 0 || message.files?.length > 0) ? (
-                    <p style={{ fontStyle: 'italic', opacity: 0.7, margin: '5px 0' }}>Медиафайл</p>
-                ) : null}
-                
-                {message.buttons && (
-                    <div className="message-buttons">
-                        {message.buttons.map((btn, idx) => (
-                            <button 
-                                key={idx} 
-                                onClick={() => onAction(btn.action)}
-                                className="menu-btn"
-                            >
-                                {btn.text}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                {message.attachments && <div className="attachments-grid">{message.attachments.map((f, i) => renderFile(f, i))}</div>}
+                {message.text ? <ReactMarkdown>{message.text}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
+                {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
             </div>
         </div>
     );
@@ -295,37 +264,32 @@ function App() {
     const handleSend = async (commandOverride) => {
         const rawText = typeof commandOverride === 'string' ? commandOverride : input;
         const userMessageText = rawText.trim();
-    
-        if (userMessageText.toLowerCase() === '/admin') {
-            setShowAdminPanel(true);
-            setInput('');
-            return;
-        }
-    
+        if (userMessageText.toLowerCase() === '/admin') { setShowAdminPanel(true); setInput(''); return; }
         if (!userMessageText && files.length === 0) return;
     
         setIsLoading(true);
         const messageId = Date.now();
+        const currentFiles = [...files];
+    
+        // Формируем вложения для истории чата
+        const attachments = currentFiles.map(f => ({
+            preview: f.preview, // будет null для не-картинок
+            name: f.file.name,
+            type: f.file.type,
+            size: f.file.size
+        }));
     
         setMessages(prev => [...prev, { 
             id: messageId, 
             role: 'user', 
             text: userMessageText,
-            images: files.filter(f => f.preview).map(f => f.preview)
+            attachments: attachments // Теперь тут ВСЕ файлы
         }]);
     
-        setInput('');
-        const currentFiles = [...files];
-        setFiles([]);
+        setInput(''); setFiles([]);
     
         try {
-            // Передаем currentUserId в ядро
-            const aiResponse = await askLeshiy({ 
-                text: userMessageText, 
-                files: currentFiles,
-                userId: currentUserId 
-            });
-            
+            const aiResponse = await askLeshiy({ text: userMessageText, files: currentFiles, userId: currentUserId });
             setMessages(prev => [...prev, { 
                 id: Date.now() + 1, 
                 role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
@@ -333,11 +297,8 @@ function App() {
                 buttons: aiResponse.buttons 
             }]);
         } catch (err) {
-            console.error("Ошибка AI:", err);
             setMessages(prev => [...prev, { id: Date.now(), role: 'ai error', text: 'Произошла ошибка при обращении к лешему.' }]);
-        } finally {
-            setIsLoading(false);
-        }
+        } finally { setIsLoading(false); }
     };
 
     const handleMenuAction = (action) => {
