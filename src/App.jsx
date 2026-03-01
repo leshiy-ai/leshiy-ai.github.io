@@ -501,17 +501,32 @@ function App() {
                 {isLoading && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
             </div>
-
             <div className="input-area">
                 {files.length > 0 && (
                     <div className="file-preview-container">
-                       {files.map(file => (
+                    {files.map(file => {
+                        const type = file.file.type;
+                        const name = file.file.name;
+                        // Определяем иконку
+                        let icon = '📎';
+                        if (type.startsWith('video/')) icon = '🎬';
+                        else if (type.startsWith('audio/') || name.endsWith('.mp3')) icon = '🎵';
+                        else if (name.endsWith('.zip') || name.endsWith('.rar')) icon = '📦';
+                        else if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) icon = '📄';
+                
+                        return (
                             <div key={file.id} className="file-preview-item">
-                                {file.preview ? <img src={file.preview} className="image-preview" /> : <span>📎</span>}
+                                {file.preview ? (
+                                    <img src={file.preview} className="image-preview" />
+                                ) : (
+                                    <div className="file-preview-icon">{icon}</div>
+                                )}
                                 <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
+                                <span className="file-preview-name">{name.length > 6 ? name.substring(0,4)+'..' : name}</span>
                             </div>
-                        ))}
-                    </div>
+                        );
+                    })}
+                </div>
                 )}
                 <input 
                     value={input} 
