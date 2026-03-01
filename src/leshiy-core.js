@@ -65,8 +65,10 @@ export const askLeshiy = async ({ text, files = [] }) => {
                             if (vkid) {
                                 localStorage.setItem('vk_user_id', vkid);
                                 overlay.style.display = 'none';
-                                // Вместо alert и reload шлем событие обновления
-                                window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
+                                // 1. Генерируем событие для UI (чтобы в чате появилось сообщение "/storage")
+                                window.dispatchEvent(new CustomEvent('send-bot-command', { 
+                                    detail: '/storage' 
+                                }));
                             }
                         });
                 });
@@ -102,7 +104,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${status.providerName || 'Облако'}\n📂 Папка: \`${status.currentFolder || 'Root'}\`\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
                 buttons: [
                     { text: '📁 Мои Папки', action: '/storage_list' },
-                    { text: '➕ Создать папку', action: '/create_folder_prompt' },
+                    { text: '➕ Создать папку', action: '/storage_folder_prompt' },
                     { text: '🤝 Поделиться', action: '/storage_invite' },
                     { text: '🔌 Отключить', action: '/storage_disconnect' }
                 ]
@@ -183,7 +185,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
             return { 
                 type: 'text', 
                 text: '⚠️ Папки не найдены.',
-                buttons: [{ text: '➕ Создать папку', action: '/create_folder_prompt' }, { text: '🔙 Назад', action: '/storage' }]
+                buttons: [{ text: '➕ Создать папку', action: 'storage_folder_prompt' }, { text: '🔙 Назад', action: '/storage' }]
             };
         } catch (e) { return { type: 'error', text: '❌ Ошибка: Облако не отвечает.' }; }
     }
@@ -211,23 +213,37 @@ export const askLeshiy = async ({ text, files = [] }) => {
         }
     }
 
-    // СОЗДАНИЕ ПАПКИ
-    if (lowerQuery.startsWith('/create_folder_')) {
-        const folderName = userQuery.replace(/\/create_folder_/i, '').trim();
+    // --- ДИАЛОГ СОЗДАНИЯ ПАПКИ ---
+    if (lowerQuery === '/storage_folder_prompt') {
+        // Сохраняем в сессию флаг, что ждем имя папки
+        sessionStorage.setItem('pending_action', 'create_folder');
+        return {
+            type: 'text',
+            text: '📝 **Введите название новой папки:**\n\nПришлите название текстовым сообщением.',
+            buttons: [{ text: '❌ Отмена', action: '/storage' }]
+        };
+    }
+
+    // --- ОБРАБОТКА ТЕКСТОВОГО ВВОДА ДЛЯ ПАПКИ ---
+    // Если в сессии висит флаг и это не системная команда (не начинается с /)
+    if (sessionStorage.getItem('pending_action') === 'create_folder' && !userQuery.startsWith('/')) {
+        sessionStorage.removeItem('pending_action'); // Сбрасываем флаг
+        
         try {
             const res = await axios.post(`${gateway}/api/create-folder`, {
                 userId: userId,
-                name: folderName
+                name: userQuery // Используем введенный текст как имя
             });
+            
             if (res.data.success) {
                 return { 
                     type: 'text', 
-                    text: `📂 Папка **${folderName}** создана и установлена как активная!`,
+                    text: `📂 Папка **${userQuery}** успешно создана!`,
                     buttons: [{ text: '🔙 В меню', action: '/storage' }]
                 };
             }
         } catch (e) {
-            return { type: 'error', text: `❌ Ошибка создания папки: ${e.message}` };
+            return { type: 'error', text: `❌ Ошибка создания: ${e.message}` };
         }
     }
 
