@@ -294,15 +294,8 @@ function App() {
     const handleMenuAction = (action) => {
         // ПРОВЕРКА: Если это ссылка — открываем её в браузере
         if (action.startsWith('http')) {
-            // Открываем в новой вкладке
-            const newWindow = window.open(action, '_blank', 'noopener,noreferrer');
-            
-            // Если браузер заблокировал всплывающее окно (такое бывает)
-            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                // Фоллбэк: открываем в текущем окне, если новое заблокировано
-                window.location.href = action;
-            }
-            return;
+            window.open(action, '_blank', 'noopener,noreferrer');
+            return; // Сразу выходим, чтобы ничего больше не срабатывало
         }
 
         if (action.startsWith('auth_')) {
