@@ -15,92 +15,130 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ПЕРЕХВАТ КОМАНД ДЛЯ ХРАНИЛКИ
     // ==========================================================
-    // ГЛАВНОЕ МЕНЮ
+    
+    // ГЛАВНОЕ МЕНЮ /STORAGE
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
         return {
             type: 'menu',
-            text: '📂 **Управление Хранилищем**\nВыберите действие:',
+            text: `🗄 **Главное меню Хранилки**\n\nЗдесь ты можешь управлять своими облаками, проверять место и настраивать доступ для друзей.`,
             buttons: [
-                { text: '📁 Мои папки', action: '/storage_list' },
-                { text: '⚙️ Статус дисков', action: '/storage_status' },
-                { text: '🔗 Подключить сервис', action: '/storage_auth' }
+                { text: '📊 Статус и Квота', action: '/storage_status' },
+                { text: '📁 Мои Папки', action: '/storage_list' },
+                { text: '🔗 Подключить Диск', action: '/storage_auth' },
+                { text: '🤝 Хранилка по ссылке', action: '/storage_invite' },
+                { text: '🤖 Спросить ИИ', action: '/ai_help' }
             ]
         };
     }
 
-    // СПИСОК ПАПОК (list_folders)
+    // МЕНЮ ВСЕХ ДОСТУПНЫХ ДИСКОВ (/storage_auth)
+    if (lowerQuery === '/storage_auth') {
+        return {
+            type: 'menu',
+            text: '🌐 **Доступные сервисы**\nВыбери, что хочешь подключить:',
+            buttons: [
+                // OAuth сервисы (идут через твой API GW)
+                { text: '🔵 Яндекс Диск', action: `${STORAGE_GATEWAY}/auth/yandex?state=${userId}` },
+                { text: '🟠 Google Drive', action: `${STORAGE_GATEWAY}/auth/google?state=${userId}` },
+                { text: '🔵 Dropbox', action: `${STORAGE_GATEWAY}/auth/dropbox?state=${userId}` },
+                
+                // Сервисы с ручной настройкой (через веб-интерфейс приложения)
+                { text: '🟣 Облако Mail.ru (WebDAV)', action: `${STORAGE_GATEWAY}/vk#webdav` },
+                { text: '📁 FTP / SFTP Server', action: `${STORAGE_GATEWAY}/vk#ftp` },
+                { text: '🔌 Свой WebDAV', action: `${STORAGE_GATEWAY}/vk#webdav` },
+                
+                { text: '🔙 Назад', action: '/storage' }
+            ]
+        };
+    }
+
+    // ХРАНИЛКА ПО ССЫЛКЕ (Инвайты)
+    if (lowerQuery === '/storage_invite') {
+        try {
+            // Создаем инвайт-код через твой эндпоинт /api/create-invite
+            const res = await axios.get(`${STORAGE_GATEWAY}/api/create-invite?userId=${userId}`);
+            const inviteCode = res.data.inviteCode;
+            const inviteLink = `https://vk.com/app51745507#invite=${inviteCode}`;
+
+            return {
+                type: 'text',
+                text: `🤝 **Твоя реферальная ссылка**\n\nОтправь её другу, чтобы он мог сохранять файлы в твою папку:\n\n🔗 ${inviteLink}`,
+                buttons: [{ text: '🔙 Назад', action: '/storage' }]
+            };
+        } catch (e) {
+            return { type: 'error', text: '❌ Не удалось создать инвайт-ссылку.' };
+        }
+    }
+
+    // СТАТУС (КВОТА)
+    if (lowerQuery === '/storage_status' || lowerQuery === 'статус') {
+        try {
+            const res = await axios.get(`${STORAGE_GATEWAY}/api/get-quota?vk_user_id=${userId}`);
+            const { used, total, providerName } = res.data;
+            
+            const usedGB = (used / (1024 ** 3)).toFixed(2);
+            const totalGB = (total / (1024 ** 3)).toFixed(2);
+            
+            return {
+                type: 'text',
+                text: `✅ **Подключено:** ${providerName || 'Облако'}\n📊 **Место:** ${usedGB} ГБ из ${totalGB} ГБ`,
+                buttons: [
+                    { text: '📁 Показать папки', action: '/storage_list' },
+                    { text: '🔙 Назад', action: '/storage' }
+                ]
+            };
+        } catch (e) {
+            return { 
+                type: 'text', 
+                text: '❌ Облако не подключено или сессия истекла.',
+                buttons: [{ text: '🔗 Подключить', action: '/storage_auth' }]
+            };
+        }
+    }
+
+    // СПИСОК ПАПОК
     if (lowerQuery === '/storage_list') {
         try {
-            const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}?user_id=${userId}&action=list_folders`);
-            if (res.data.folders && res.data.folders.length > 0) {
-                const folderButtons = res.data.folders.map(f => ({
+            const res = await axios.get(`${STORAGE_GATEWAY}/api/list-folders?vk_user_id=${userId}`);
+            
+            // Твой бэк возвращает массив объектов [{id, name}, ...]
+            if (Array.isArray(res.data) && res.data.length > 0) {
+                const folderButtons = res.data.map(f => ({
                     text: `📂 ${f.name}`,
-                    // Используем формат set_folder, который понимает бэк
                     action: `/set_folder_${f.id}` 
                 }));
                 return {
                     type: 'menu',
-                    text: '📁 Выберите целевую папку в облаке:',
-                    buttons: [...folderButtons, { text: '🔙 Назад', action: '/storage' }]
+                    text: '📁 **Ваши папки в облаке:**\nВыберите папку назначения:',
+                    buttons: [...folderButtons.slice(0, 8), { text: '🔙 Назад', action: '/storage' }]
                 };
             }
             return { 
                 type: 'text', 
-                text: '⚠️ Папки не найдены. Убедитесь, что диск подключен и выбран сервис по умолчанию.' 
+                text: '⚠️ Папки не найдены.\nУбедитесь, что сервис выбран по умолчанию в приложении ВК.',
+                buttons: [{ text: '🔗 Подключить диск', action: '/storage_auth' }]
             };
-        } catch (e) { return { type: 'error', text: '❌ Ошибка получения списка папок' }; }
+        } catch (e) { return { type: 'error', text: '❌ Ошибка: Облако не отвечает.' }; }
     }
 
-    // СТАТУС (status)
-    if (lowerQuery === '/storage_status') {
+    // ЗАГРУЗКА ФАЙЛОВ (/api/upload-multipart)
+    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload") || files.length > 0) {
+        if (files.length === 0) return { type: 'text', text: "Прикрепите файл, и я отправлю его в Хранилку! 📎" };
+
         try {
-            const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}?user_id=${userId}&action=status`);
-            // Выводим инфу о свободном месте или ошибку авторизации
-            const statusInfo = res.data.message || (res.data.status === 'error' ? 'Требуется авторизация' : 'Диски активны');
-            return {
-                type: 'text',
-                text: `📊 **Текущий статус:**\n${statusInfo}`,
-                buttons: [{ text: '🔙 Назад', action: '/storage' }]
-            };
-        } catch (e) { return { type: 'error', text: '❌ Ошибка API статуса' }; }
-    }
-
-    // АВТОРИЗАЦИЯ (OAuth эндпоинты)
-    if (lowerQuery === '/storage_auth') {
-        return {
-            type: 'menu',
-            text: '📂 **Меню Хранилки Leshiy-AI**\nВыберите облачный сервис для настройки или авторизации:',
-            buttons: [
-                { text: '🔵 Yandex Disk', action: 'auth_yandex' },
-                { text: '🟠 Google Drive', action: 'auth_google' },
-                { text: '🟠 Dropbox', action: 'auth_dropbox' },
-                { text: '🟣 Mail.ru (WebDAV)', action: 'auth_mailru' },
-                { text: '📁 FTP/SFTP', action: 'auth_ftp' },
-                { text: '⚙️ Статус дисков', action: 'storage_status' }
-            ]
-        };
-    }
-
-    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
-        if (!hasFiles) return { type: 'error', text: "❌ Нечего сохранять. Прикрепите файлы!" };
-        
-        try {
-            const response = await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            const formData = new FormData();
+            // Твой обработчик handleVkUploadMultipart ожидает файлы в стандартном формате
+            files.forEach((f, i) => {
+                // Если у тебя base64, конвертируем в Blob или шлем как есть, если бэк готов
+                formData.append(`file${i}`, f.file); 
             });
-        
-            // ВСТАВКА НОВОЙ ЛОГИКИ ПРОВЕРКИ:
-            const resData = response.data;
-            if (resData && (resData.status === 'error' || resData.error)) {
-                throw new Error(resData.message || resData.error || 'Ошибка шлюза');
-            }
-            
-            // Если всё ок, продолжаем...
-            return { success: true, message: "Файл успешно сохранен!" };
-        } catch (error) {
-            console.error("Ошибка загрузки:", error.message);
-            return { success: false, error: error.message };
-        }
+
+            const res = await axios.post(`${STORAGE_GATEWAY}/api/upload-multipart`, formData, {
+                headers: { 'x-vk-user-id': userId }
+            });
+
+            return { type: 'text', text: '✅ Файлы успешно улетели в облако!' };
+        } catch (e) { return { type: 'error', text: '❌ Ошибка загрузки: ' + e.message }; }
     }
 
     // ==========================================================
