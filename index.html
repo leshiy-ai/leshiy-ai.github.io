@@ -5,23 +5,6 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leshiy-AI Ecosystem</title>
-    <script>
-      (function handleVKAuth() {
-          // Проверяем наличие параметров после решетки (Implicit Flow)
-          const hash = window.location.hash.substring(1);
-          if (hash) {
-              const params = new URLSearchParams(hash);
-              const userId = params.get('user_id');
-              
-              if (userId) {
-                  localStorage.setItem('vk_user_id', userId);
-                  // Очищаем URL, чтобы при обновлении страницы всё было чисто
-                  window.history.replaceState({}, document.title, window.location.pathname);
-                  console.log("✅ VK ID сохранен:", userId);
-              }
-          }
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
