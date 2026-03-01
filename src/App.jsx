@@ -24,22 +24,16 @@ const Message = ({ message, onSwipe, onAction }) => {
     const handleTouchStart = (e) => {
         startX.current = e.touches[0].clientX;
         isDragging.current = true;
-        if (msgRef.current) {
-            msgRef.current.style.transition = 'none';
-        }
+        if (msgRef.current) msgRef.current.style.transition = 'none';
     };
 
     const handleTouchMove = (e) => {
         if (!isDragging.current) return;
         currentX.current = e.touches[0].clientX - startX.current;
-
         if ((message.role === 'user' && currentX.current < 0) || (message.role === 'ai' && currentX.current > 0)) {
             currentX.current = 0;
         }
-
-        if (msgRef.current) {
-            msgRef.current.style.transform = `translateX(${currentX.current}px)`;
-        }
+        if (msgRef.current) msgRef.current.style.transform = `translateX(${currentX.current}px)`;
     };
 
     const handleTouchEnd = () => {
@@ -47,7 +41,6 @@ const Message = ({ message, onSwipe, onAction }) => {
         if (msgRef.current) {
             msgRef.current.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
             const threshold = msgRef.current.offsetWidth * 0.4;
-
             if (Math.abs(currentX.current) > threshold) {
                 const direction = currentX.current > 0 ? 1 : -1;
                 msgRef.current.style.transform = `translateX(${direction * 100}%)`;
@@ -60,6 +53,38 @@ const Message = ({ message, onSwipe, onAction }) => {
         currentX.current = 0;
     };
 
+    // Функция для отрисовки иконок вложений
+    const renderAttachments = () => {
+        // Проверяем и старое поле images, и новое поле files (если будешь его использовать)
+        const allFiles = message.files || (message.images ? message.images.map(img => ({ preview: img, mimeType: 'image/' })) : []);
+        
+        if (allFiles.length === 0) return null;
+
+        return (
+            <div className="attachments-container">
+                {allFiles.map((file, index) => {
+                    const isImage = file.mimeType?.startsWith('image/') || typeof file === 'string';
+                    const isVideo = file.mimeType?.startsWith('video/');
+                    const isAudio = file.mimeType?.startsWith('audio/');
+
+                    return (
+                        <div key={index} className="attachment-item">
+                            {isImage ? (
+                                <img src={file.preview || file} alt="upload" className="uploaded-image-preview" />
+                            ) : isVideo ? (
+                                <div className="file-icon-badge video">🎬 <span>VIDEO</span></div>
+                            ) : isAudio ? (
+                                <div className="file-icon-badge audio">🎵 <span>AUDIO</span></div>
+                            ) : (
+                                <div className="file-icon-badge doc">📎 <span>FILE</span></div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
     return (
         <div
             ref={msgRef}
@@ -69,14 +94,15 @@ const Message = ({ message, onSwipe, onAction }) => {
             onTouchEnd={handleTouchEnd}
         >
             <div className="bubble">
-                {message.images && message.images.length > 0 && (
-                    <div className="image-previews-container">
-                        {message.images.map((imgSrc, index) => (
-                            <img key={index} src={imgSrc} alt={`User upload ${index + 1}`} className="uploaded-image-preview" />
-                        ))}
-                    </div>
-                )}
-                {message.text && <ReactMarkdown>{message.text}</ReactMarkdown>}
+                {/* Рендерим вложения (картинки, видео, аудио) */}
+                {renderAttachments()}
+
+                {/* Рендерим текст или заглушку, если текста нет, но есть файлы */}
+                {message.text ? (
+                    <ReactMarkdown>{message.text}</ReactMarkdown>
+                ) : (message.images?.length > 0 || message.files?.length > 0) ? (
+                    <p style={{ fontStyle: 'italic', opacity: 0.7, margin: '5px 0' }}>Медиафайл</p>
+                ) : null}
                 
                 {message.buttons && (
                     <div className="message-buttons">
