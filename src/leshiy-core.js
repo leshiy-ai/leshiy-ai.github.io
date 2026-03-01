@@ -14,6 +14,21 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ПЕРЕХВАТ КОМАНД ДЛЯ ХРАНИЛКИ
     // ==========================================================
+    if (lowerQuery.includes('/storage') || lowerQuery.includes('хранил')) {
+        return {
+            type: 'menu',
+            text: '📂 **Меню Хранилки Leshiy-AI**\nВыберите облачный сервис для настройки или авторизации:',
+            buttons: [
+                { text: '🔵 Yandex Disk', action: 'auth_yandex' },
+                { text: '🟠 Google Drive', action: 'auth_google' },
+                { text: '🟠 Dropbox', action: 'auth_dropbox' },
+                { text: '🟣 Mail.ru (WebDAV)', action: 'auth_mailru' },
+                { text: '📁 FTP/SFTP', action: 'auth_ftp' },
+                { text: '⚙️ Статус дисков', action: 'storage_status' }
+            ]
+        };
+    }
+
     if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
         if (!hasFiles) return { type: 'error', text: "❌ Нечего сохранять. Прикрепите файлы!" };
         

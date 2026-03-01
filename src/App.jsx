@@ -241,53 +241,51 @@ function App() {
     };
 
     const handleSend = async (commandOverride) => {
-        const textToSend = typeof commandOverride === 'string' ? commandOverride : input;
-        const userMessage = textToSend.trim();
-
-        if (userMessage.toLowerCase() === '/admin') {
+        // 1. Четко определяем текст: либо из кнопки, либо из инпута
+        const rawText = typeof commandOverride === 'string' ? commandOverride : input;
+        const userMessageText = rawText.trim(); // Убираем пробелы!
+    
+        // Проверка на админку
+        if (userMessageText.toLowerCase() === '/admin') {
             setShowAdminPanel(true);
             setInput('');
             return;
         }
-
-        if (!userMessage && files.length === 0) return;
-
+    
+        if (!userMessageText && files.length === 0) return;
+    
         setIsLoading(true);
-
         const messageId = Date.now();
+    
+        // Добавляем сообщение пользователя в чат
         setMessages(prev => [...prev, { 
             id: messageId, 
             role: 'user', 
-            text: userMessage,
+            text: userMessageText,
             images: files.filter(f => f.preview).map(f => f.preview)
         }]);
-
-        const requestPayload = { 
-            text: userMessage,
-            files: files 
-        };
-
-        if (typeof commandOverride !== 'string') {
-            setInput('');
-            setFiles([]);
-        }
-
+    
+        // Очищаем инпут СРАЗУ
+        setInput('');
+        const currentFiles = [...files]; // Копируем файлы для запроса
+        setFiles([]);
+    
         try {
-            const aiResponse = await askLeshiy(requestPayload);
+            // ОТПРАВЛЯЕМ В CORE
+            const aiResponse = await askLeshiy({ 
+                text: userMessageText, 
+                files: currentFiles 
+            });
             
+            // Добавляем ответ (текст + кнопки!)
             setMessages(prev => [...prev, { 
                 id: Date.now() + 1, 
                 role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
                 text: aiResponse.text,
-                buttons: aiResponse.buttons
+                buttons: aiResponse.buttons // Проверь, что это поле тут есть!
             }]);
         } catch (err) {
-            console.error("Ошибка отправки:", err);
-            setMessages(prev => [...prev, { 
-                id: Date.now() + 1, 
-                role: 'ai error', 
-                text: "❌ Связь с экосистемой прервана..." 
-            }]);
+            // ... твой catch
         } finally {
             setIsLoading(false);
         }
@@ -296,9 +294,13 @@ function App() {
     const handleMenuAction = (action) => {
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
+            // Используй темплейтную строку для ID, если он меняется
             window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?user_id=235663624`, '_blank');
         } else {
-            handleSend(`/${action}`); 
+            // Если это просто команда (например storage_status), 
+            // добавляем слэш только если его нет
+            const command = action.startsWith('/') ? action : `/${action}`;
+            handleSend(command); 
         }
     };
     
