@@ -178,7 +178,7 @@ function App() {
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-                formData.append('chat_id', "235663624");
+                formData.append('chat_id', "3930898");
 
                 await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
@@ -295,7 +295,7 @@ function App() {
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
             // Используй темплейтную строку для ID, если он меняется
-            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?user_id=235663624`, '_blank');
+            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?user_id=3930898`, '_blank');
         } else {
             // Если это просто команда (например storage_status), 
             // добавляем слэш только если его нет
