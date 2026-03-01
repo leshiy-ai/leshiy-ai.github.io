@@ -16,7 +16,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const VK_MINI_APP_ID = "54419010"; // ID мини-приложения Хранилка
     const gateway = CONFIG.STORAGE_GATEWAY;
     
-    // Пытаемся достать ID
+    // Пытаемся достать ID из URL (например, при переходе по реф-ссылке)
     const params = new URLSearchParams(window.location.search);
     const urlId = params.get('user_id');
     if (urlId) localStorage.setItem('vk_user_id', urlId);
@@ -24,12 +24,18 @@ export const askLeshiy = async ({ text, files = [] }) => {
     const currentUserId = localStorage.getItem('vk_user_id') || urlId;
     const userId = currentUserId || CONFIG.ADMIN_CHAT_ID;
 
+    // Вспомогательная функция для форматирования размера
+    const formatSize = (bytes) => {
+        if (!bytes || bytes === 0) return '0 ГБ';
+        return (bytes / (1024 ** 3)).toFixed(2) + ' ГБ';
+    };
+
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ГЛАВНОЕ МЕНЮ И КОМАНДЫ
     // ==========================================================
     
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
-        // --- СЦЕНАРИЙ А: НУЖНА АВТОРИЗАЦИЯ ---
+        // --- СЦЕНАРИЙ А: НУЖНА АВТОРИЗАЦИЯ В VK ---
         if (!currentUserId) {
             const VKID = window.VKIDSDK;
             const overlay = document.getElementById('vk_auth_overlay');
@@ -37,10 +43,10 @@ export const askLeshiy = async ({ text, files = [] }) => {
 
             if (overlay && container) {
                 container.innerHTML = ''; 
-                overlay.style.display = 'flex'; // Показываем все красивое окно
+                overlay.style.display = 'flex'; 
 
                 VKID.Config.init({
-                    app: SITE_APP_ID, // Тут оставляем ID сайта (он нужен для SDK)
+                    app: SITE_APP_ID, 
                     redirectUrl: 'https://leshiy-ai.github.io',
                     responseMode: VKID.ConfigResponseMode.Callback,
                     source: VKID.ConfigSource.LOWCODE,
@@ -59,50 +65,59 @@ export const askLeshiy = async ({ text, files = [] }) => {
                             if (vkid) {
                                 localStorage.setItem('vk_user_id', vkid);
                                 overlay.style.display = 'none';
-                                alert("✅ Авторизация успешна!");
-                                window.location.reload(); 
+                                // Вместо alert и reload шлем событие обновления
+                                window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
                             }
                         });
                 });
 
-                return {
-                    type: 'text',
-                    text: `⚙️ **Открываю окно входа...**`,
-                };
+                return { type: 'text', text: `⚙️ **Открываю окно входа...**` };
             }
         }
 
-        // --- СЦЕНАРИЙ Б: УЖЕ АВТОРИЗОВАН (Запрос квоты) ---
+        // --- СЦЕНАРИЙ Б: УЖЕ АВТОРИЗОВАН (Запрос статуса и квоты) ---
         try {
-            console.log("Запрос квоты для ID:", currentUserId);
-            const res = await axios.get(`${gateway}/api/get-quota?vk_user_id=${currentUserId}`);
-            const { used, total, providerName } = res.data;
+            // Сначала берем общий статус (там providerName и currentFolder)
+            const statusRes = await axios.get(`${gateway}/?action=get-status&userId=${userId}`);
+            const status = statusRes.data;
+
+            if (!status.isConnected) {
+                return {
+                    type: 'menu',
+                    text: `🗄 **Хранилка не подключена**\n\nВыберите облако для хранения ваших файлов:`,
+                    buttons: [
+                        { text: '🔗 Подключить Диск', action: '/storage_auth' },
+                        { text: '🤝 Хранилка друга', action: '/storage_invite' },
+                        { text: '🔙 Назад', action: '/start' }
+                    ]
+                };
+            }
+
+            // Затем берем квоту
+            const quotaRes = await axios.get(`${gateway}/api/get-quota?vk_user_id=${userId}`);
+            const { used, total } = quotaRes.data;
             
             return {
                 type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${providerName || 'Облако'}\n📊 Место: ${(used / 1e9).toFixed(2)} ГБ из ${(total / 1e9).toFixed(2)} ГБ`,
+                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${status.providerName || 'Облако'}\n📂 Папка: \`${status.currentFolder || 'Root'}\`\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
                 buttons: [
                     { text: '📁 Мои Папки', action: '/storage_list' },
-                    { text: '🔗 Подключить Диск', action: '/storage_auth' },
-                    { text: '🤝 Хранилка друга', action: '/storage_invite' },
-                    { text: '🤖 Спросить ИИ', action: '/ai_help' }
+                    { text: '➕ Создать папку', action: '/create_folder_prompt' },
+                    { text: '🤝 Поделиться', action: '/storage_invite' },
+                    { text: '🔌 Отключить', action: '/storage_disconnect' }
                 ]
             };
         } catch (e) {
             console.error("Ошибка API Хранилки:", e);
             return {
                 type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n⚠️ Диск не подключен или сервер недоступен.`,
-                buttons: [
-                    { text: '🔗 Подключить Диск', action: '/storage_auth' },
-                    { text: '🤝 Хранилка по ссылке', action: '/storage_invite' },
-                    { text: '🔙 Назад', action: '/start' }
-                ]
+                text: `🗄 **Главное меню Хранилки**\n\n⚠️ Ошибка связи с сервером.`,
+                buttons: [{ text: '🔙 Назад', action: '/start' }]
             };
         }
     }
 
-    // АВТОРИЗАЦИЯ ОБЛАКОВ
+    // АВТОРИЗАЦИЯ ОБЛАКОВ (Выбор провайдера)
     if (lowerQuery === '/storage_auth') {
         return {
             type: 'menu',
@@ -119,10 +134,11 @@ export const askLeshiy = async ({ text, files = [] }) => {
         };
     }
 
-    // ИНВАЙТ-ССЫЛКА
+    // ИНВАЙТ-ССЫЛКА (Рефералка)
     if (lowerQuery === '/storage_invite') {
         try {
             const res = await axios.get(`${gateway}/api/create-invite?userId=${userId}`);
+            // Используем ID мини-приложения для ссылки
             const inviteLink = `https://vk.com/app${VK_MINI_APP_ID}#ref=${res.data.inviteCode}`;
 
             return {
@@ -132,6 +148,20 @@ export const askLeshiy = async ({ text, files = [] }) => {
             };
         } catch (e) {
             return { type: 'error', text: '❌ Ошибка API при создании инвайта.' };
+        }
+    }
+
+    // ОТКЛЮЧЕНИЕ ОБЛАКА
+    if (lowerQuery === '/storage_disconnect') {
+        try {
+            await axios.post(`${gateway}/api/disconnect`, { userId: userId });
+            return { 
+                type: 'text', 
+                text: '📴 **Диск успешно отключен.**\nАвтозагрузка прекращена, данные в облаке сохранены.',
+                buttons: [{ text: '🔙 В меню', action: '/storage' }]
+            };
+        } catch (e) {
+            return { type: 'error', text: '❌ Ошибка при отключении.' };
         }
     }
 
@@ -146,43 +176,58 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 }));
                 return {
                     type: 'menu',
-                    text: '📁 **Ваши папки в облаке:**',
-                    buttons: [...folderButtons.slice(0, 8), { text: '🔙 Назад', action: '/storage' }]
+                    text: '📁 **Ваши папки в облаке:**\nВыберите папку для сохранения файлов:',
+                    buttons: [...folderButtons.slice(0, 10), { text: '🔙 Назад', action: '/storage' }]
                 };
             }
-            return { type: 'text', text: '⚠️ Папки не найдены.' };
+            return { 
+                type: 'text', 
+                text: '⚠️ Папки не найдены.',
+                buttons: [{ text: '➕ Создать папку', action: '/create_folder_prompt' }, { text: '🔙 Назад', action: '/storage' }]
+            };
         } catch (e) { return { type: 'error', text: '❌ Ошибка: Облако не отвечает.' }; }
     }
 
-    // СМЕНА ПАПКИ
+    // СМЕНА ПАПКИ (POST запрос на /api/select-folder)
     if (lowerQuery.startsWith('/set_folder_')) {
-        const folderId = lowerQuery.replace('/set_folder_', '');
+        const folderId = userQuery.replace(/\/set_folder_/i, '').trim();
         try {
-            await axios.get(`${gateway}/api/set-active-folder?vk_user_id=${userId}&folder_id=${folderId}`);
-            return { 
-                type: 'text', 
-                text: `📁 Папка успешно изменена!\nТеперь все файлы будут сохраняться сюда.`,
-                buttons: [{ text: '🔙 В меню', action: '/storage' }]
-            };
+            const res = await axios.post(`${gateway}/api/select-folder`, {
+                userId: userId,
+                folderId: folderId
+            });
+
+            if (res.data.success) {
+                return { 
+                    type: 'text', 
+                    text: `✅ **Папка успешно изменена!**\nТекущая папка: \`${folderId}\``,
+                    buttons: [{ text: '🔙 В меню', action: '/storage' }]
+                };
+            } else {
+                throw new Error(res.data.error || 'Ошибка сервера');
+            }
         } catch (e) {
-            return { type: 'error', text: '❌ Ошибка при смене папки.' };
+            return { type: 'error', text: `❌ Ошибка смены папки: ${e.message}` };
         }
     }
 
-    // СТАТУС (КВОТА) - как отдельная команда тоже оставляем
-    if (lowerQuery === '/storage_status' || lowerQuery === 'статус') {
+    // СОЗДАНИЕ ПАПКИ
+    if (lowerQuery.startsWith('/create_folder_')) {
+        const folderName = userQuery.replace(/\/create_folder_/i, '').trim();
         try {
-            const res = await axios.get(`${gateway}/api/get-quota?vk_user_id=${userId}`);
-            const { used, total, providerName } = res.data;
-            const usedGB = (used / (1024 ** 3)).toFixed(2);
-            const totalGB = (total / (1024 ** 3)).toFixed(2);
-            return {
-                type: 'text',
-                text: `✅ **Подключено:** ${providerName || 'Облако'}\n📊 **Место:** ${usedGB} ГБ из ${totalGB} ГБ`,
-                buttons: [{ text: '📁 Показать папки', action: '/storage_list' }, { text: '🔙 Назад', action: '/storage' }]
-            };
+            const res = await axios.post(`${gateway}/api/create-folder`, {
+                userId: userId,
+                name: folderName
+            });
+            if (res.data.success) {
+                return { 
+                    type: 'text', 
+                    text: `📂 Папка **${folderName}** создана и установлена как активная!`,
+                    buttons: [{ text: '🔙 В меню', action: '/storage' }]
+                };
+            }
         } catch (e) {
-            return { type: 'text', text: '❌ Облако не подключено.', buttons: [{ text: '🔗 Подключить', action: '/storage_auth' }] };
+            return { type: 'error', text: `❌ Ошибка создания папки: ${e.message}` };
         }
     }
 
