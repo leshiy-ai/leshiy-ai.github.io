@@ -15,50 +15,57 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ПЕРЕХВАТ КОМАНД ДЛЯ ХРАНИЛКИ
     // ==========================================================
-    // 1. Главное меню
+    // ГЛАВНОЕ МЕНЮ
     if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
         return {
-        type: 'menu',
-        text: '📂 Меню Хранилки Leshiy-AI\nВыберите действие:',
-        buttons: [
-            { text: '📁 Выбрать папку', action: '/storage_list' },
-            { text: '⚙️ Статус дисков', action: '/storage_status' },
-            { text: '🔗 Привязать диск', action: '/storage_auth' }
-        ]
+            type: 'menu',
+            text: '📂 **Управление Хранилищем**\nВыберите действие:',
+            buttons: [
+                { text: '📁 Мои папки', action: '/storage_list' },
+                { text: '⚙️ Статус дисков', action: '/storage_status' },
+                { text: '🔗 Подключить сервис', action: '/storage_auth' }
+            ]
         };
     }
-    
-    // 2. Эндпоинт статуса
-    if (lowerQuery === '/storage_status') {
-        try {
-        const res = await axios.get(CONFIG.STORAGE_GATEWAY + '?user_id=' + userId + '&action=status');
-        return {
-            type: 'text',
-            text: '📊 Статус:\n' + (res.data.message || 'Система готова'),
-            buttons: [{ text: '🔙 Назад', action: '/storage' }]
-        };
-        } catch (e) { return { type: 'error', text: '❌ Ошибка API статуса' }; }
-    }
-    
-    // 3. Динамический список папок
+
+    // СПИСОК ПАПОК (list_folders)
     if (lowerQuery === '/storage_list') {
         try {
-        const res = await axios.get(CONFIG.STORAGE_GATEWAY + '?user_id=' + userId + '&action=list_folders');
-        if (res.data.folders && res.data.folders.length > 0) {
-            const folderButtons = res.data.folders.map(f => ({
-            text: '📂 ' + f.name,
-            action: '/set_folder_' + f.id
-            }));
-            return {
-            type: 'menu',
-            text: '📁 Выберите папку в облаке:',
-            buttons: [...folderButtons, { text: '🔙 Назад', action: '/storage' }]
+            const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}?user_id=${userId}&action=list_folders`);
+            if (res.data.folders && res.data.folders.length > 0) {
+                const folderButtons = res.data.folders.map(f => ({
+                    text: `📂 ${f.name}`,
+                    // Используем формат set_folder, который понимает бэк
+                    action: `/set_folder_${f.id}` 
+                }));
+                return {
+                    type: 'menu',
+                    text: '📁 Выберите целевую папку в облаке:',
+                    buttons: [...folderButtons, { text: '🔙 Назад', action: '/storage' }]
+                };
+            }
+            return { 
+                type: 'text', 
+                text: '⚠️ Папки не найдены. Убедитесь, что диск подключен и выбран сервис по умолчанию.' 
             };
-        }
-        return { type: 'text', text: '⚠️ Папки не найдены. Проверьте авторизацию.' };
         } catch (e) { return { type: 'error', text: '❌ Ошибка получения списка папок' }; }
     }
-    // 4. Меню авторизации
+
+    // СТАТУС (status)
+    if (lowerQuery === '/storage_status') {
+        try {
+            const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}?user_id=${userId}&action=status`);
+            // Выводим инфу о свободном месте или ошибку авторизации
+            const statusInfo = res.data.message || (res.data.status === 'error' ? 'Требуется авторизация' : 'Диски активны');
+            return {
+                type: 'text',
+                text: `📊 **Текущий статус:**\n${statusInfo}`,
+                buttons: [{ text: '🔙 Назад', action: '/storage' }]
+            };
+        } catch (e) { return { type: 'error', text: '❌ Ошибка API статуса' }; }
+    }
+
+    // АВТОРИЗАЦИЯ (OAuth эндпоинты)
     if (lowerQuery === '/storage_auth') {
         return {
             type: 'menu',
