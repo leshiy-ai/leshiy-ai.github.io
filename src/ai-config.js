@@ -2,13 +2,6 @@
 
 export const AI_MODELS = {
     // --- Модели Gemini ---
-    TEXT_TO_TEXT_GEMINI2: { 
-        SERVICE: 'GEMINI', 
-        MODEL: 'gemini-2.0-flash',
-        API_KEY: 'GEMINI_API_KEY', 
-        BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
-    },
-    // --- Модели Gemini ---
     TEXT_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 
         MODEL: 'gemini-2.5-flash',
