@@ -307,7 +307,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
         const protocol = lowerQuery.includes('ftp') ? 'FTP/SFTP' : 'WebDAV';
         return {
             type: 'text',
-            text: '⚙️ **Подключение своего сервера ${protocol}**\n\nПросто пришлите строку в формате:\n`протокол://логин:пароль@хост`\n\n**Примеры:**\n• `webdav://user:pass@webdav.yandex.ru`\n• `ftp://admin:12345@92.255.162.189:21`\n• `sftp://root:password@my-server.com`',
+            text: `⚙️ ** Подключение своего сервера ${protocol} **\n\nПросто пришлите строку в формате:\n❇️ протокол://логин:пароль@хост\n\n**Примеры:**\n• webdav://user:pass@webdav.yandex.ru\n• ftp://admin:12345@92.255.162.189:21\n• sftp://root:password@my-server.com`,
             buttons: [{ text: '🔙 Назад', action: '/storage_auth' }]
         };
     }
