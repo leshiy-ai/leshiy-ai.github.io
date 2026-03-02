@@ -403,8 +403,8 @@ export const askLeshiy = async ({ text, files = [] }) => {
             const statusRes = await axios.get(`${gateway}/?action=get-status&userId=${userId}`);
             const status = statusRes.data;
             
-            const currentP = status.providerName || '';
-            const currentF = status.currentFolderId || status.currentFolder || '';
+            const currentP = status.provider || '';
+            const currentF = status.currentFolder || '';
 
             // Запрос к API (оставляем как было)
             const res = await axios.get(`${gateway}/api/search?q=${encodeURIComponent(searchTerm)}&userId=${userId}`);
@@ -415,7 +415,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
             }
     
             // --- ЛОГИКА СВЕТОФОРА ---
-            const fileButtons = files.slice(0, 8).map(f => {
+            const fileButtons = files.slice(0, 10).map(f => {
                 // 1. Опознавание типа для иконки
                 const ext = f.fileName.split('.').pop().toLowerCase();
                 let emoji = '📄';
@@ -428,11 +428,10 @@ export const askLeshiy = async ({ text, files = [] }) => {
                     emoji = '🎬';
                 }
     
-                // 2. Светофор (сравнение провайдера и папки)
-                // 2. Светофор
+            // 2. Светофор (сравнение провайдера и папки)
             let statusEmoji = '🟢'; 
             if (f.provider !== currentP) statusEmoji = '🔴';
-            else if (f.folderId !== currentF && f.folderName !== currentF) statusEmoji = '🟡';
+            else if (f.folderId !== currentF) statusEmoji = '🟡';
 
             // 3. ССЫЛКА НА СКАТЫВАНИЕ (с сохранением параметров для ИИ-обработки)
             // Мы прокидываем type, чтобы воркер понимал: это голос (нужен транскрипт) или музыка (нужен Shazam)
