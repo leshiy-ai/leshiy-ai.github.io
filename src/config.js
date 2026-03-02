@@ -15,7 +15,8 @@ export const CONFIG = {
     DEEPSEEK_API_KEY: import.meta.env.VITE_DEEPSEEK_API_KEY,
 
     // --- Прокси ---
-    PROXY_URL: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',
+    //PROXY_URL: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',
+    PROXY_URL: 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/ai-proxy',
     // Твоя Хранилка (Яндекс)
     STORAGE_GATEWAY: "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net",
     // Твой медиа-бот (Cloudflare)
