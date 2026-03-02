@@ -394,69 +394,69 @@ export const askLeshiy = async ({ text, files = [] }) => {
     if (lowerQuery.startsWith('найди ') || lowerQuery.startsWith('поиск ')) {
         const searchTerm = userQuery.replace(/найди |поиск /gi, '').trim();
         
+        if (!searchTerm) {
+            return { type: 'text', text: '🔍 Что именно искать? Напишите, например: *найди сейф*' };
+        }
+    
         try {
-            // Выполняем запрос к твоему API "как есть"
+            // ПОЛУЧАЕМ ТЕКУЩИЙ СТАТУС (подставляем свои ключи из localStorage)
+            const currentP = localStorage.getItem('storage_provider') || '';
+            const currentF = localStorage.getItem('storage_folder_id') || '';
+
+            // Запрос к API (оставляем как было)
             const res = await axios.get(`${gateway}/api/search?q=${encodeURIComponent(searchTerm)}&userId=${userId}`);
             const files = res.data.results || [];
-
-            // Нам нужны текущие провайдер и папка для "светофора"
-            // Допустим, они хранятся в твоем глобальном стейте или userData
-            const activeProvider = currentProvider; // из твоего меню выше
-            const activeFolder = currentFolderId;   // идентификатор текущей папки
-
-            const fileButtons = files.slice(0, 8).map(f => {
-                // 1. Извлекаем данные (имена полей строго как в дампе YDB)
-                const fName = f.fileName || 'file';
-                const fFolderId = f.folderId || '';
-                const fProvider = f.provider || '';
-                const fType = f.fileType || '';
-
-                // 2. Логика иконки (как в твоем примере для VK)
-                const ext = fName.split('.').pop().toLowerCase();
-                let emoji = '📄';
-                if (['jpg', 'jpeg', 'png', 'gif'].includes(ext) || fType.includes('photo')) emoji = '🖼️';
-                if (['mp4', 'mov', 'avi'].includes(ext) || fType.includes('video')) emoji = '🎬';
-                if (['mp3', 'wav'].includes(ext) || fType.includes('audio')) emoji = '🎙️';
-
-                // 3. Логика "светофора" (сравнение на лету)
-                let statusEmoji = '🟢'; 
-                if (fProvider !== activeProvider) {
-                    statusEmoji = '🔴'; // Другое облако
-                } else if (fFolderId !== activeFolder) {
-                    statusEmoji = '🟡'; // То же облако, но другая папка
-                }
-
-                // 4. Формируем ссылку для скачивания (используем folderId вместо path)
-                const downloadUrl = `${CONFIG.STORAGE_GATEWAY}/api/download` + 
-                                    `?path=${encodeURIComponent(fFolderId)}` + 
-                                    `&name=${encodeURIComponent(fName)}` + 
-                                    `&userId=${userId}`;
-
-                return {
-                    text: `${statusEmoji} ${emoji} ${fName}`,
-                    action: downloadUrl // handleMenuAction откроет эту ссылку
-                };
-            });
-
+    
             if (files.length === 0) {
-                return { type: 'text', text: `❌ По запросу "${searchTerm}" ничего не найдено.` };
+                return { type: 'text', text: `🤷‍♂️ По запросу «${searchTerm}» ничего не найдено.` };
             }
+    
+            // --- ЛОГИКА СВЕТОФОРА ---
+            const fileButtons = files.slice(0, 8).map(f => {
+                // 1. Опознавание типа для иконки
+                const ext = f.fileName.split('.').pop().toLowerCase();
+                let emoji = '📄';
+                // Если это голос или музыка — ставим соответствующие иконки
+                if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext) || f.fileType.includes('audio')) {
+                    emoji = (f.fileName.toLowerCase().includes('voice') || f.fileType.includes('voice')) ? '🎤' : '🎵';
+                } else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext) || f.fileType.includes('photo')) {
+                    emoji = '🖼️';
+                } else if (['mp4', 'mov', 'avi'].includes(ext) || f.fileType.includes('video')) {
+                    emoji = '🎬';
+                }
+    
+                // 2. Светофор (сравнение провайдера и папки)
+                // 2. Светофор
+            let statusEmoji = '🟢'; 
+            if (f.provider !== currentP) statusEmoji = '🔴';
+            else if (f.folderId !== currentF && f.folderName !== currentF) statusEmoji = '🟡';
+
+            // 3. ССЫЛКА НА СКАТЫВАНИЕ (с сохранением параметров для ИИ-обработки)
+            // Мы прокидываем type, чтобы воркер понимал: это голос (нужен транскрипт) или музыка (нужен Shazam)
+            const downloadUrl = `${CONFIG.STORAGE_GATEWAY}/api/download` + 
+                                `?path=${encodeURIComponent(f.folderId)}` + 
+                                `&name=${encodeURIComponent(f.fileName)}` + 
+                                `&type=${encodeURIComponent(f.fileType)}` + // ПЕРЕДАЕМ ТИП ДЛЯ ИИ
+                                `&userId=${userId}`;
 
             return {
+                text: `${statusEmoji} ${emoji} ${f.fileName}`,
+                action: downloadUrl
+                };
+            });
+    
+            return {
                 type: 'menu',
-                text: `🔍 **Результаты поиска:**\n\n` +
-                    `🟢 — можно скачать\n` +
-                    `🟡 — файл в другой папке\n` +
-                    `🔴 — нужно сменить диск\n\n` +
-                    `Найдено: ${files.length}`,
-                buttons: [
-                    ...fileButtons, 
-                    { text: '🔙 В меню Хранилки', action: '/storage' }
-                ]
+                text: `🔍 **Результаты поиска (${files.length}):**\n\n` +
+                      `🟢 — можно скачать\n` +
+                      `🟡 — в другой папке\n` +
+                      `🔴 — смените диск\n\n` +
+                      `Нажмите на файл для загрузки:`,
+                buttons: [...fileButtons, { text: '🔙 В меню', action: '/storage' }]
             };
         } catch (e) {
             console.error("Search error:", e);
-            return { type: 'error', text: '⚠️ Не удалось выполнить поиск.' };
+            return { type: 'error', text: '⚠️ Ошибка при поиске файлов.' };
         }
     }
 
