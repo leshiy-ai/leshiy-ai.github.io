@@ -35,7 +35,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // ==========================================================
     
     // Команда вызова меню Хранилки
-    if (lowerQuery === '/storage' || lowerQuery.startsWith('хранилк')) {
+    if (lowerQuery === '/storage' || lowerQuery.includes('хранилк')) {
         sessionStorage.removeItem('pending_action');
         // Если НЕ авторизован — показываем только кнопку входа
         if (!currentUserId) {
