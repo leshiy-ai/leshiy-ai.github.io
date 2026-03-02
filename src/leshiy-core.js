@@ -130,11 +130,11 @@ export const askLeshiy = async ({ text, files = [] }) => {
             type: 'menu',
             text: '🔗 **Подключение облака**\nВыберите провайдера для авторизации:',
             buttons: [
-                { text: '🔵 Yandex Disk', action: 'auth_yandex' },
-                { text: '🟠 Google Drive', action: 'auth_google' },
-                { text: '🟡 Dropbox', action: 'auth_dropbox' },
-                { text: '🟣 Mail.ru (WebDAV)', action: '/storage_form_webdav' },
-                { text: '📁 FTP/SFTP/WebDAV', action: '/storage_custom' },
+                { text: '☁️ Yandex Disk', action: 'auth_yandex' },
+                { text: '☁️ Google Drive', action: 'auth_google' },
+                { text: '☁️ Dropbox', action: 'auth_dropbox' },
+                { text: '✉️ Mail.ru (WebDAV)', action: '/storage_form_webdav' },
+                { text: '🌐 FTP/SFTP/WebDAV', action: '/storage_custom' },
                 { text: '🤝 Хранилка друга', action: '/storage_friends' },
                 { text: '🔙 Назад', action: '/storage' }
             ]
@@ -294,7 +294,8 @@ export const askLeshiy = async ({ text, files = [] }) => {
             text: '📁 **Настройка своего сервера**\n\nВы можете подключить личное хранилище по протоколам FTP, SFTP или WebDAV.',
             buttons: [
                 { text: '🌐 WebDAV (Облако Mail.Ru)', action: '/storage_form_webdav' },
-                { text: '💾 FTP / SFTP', action: '/storage_form_ftp' },
+                { text: '🔒 FTP', action: '/storage_form_ftp' },
+                { text: '🔐 SFTP', action: '/storage_form_sftp' },
                 { text: '🔙 Назад', action: '/storage_auth' }
             ]
         };
@@ -302,12 +303,52 @@ export const askLeshiy = async ({ text, files = [] }) => {
 
     // Заглушка для форм (лучше вести на веб-морду твоего шлюза)
     if (lowerQuery.startsWith('/storage_form')) {
+        sessionStorage.setItem('pending_action', 'setup_server');
         const protocol = lowerQuery.includes('ftp') ? 'FTP/SFTP' : 'WebDAV';
         return {
             type: 'text',
-            text: `⚙️ **Настройка ${protocol}**\n\nДля безопасного ввода данных (хост, логин, пароль) воспользуйтесь веб-интерфейсом Хранилки:\n\n🔗 https://vk.com/app${VK_MINI_APP_ID}`,
-            buttons: [{ text: '🔙 Назад', action: 'auth_webdav' }]
+            text: '⚙️ **Подключение своего сервера ${protocol}**\n\nПросто пришлите строку в формате:\n`протокол://логин:пароль@хост`\n\n**Примеры:**\n• `webdav://user:pass@webdav.yandex.ru`\n• `ftp://admin:12345@92.255.162.189:21`\n• `sftp://root:password@my-server.com`',
+            buttons: [{ text: '🔙 Назад', action: '/storage_auth' }]
         };
+    }
+
+    // 2. Перехват строки подключения
+    if (sessionStorage.getItem('pending_action') === 'setup_server' && !userQuery.startsWith('/')) {
+        try {
+            // Парсим строку (стандартный формат URL)
+            const setupUrl = new URL(userQuery.replace('webdav://', 'https://')); // Фикс для парсера
+            
+            const payload = {
+                userId: userId,
+                fullUrl: userQuery,
+                host: setupUrl.hostname,
+                user: decodeURIComponent(setupUrl.username),
+                pass: decodeURIComponent(setupUrl.password),
+                folderId: 'Root'
+            };
+
+            // Шлем POST запрос в твой эндпоинт Cloudflare
+            const res = await axios.post(`${CONFIG.STORAGE_GATEWAY.replace('/api', '')}/api/setup-webdav`, payload);
+
+            if (res.data.success) {
+                sessionStorage.removeItem('pending_action');
+                return {
+                    type: 'text',
+                    text: res.data.message || '✅ Сервер успешно подключен!',
+                    buttons: [
+                        { text: '📁 К файлам', action: '/storage_list_folders' },
+                        { text: '🔙 В меню', action: '/storage' }
+                    ]
+                };
+            } else {
+                throw new Error(res.data.message || 'Ошибка сервера');
+            }
+        } catch (err) {
+            return { 
+                type: 'error', 
+                text: '❌ Неверный формат! Убедитесь, что указали логин и пароль.\nПример: `ftp://user:pass@host`' 
+            };
+        }
     }
 
     // ЗАГРУЗКА ФАЙЛОВ
