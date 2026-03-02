@@ -389,6 +389,40 @@ export const askLeshiy = async ({ text, files = [] }) => {
     }
 
     // ==========================================================
+    // ПОИСК И СКАЧИВАНИЕ ФАЙЛОВ С ХРАНИЛКИ
+    // ==========================================================
+    if (lowerQuery.startsWith('найди ') || lowerQuery.startsWith('поиск ')) {
+        const searchTerm = userQuery.replace(/найди |поиск /gi, '').trim();
+        
+        if (!searchTerm) {
+            return { type: 'text', text: '🔍 Что именно искать? Напишите, например: *найди сейф*' };
+        }
+
+        try {
+            const res = await axios.get(`${gateway}/api/search?q=${encodeURIComponent(searchTerm)}&userId=${userId}`);
+            const files = res.data.results || [];
+
+            if (files.length === 0) {
+                return { type: 'text', text: `🤷‍♂️ По запросу «${searchTerm}» ничего не найдено.` };
+            }
+
+            const fileButtons = files.slice(0, 8).map(f => ({
+                text: `📥 ${f.fileName}`,
+                // Используем action для открытия ссылки в handleMenuAction
+                action: `${CONFIG.STORAGE_GATEWAY}/api/download?path=${encodeURIComponent(f.filePath)}&name=${encodeURIComponent(f.fileName)}&userId=${userId}`
+            }));
+
+            return {
+                type: 'menu',
+                text: `🔍 **Результаты поиска (${files.length}):**\nНажмите на файл, чтобы скачать его.`,
+                buttons: [...fileButtons, { text: '🔙 В меню', action: '/storage' }]
+            };
+        } catch (e) {
+            return { type: 'error', text: '⚠️ Ошибка при поиске файлов.' };
+        }
+    }
+
+    // ==========================================================
     // 2. ОПРЕДЕЛЕНИЕ ТИПА СЕРВИСА И ЗАГРУЗКА МОДЕЛИ
     // ==========================================================
     let serviceType = 'TEXT_TO_TEXT';
