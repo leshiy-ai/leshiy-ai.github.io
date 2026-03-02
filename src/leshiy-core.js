@@ -412,6 +412,9 @@ export const askLeshiy = async ({ text, files = [] }) => {
         // --- ПРОВЕРКА НА ПУСТОЙ ВВОД ---
         // Если поискового слова нет И это не переход по страницам (offset === 0)
         if (!searchTerm && offset === 0) {
+            // ЗАПОМИНАЕМ ШАГ: выставляем pending_action
+            sessionStorage.setItem('pending_action', 'waiting_for_search');
+
             return { 
                 type: 'text', 
                 text: '🔍 **Режим поиска**\n\nВведите название файла, расширение (например, `jpg`) или часть имени.\n\n_Я жду вашего ввода..._',
@@ -422,6 +425,9 @@ export const askLeshiy = async ({ text, files = [] }) => {
         }
     
         try {
+            // Очищаем экшн, так как поиск уже начался
+            sessionStorage.removeItem('pending_action');
+
             // Сначала запрашиваем актуальный статус подключения
             const statusRes = await axios.get(`${gateway}/?action=get-status&userId=${userId}`);
             const status = statusRes.data;
