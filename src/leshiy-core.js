@@ -35,7 +35,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // ==========================================================
     
     // Команда вызова меню Хранилки
-    if (lowerQuery === '/storage' || lowerQuery === 'хранилка') {
+    if (lowerQuery === '/storage' || lowerQuery.startsWith('хранилк')) {
         // Если НЕ авторизован — показываем только кнопку входа
         if (!currentUserId) {
             return {
@@ -59,6 +59,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                     buttons: [
                         { text: '🔗 Подключить Диск', action: '/storage_auth' },
                         { text: '🤝 Хранилка друга', action: '/storage_friends' },
+                        { text: '📁 Мои Папки', action: '/storage_list' },
                         { text: '🔙 Назад', action: '/storage' }
                     ]
                 };
@@ -170,7 +171,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 }));
                 return {
                     type: 'menu',
-                    text: '📁 **Ваши папки в облаке:**\nВыберите папку для сохранения файлов:',
+                    text: '📁 **Ваши папки в облаке:**\n\nВыберите папку для сохранения файлов:',
                     buttons: [...folderButtons.slice(0, 20), 
                         { text: '➕ Создать папку', action: '/storage_folder_prompt' },
                         { text: '🔙 Назад', action: '/storage' }]
@@ -308,7 +309,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
         const protocol = lowerQuery.includes('ftp') ? 'FTP/SFTP' : 'WebDAV';
         return {
             type: 'text',
-            text: `⚙️ ** Подключение своего сервера ${protocol} **\n\nПросто пришлите строку в формате:\n❇️ протокол://логин:пароль@хост\n\n**Примеры:**\n• webdav://user:pass@webdav.yandex.ru\n• ftp://admin:12345@92.255.162.189:21\n• sftp://root:password@my-server.com`,
+            text: `⚙️ **Подключение своего сервера ${protocol}**\n\nПросто пришлите строку в формате:\nпротокол://логин:пароль@хост\n\n**Примеры:**\n• webdav://user:pass@webdav.yandex.ru\n• ftp://admin:12345@92.255.162.189:21\n• sftp://root:password@my-server.com`,
             buttons: [{ text: '🔙 Назад', action: '/storage_auth' }]
         };
     }
@@ -405,7 +406,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     let isRawBody = false;
 
     // ==========================================================
-    // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА (Твой восстановленный код)
+    // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА
     // ==========================================================
     switch (config.SERVICE) {
         case 'GEMINI':
