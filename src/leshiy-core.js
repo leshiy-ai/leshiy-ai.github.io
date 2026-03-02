@@ -601,10 +601,14 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // 4. ОТПРАВКА ЧЕРЕЗ ТВОЙ ПРОКСИ
     // ==========================================================
     try {
+        // Сначала четко определяем, что мы шлем
+        const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array);
+
         const proxyHeaders = {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-            'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
+            'Content-Type': isBinary ? 'application/octet-stream' : 'application/json'
+            //'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
         };
 
         if (authHeader) proxyHeaders['X-Proxy-Authorization'] = authHeader;
@@ -616,7 +620,9 @@ export const askLeshiy = async ({ text, files = [] }) => {
             // credentials: 'omit' — чтобы браузер не пытался слать куки гитхаба в воркер
             headers: proxyHeaders,
             // Тело запроса: для Cloudflare AI крайне важен чистый JSON
-            body: isRawBody ? body : JSON.stringify(body),
+            //body: isRawBody ? body : JSON.stringify(body),
+            // Если не бинарник, принудительно превращаем в строку
+            body: isBinary ? body : JSON.stringify(body)
         });
 
         if (!response.ok) {
