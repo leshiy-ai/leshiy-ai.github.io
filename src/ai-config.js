@@ -166,7 +166,7 @@ export const AI_MODELS = {
         SERVICE: 'DEEPSEEK', 
         MODEL: 'deepseek-chat', 
         API_KEY: 'DEEPSEEK_API_KEY', 
-        BASE_URL: 'https://api.deepseek.com/v1'
+        BASE_URL: 'https://api.deepseek.com'
     },
 };
 
