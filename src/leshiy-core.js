@@ -39,11 +39,6 @@ export const askLeshiy = async ({ text, files = [] }) => {
         lowerQuery = userQuery.toLowerCase(); 
         // Очищаем сразу, чтобы не зациклиться
         sessionStorage.removeItem('pending_action');
-    } 
-    // Если же пришла любая команда слэшем (напр. /storage), пока мы ждали поиск
-    else if (userQuery.startsWith('/')) {
-        // Просто сбрасываем ожидание, чтобы не мешало основной логике
-        sessionStorage.removeItem('pending_action');
     }
 
     // ==========================================================
@@ -52,6 +47,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
     
     // Команда вызова меню Хранилки
     if (lowerQuery === '/storage' || lowerQuery.includes('хранилк')) {
+        sessionStorage.removeItem('pending_action');
         // Если НЕ авторизован — показываем только кнопку входа
         if (!currentUserId) {
             return {
