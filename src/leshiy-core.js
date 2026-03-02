@@ -30,13 +30,28 @@ export const askLeshiy = async ({ text, files = [] }) => {
         return (bytes / (1024 ** 3)).toFixed(2) + ' ГБ';
     };
 
+    // ПЕРЕХВАТ СТЕЙТА (в самом начале обработки сообщения)
+    let pendingAction = sessionStorage.getItem('pending_action');
+
+    if (pendingAction === 'waiting_for_search' && !userQuery.startsWith('/')) {
+        // Если мы ждали поиск и юзер прислал просто текст — превращаем его в команду поиска
+        userQuery = `/search ${userQuery}`;
+        lowerQuery = userQuery.toLowerCase(); 
+        // Очищаем сразу, чтобы не зациклиться
+        sessionStorage.removeItem('pending_action');
+    } 
+    // Если же пришла любая команда слэшем (напр. /storage), пока мы ждали поиск
+    else if (userQuery.startsWith('/')) {
+        // Просто сбрасываем ожидание, чтобы не мешало основной логике
+        sessionStorage.removeItem('pending_action');
+    }
+
     // ==========================================================
     // 1. ЛОГИКА ЭКОСИСТЕМЫ: ГЛАВНОЕ МЕНЮ И КОМАНДЫ
     // ==========================================================
     
     // Команда вызова меню Хранилки
     if (lowerQuery === '/storage' || lowerQuery.includes('хранилк')) {
-        sessionStorage.removeItem('pending_action');
         // Если НЕ авторизован — показываем только кнопку входа
         if (!currentUserId) {
             return {
