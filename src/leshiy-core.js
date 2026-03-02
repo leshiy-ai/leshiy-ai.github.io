@@ -399,9 +399,12 @@ export const askLeshiy = async ({ text, files = [] }) => {
         }
     
         try {
-            // ПОЛУЧАЕМ ТЕКУЩИЙ СТАТУС (подставляем свои ключи из localStorage)
-            const currentP = localStorage.getItem('storage_provider') || '';
-            const currentF = localStorage.getItem('storage_folder_id') || '';
+            // Сначала запрашиваем актуальный статус подключения
+            const statusRes = await axios.get(`${gateway}/?action=get-status&userId=${userId}`);
+            const status = statusRes.data;
+            
+            const currentP = status.providerName || '';
+            const currentF = status.currentFolderId || status.currentFolder || '';
 
             // Запрос к API (оставляем как было)
             const res = await axios.get(`${gateway}/api/search?q=${encodeURIComponent(searchTerm)}&userId=${userId}`);
