@@ -614,7 +614,6 @@ export const askLeshiy = async ({ text, files = [] }) => {
             // mode: 'cors' — ОБЯЗАТЕЛЬНО. Без него мобилки шлют "Failed to fetch"
             mode: 'cors', 
             // credentials: 'omit' — чтобы браузер не пытался слать куки гитхаба в воркер
-            credentials: 'omit',
             headers: proxyHeaders,
             // Тело запроса: для Cloudflare AI крайне важен чистый JSON
             body: isRawBody ? body : JSON.stringify(body),
