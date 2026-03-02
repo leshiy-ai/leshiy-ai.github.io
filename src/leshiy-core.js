@@ -58,7 +58,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                     text: `🗄 **Хранилка не подключена**\n\nВыберите облако для хранения ваших файлов:`,
                     buttons: [
                         { text: '🔗 Подключить Диск', action: '/storage_auth' },
-                        { text: '🤝 Хранилка друга', action: '/storage_invite' },
+                        { text: '🤝 Хранилка друга', action: '/storage_friends' },
                         { text: '🔙 Назад', action: '/storage' }
                     ]
                 };
@@ -71,14 +71,14 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 type: 'menu',
                 text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${status.providerName}\n📂 Папка: \`${status.currentFolder || 'Root'}\`\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
                 buttons: [
+                    { text: '🔗 Переключить Диск', action: '/storage_auth' },
                     { text: '📁 Мои Папки', action: '/storage_list' },
-                    { text: '➕ Создать папку', action: '/storage_folder_prompt' },
                     { text: '🤝 Поделиться', action: '/storage_invite' },
                     { text: '🔙 Назад', action: '/storage' }
                 ]
             };
         } catch (e) {
-            return { type: 'menu', text: `⚠️ Ошибка связи с сервером.`, buttons: [{ text: '🔙 Назад', action: '/start' }] };
+            return { type: 'menu', text: `⚠️ Ошибка связи с сервером.`, buttons: [{ text: '🔙 Назад', action: '/storage' }] };
         }
     }
 
@@ -170,7 +170,9 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 return {
                     type: 'menu',
                     text: '📁 **Ваши папки в облаке:**\nВыберите папку для сохранения файлов:',
-                    buttons: [...folderButtons.slice(0, 10), { text: '🔙 Назад', action: '/storage' }]
+                    buttons: [...folderButtons.slice(0, 10), 
+                        { text: '➕ Создать папку', action: '/storage_folder_prompt' },
+                        { text: '🔙 Назад', action: '/storage' }]
                 };
             }
             return { 
@@ -235,6 +237,53 @@ export const askLeshiy = async ({ text, files = [] }) => {
             }
         } catch (e) {
             return { type: 'error', text: `❌ Ошибка создания: ${e.message}` };
+        }
+    }
+
+    // --- ЛОГИКА: ПОДКЛЮЧЕНИЕ ПО ССЫЛКЕ ---
+    // 1. Обработка кнопки "Хранилка друга" (вызываем меню подключения)
+    if (lowerQuery === '/storage_friends') {
+        // Сохраняем в сессию флаг, что ждем имя папки
+        sessionStorage.setItem('pending_action', 'connect_friends');
+        return {
+            type: 'menu',
+            text: '🤝 **Подключение к Хранилке друга**\n\nВведите ссылку которую Вам предоставил друг, чтобы сохранять файлы в его облако.',
+            buttons: [
+                { text: '🔙 Назад', action: '/storage' }
+            ]
+        };
+    }
+
+    // Если пользователь прислал ссылку на хранилку
+    if (lowerQuery.includes('leshiy-storage') && lowerQuery.includes('ref=')) {
+        // Проверяем, что мы реально ждали эту ссылку (опционально, можно и без флага)
+        if (sessionStorage.getItem('pending_action') === 'connect_friends') {
+            sessionStorage.removeItem('pending_action'); 
+            
+            try {
+                // Парсим ID друга из ссылки
+                const parts = userQuery.split('?');
+                if (parts.length < 2) throw new Error('Некорректная ссылка');
+                
+                const urlParams = new URLSearchParams(parts[1]);
+                const friendId = urlParams.get('ref');
+    
+                if (!friendId) throw new Error('ID друга (ref) не найден');
+    
+                // Запрос в твой шлюз (воркер)
+                const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}?user_id=${userId}&action=connect_ref&ref_id=${friendId}`);
+    
+                return {
+                    type: 'text',
+                    text: '🤝 **Хранилка друга подключена!**\n\n' + (res.data.message || 'Связь установлена. Используется облако друга.'),
+                    buttons: [
+                        { text: '📁 Список папок', action: '/storage_list_folders' },
+                        { text: '🔙 В меню', action: '/storage' }
+                    ]
+                };
+            } catch (err) {
+                return { type: 'error', text: '❌ Ошибка подключения: ' + err.message };
+            }
         }
     }
 
