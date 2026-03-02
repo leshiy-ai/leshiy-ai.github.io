@@ -579,7 +579,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
             });
             body = { model: config.MODEL, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent }] };
             break;
-            
+
         case 'DEEPSEEK':
         // URL для DeepSeek API
         url = `${config.BASE_URL}/chat/completions`;
@@ -604,7 +604,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
         const proxyHeaders = {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-            'Content-Type': 'application/json'
+            'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
         };
 
         if (authHeader) proxyHeaders['X-Proxy-Authorization'] = authHeader;
