@@ -588,7 +588,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
         const proxyHeaders = {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-            'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
+            'X-Proxy-Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
         };
         if (authHeader) proxyHeaders['X-Proxy-Authorization'] = authHeader;
 
