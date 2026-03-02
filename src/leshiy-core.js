@@ -132,10 +132,10 @@ export const askLeshiy = async ({ text, files = [] }) => {
             buttons: [
                 { text: '🔵 Yandex Disk', action: 'auth_yandex' },
                 { text: '🟠 Google Drive', action: 'auth_google' },
-                { text: '🔵 Dropbox', action: 'auth_dropbox' },
-                { text: '🟣 Mail.ru (WebDAV)', action: 'auth_mailru' },
-                { text: '📁 FTP/SFTP', action: 'auth_ftp' },
-                { text: '🔌 Свой WebDAV', action: 'auth_webdav' },
+                { text: '🟡 Dropbox', action: 'auth_dropbox' },
+                { text: '🟣 Mail.ru (WebDAV)', action: '/storage_form_webdav' },
+                { text: '📁 FTP/SFTP/WebDAV', action: '/storage_custom' },
+                { text: '🤝 Хранилка друга', action: '/storage_friends' },
                 { text: '🔙 Назад', action: '/storage' }
             ]
         };
@@ -285,6 +285,29 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 return { type: 'error', text: '❌ Ошибка подключения: ' + err.message };
             }
         }
+    }
+
+    // --- ЛОГИКА: СВОИ СЕРВЕРА ---
+    if (lowerQuery === 'auth_webdav' || lowerQuery === '/storage_custom') {
+        return {
+            type: 'menu',
+            text: '📁 **Настройка своего сервера**\n\nВы можете подключить личное хранилище по протоколам FTP, SFTP или WebDAV.',
+            buttons: [
+                { text: '🌐 WebDAV (Mail.ru/Nextcloud)', action: '/storage_form_webdav' },
+                { text: '💾 FTP / SFTP', action: '/storage_form_ftp' },
+                { text: '🔙 Назад', action: '/storage_auth' }
+            ]
+        };
+    }
+
+    // Заглушка для форм (лучше вести на веб-морду твоего шлюза)
+    if (lowerQuery.startsWith('/storage_form')) {
+        const protocol = lowerQuery.includes('ftp') ? 'FTP/SFTP' : 'WebDAV';
+        return {
+            type: 'text',
+            text: `⚙️ **Настройка ${protocol}**\n\nДля безопасного ввода данных (хост, логин, пароль) воспользуйтесь веб-интерфейсом Хранилки:\n\n🔗 ${CONFIG.STORAGE_GATEWAY}?user_id=${userId}&action=settings`,
+            buttons: [{ text: '🔙 Назад', action: 'auth_webdav' }]
+        };
     }
 
     // ЗАГРУЗКА ФАЙЛОВ
