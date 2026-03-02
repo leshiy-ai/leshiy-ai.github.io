@@ -336,7 +336,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                     type: 'text',
                     text: res.data.message || '✅ Сервер успешно подключен!',
                     buttons: [
-                        { text: '📁 К файлам', action: '/storage_list_folders' },
+                        { text: '📁 Выбор папки', action: '/storage_list' },
                         { text: '🔙 В меню', action: '/storage' }
                     ]
                 };

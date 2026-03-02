@@ -310,7 +310,7 @@ function App() {
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
             // Используем актуальный ID
-            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?user_id=${currentUserId}`, '_blank');
+            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
         } else {
             const command = action.startsWith('/') ? action : `/${action}`;
             handleSend(command); 
