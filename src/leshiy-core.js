@@ -316,7 +316,8 @@ export const askLeshiy = async ({ text, files = [] }) => {
     }
 
     // 2. Перехват строки подключения
-    if (sessionStorage.getItem('pending_action') === 'setup_server' && !userQuery.startsWith('/')) {
+    if (sessionStorage.getItem('pending_action') === 'setup_server') {
+        sessionStorage.removeItem('pending_action');
         try {
             // Парсим строку (стандартный формат URL)
             const setupUrl = new URL(userQuery.replace('webdav://', 'https://')); // Фикс для парсера
@@ -334,7 +335,6 @@ export const askLeshiy = async ({ text, files = [] }) => {
             const res = await axios.post(`${CONFIG.STORAGE_GATEWAY.replace('/api', '')}/api/setup-webdav`, payload);
 
             if (res.data.success) {
-                sessionStorage.removeItem('pending_action');
                 return {
                     type: 'text',
                     text: res.data.message || '✅ Сервер успешно подключен!',
