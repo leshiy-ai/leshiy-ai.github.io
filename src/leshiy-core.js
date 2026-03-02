@@ -588,18 +588,29 @@ export const askLeshiy = async ({ text, files = [] }) => {
         const proxyHeaders = {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-            'X-Proxy-Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
+            'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
         };
+
         if (authHeader) proxyHeaders['X-Proxy-Authorization'] = authHeader;
 
         const response = await fetch(CONFIG.PROXY_URL, {
             method: 'POST',
+            // mode: 'cors' — ОБЯЗАТЕЛЬНО. Без него мобилки шлют "Failed to fetch"
+            mode: 'cors', 
+            // credentials: 'omit' — чтобы браузер не пытался слать куки гитхаба в воркер
+            credentials: 'omit',
             headers: proxyHeaders,
+            // Тело запроса: для Cloudflare AI крайне важен чистый JSON
             body: isRawBody ? body : JSON.stringify(body),
         });
 
-        if (!response.ok) throw new Error(`Ошибка API: ${response.status}`);
-
+        if (!response.ok) {
+            // Если прилетит 401 — значит, прокси пропустил, но Cloudflare API не принял токен
+            // Если прилетит 400 — значит, Cloudflare не понравился формат JSON/Content-Type
+            const errorDetail = await response.text();
+            throw new Error(`Status ${response.status}: ${errorDetail}`);
+        }
+    
         const data = await response.json();
         let resultText = "Не удалось разобрать ответ.";
 
