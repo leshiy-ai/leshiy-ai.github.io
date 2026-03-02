@@ -293,7 +293,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
             type: 'menu',
             text: '📁 **Настройка своего сервера**\n\nВы можете подключить личное хранилище по протоколам FTP, SFTP или WebDAV.',
             buttons: [
-                { text: '🌐 WebDAV (Mail.ru/Nextcloud)', action: '/storage_form_webdav' },
+                { text: '🌐 WebDAV (Облако Mail.Ru)', action: '/storage_form_webdav' },
                 { text: '💾 FTP / SFTP', action: '/storage_form_ftp' },
                 { text: '🔙 Назад', action: '/storage_auth' }
             ]
@@ -305,7 +305,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
         const protocol = lowerQuery.includes('ftp') ? 'FTP/SFTP' : 'WebDAV';
         return {
             type: 'text',
-            text: `⚙️ **Настройка ${protocol}**\n\nДля безопасного ввода данных (хост, логин, пароль) воспользуйтесь веб-интерфейсом Хранилки:\n\n🔗 ${CONFIG.STORAGE_GATEWAY}?user_id=${userId}&action=settings`,
+            text: `⚙️ **Настройка ${protocol}**\n\nДля безопасного ввода данных (хост, логин, пароль) воспользуйтесь веб-интерфейсом Хранилки:\n\n🔗 https://vk.com/app${VK_MINI_APP_ID}`,
             buttons: [{ text: '🔙 Назад', action: 'auth_webdav' }]
         };
     }
