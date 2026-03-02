@@ -579,6 +579,22 @@ export const askLeshiy = async ({ text, files = [] }) => {
             });
             body = { model: config.MODEL, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent }] };
             break;
+            
+        case 'DEEPSEEK':
+        // URL для DeepSeek API
+        url = `${config.BASE_URL}/chat/completions`;
+        authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+        
+        // Формируем стандартный OpenAI-совместимый body
+        body = {
+            model: config.MODEL, // например, 'deepseek-chat'
+            messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'user', content: text || "Привет" }
+            ],
+            stream: false
+        };
+        break;
     }
 
     // ==========================================================

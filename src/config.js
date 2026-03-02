@@ -12,7 +12,8 @@ export const CONFIG = {
     CLOUDFLARE_API_TOKEN: import.meta.env.VITE_CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ACCOUNT_ID: import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID,
     BOTHUB_API_KEY: import.meta.env.VITE_BOTHUB_API_KEY,
-    
+    DEEPSEEK_API_KEY: import.meta.env.VITE_DEEPSEEK_API_KEY,
+
     // --- Прокси ---
     PROXY_URL: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',
     // Твоя Хранилка (Яндекс)
