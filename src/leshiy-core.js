@@ -391,8 +391,11 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // ==========================================================
     // ПОИСК И СКАЧИВАНИЕ ФАЙЛОВ С ХРАНИЛКИ
     // ==========================================================
-    if (lowerQuery.startsWith('найди ') || lowerQuery.startsWith('поиск ')) {
-        const searchTerm = userQuery.replace(/найди |поиск /gi, '').trim();
+    if (lowerQuery.startsWith('/search ') || lowerQuery.startsWith('найди ') || lowerQuery.startsWith('поиск ')) {
+        // Вытаскиваем поисковый запрос и смотрим, нет ли там указания страницы (offset)
+        const parts = userQuery.split(' ');
+        const offset = parseInt(parts[parts.length - 1]) || 0; // если в конце число — это смещение
+        const searchTerm = userQuery.replace(/найди |поиск /gi, '').replace(/\d+$/, '').trim();
         
         if (!searchTerm) {
             return { type: 'text', text: '🔍 Что именно искать? Напишите, например: *найди сейф*' };
@@ -408,12 +411,15 @@ export const askLeshiy = async ({ text, files = [] }) => {
 
             // Запрос к API (оставляем как было)
             const res = await axios.get(`${gateway}/api/search?q=${encodeURIComponent(searchTerm)}&userId=${userId}`);
-            const files = res.data.results || [];
+            const allFiles = res.data.results || [];
     
-            if (files.length === 0) {
+            if (allFiles.length === 0) {
                 return { type: 'text', text: `🤷‍♂️ По запросу «${searchTerm}» ничего не найдено.` };
             }
-    
+
+            // РЕЖЕМ СЛАЙСОМ: берем 10 штук начиная с offset
+            const files = allFiles.slice(offset, offset + 10);
+
             // --- ЛОГИКА СВЕТОФОРА ---
             const fileButtons = files.slice(0, 10).map(f => {
                 // 1. Опознавание типа для иконки
@@ -446,15 +452,25 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 action: downloadUrl
                 };
             });
-    
+
+            // Формируем кнопки навигации
+            const navButtons = [];
+            if (allFiles.length > offset + 10) {
+                // Кнопка "Далее" просто отправляет команду боту с новым смещением
+                navButtons.push({ text: '➡️ Далее', action: `поиск ${searchTerm} ${offset + 10}` });
+            }
+            if (offset > 0) {
+                navButtons.push({ text: '⬅️ Назад', action: `поиск ${searchTerm} ${Math.max(0, offset - 10)}` });
+            }
+
             return {
                 type: 'menu',
-                text: `🔍 **Результаты поиска (${files.length}):**\n\n` +
+                text: `🔍 **Результаты (${offset + 1}–${Math.min(offset + 10, allFiles.length)} из ${allFiles.length}):**\n\n` +
                       `🟢 — можно скачать\n` +
                       `🟡 — в другой папке\n` +
                       `🔴 — смените диск\n\n` +
                       `Нажмите на файл для загрузки:`,
-                buttons: [...fileButtons, { text: '🔙 В меню', action: '/storage' }]
+                      buttons: [...fileButtons, ...navButtons, { text: '🔙 В меню', action: '/storage' }]
             };
         } catch (e) {
             console.error("Search error:", e);
