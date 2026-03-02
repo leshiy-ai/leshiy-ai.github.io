@@ -7,8 +7,8 @@ const SYSTEM_PROMPT = `Ты — многофункциональный AI-асс
 Ответы должны быть информативными и доброжелательными со смайликами.`;
 
 export const askLeshiy = async ({ text, files = [] }) => {
-    const userQuery = text?.trim() || "";
-    const lowerQuery = userQuery.toLowerCase();
+    let userQuery = text?.trim() || "";
+    let lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
     
     // 1. ПЕРЕМЕННЫЕ
@@ -34,10 +34,10 @@ export const askLeshiy = async ({ text, files = [] }) => {
     let pendingAction = sessionStorage.getItem('pending_action');
 
     if (pendingAction === 'waiting_for_search' && !userQuery.startsWith('/')) {
-        // Если мы ждали поиск и юзер прислал просто текст — превращаем его в команду поиска
         userQuery = `/search ${userQuery}`;
         lowerQuery = userQuery.toLowerCase(); 
-        // Очищаем сразу, чтобы не зациклиться
+        sessionStorage.removeItem('pending_action');
+    } else if (userQuery.startsWith('/')) {
         sessionStorage.removeItem('pending_action');
     }
 
