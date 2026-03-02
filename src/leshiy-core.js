@@ -75,6 +75,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 buttons: [
                     { text: '🔗 Подключить Диск', action: '/storage_auth' },
                     { text: '📁 Мои Папки', action: '/storage_list' },
+                    { text: '🔎 Поиск файлов', action: '/search' },
                     { text: '🤝 Поделиться', action: '/storage_invite' },
                     { text: '🔙 Назад', action: '/storage' }
                 ]
@@ -391,12 +392,31 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // ==========================================================
     // ПОИСК И СКАЧИВАНИЕ ФАЙЛОВ С ХРАНИЛКИ
     // ==========================================================
-    if (lowerQuery.startsWith('/search ') || lowerQuery.startsWith('найди ') || lowerQuery.startsWith('поиск ')) {
-        // Вытаскиваем поисковый запрос и смотрим, нет ли там указания страницы (offset)
+    if (lowerQuery.startsWith('/search') || lowerQuery.startsWith('найди') || lowerQuery.startsWith('поиск')) {
+        // 1. Разбираем запрос на части
         const parts = userQuery.split(' ');
-        const offset = parseInt(parts[parts.length - 1]) || 0; // если в конце число — это смещение
-        const searchTerm = userQuery.replace(/найди |поиск /gi, '').replace(/\d+$/, '').trim();
+        let offset = 0;
         
+        // Проверяем, есть ли число (offset) в конце для пагинации
+        const lastPart = parseInt(parts[parts.length - 1]);
+        if (!isNaN(lastPart) && parts.length > 1) {
+            offset = lastPart;
+            parts.pop();
+        }
+
+        // 2. Чистим поисковую фразу
+        let searchTerm = parts.join(' ')
+            .replace(/\/search|найди|поиск/gi, '')
+            .trim();
+
+        // --- ПРОВЕРКА НА ПУСТОЙ ВВОД ---
+        // Если поискового слова нет И это не переход по страницам (offset === 0)
+        if (!searchTerm && offset === 0) {
+            return { 
+                type: 'text', 
+                text: '🔍 **Режим поиска**\n\nВведите название файла, расширение (например, `jpg`) или часть имени.\n\n_Я жду вашего ввода..._',
+            };
+        }
         if (!searchTerm) {
             return { type: 'text', text: '🔍 Что именно искать? Напишите, например: *найди сейф*' };
         }
@@ -457,10 +477,10 @@ export const askLeshiy = async ({ text, files = [] }) => {
             const navButtons = [];
             if (allFiles.length > offset + 10) {
                 // Кнопка "Далее" просто отправляет команду боту с новым смещением
-                navButtons.push({ text: '➡️ Далее', action: `поиск ${searchTerm} ${offset + 10}` });
+                navButtons.push({ text: '➡️ Далее', action: `/search ${searchTerm} ${offset + 10}` });
             }
             if (offset > 0) {
-                navButtons.push({ text: '⬅️ Назад', action: `поиск ${searchTerm} ${Math.max(0, offset - 10)}` });
+                navButtons.push({ text: '⬅️ Назад', action: `/search ${searchTerm} ${Math.max(0, offset - 10)}` });
             }
 
             return {
