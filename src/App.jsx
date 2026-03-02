@@ -309,6 +309,7 @@ function App() {
 
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
+            sessionStorage.setItem('waiting_for_auth', 'true'); // Ставим метку
             // Используем актуальный ID
             window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
         } else {
@@ -316,7 +317,16 @@ function App() {
             handleSend(command); 
         }
     };
-    
+
+    window.addEventListener('focus', () => {
+        // Если в сессии висит флаг, что мы уходили на авторизацию
+        if (sessionStorage.getItem('waiting_for_auth') === 'true') {
+            sessionStorage.removeItem('waiting_for_auth');
+            // Автоматически отправляем команду на получение папок
+            handleSend('/storage_list'); 
+        }
+    }, { once: false });
+
     const handleSwipeMessage = useCallback((messageId) => {
         setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
     }, []);

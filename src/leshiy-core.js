@@ -71,7 +71,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 type: 'menu',
                 text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${status.providerName}\n📂 Папка: \`${status.currentFolder || 'Root'}\`\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
                 buttons: [
-                    { text: '🔗 Переключить Диск', action: '/storage_auth' },
+                    { text: '🔗 Подключить Диск', action: '/storage_auth' },
                     { text: '📁 Мои Папки', action: '/storage_list' },
                     { text: '🤝 Поделиться', action: '/storage_invite' },
                     { text: '🔙 Назад', action: '/storage' }
@@ -136,6 +136,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 { text: '✉️ Mail.ru (WebDAV)', action: '/storage_form_webdav' },
                 { text: '🌐 FTP/SFTP/WebDAV', action: '/storage_custom' },
                 { text: '🤝 Хранилка друга', action: '/storage_friends' },
+                { text: '📁 Выбор папки', action: '/storage_list' },
                 { text: '🔙 Назад', action: '/storage' }
             ]
         };
@@ -170,7 +171,7 @@ export const askLeshiy = async ({ text, files = [] }) => {
                 return {
                     type: 'menu',
                     text: '📁 **Ваши папки в облаке:**\nВыберите папку для сохранения файлов:',
-                    buttons: [...folderButtons.slice(0, 10), 
+                    buttons: [...folderButtons.slice(0, 20), 
                         { text: '➕ Создать папку', action: '/storage_folder_prompt' },
                         { text: '🔙 Назад', action: '/storage' }]
                 };
