@@ -89,3 +89,4 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .file-preview-name { position: absolute; bottom: -12px; font-size: 8px; color: #888; white-space: nowrap; }
 .image-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 7px; }
 .clear-file-btn { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: #ff4d4d; color: white; border: none; border-radius: 50%; font-size: 10px; cursor: pointer; z-index: 10; }
+@media (max-width: 768px) { .sidebar { position: fixed !important; top: 0; left: 0; height: 100dvh !important; width: 280px !important; z-index: 9999; transform: translateX(-100%); transition: transform 0.3s ease; } .sidebar:not(.collapsed) { transform: translateX(0); } .app-header { width: 100%; box-sizing: border-box; } }

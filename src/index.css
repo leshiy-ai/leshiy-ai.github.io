@@ -26,12 +26,13 @@ html, body {
 /* 2. Макет: Сайдбар + Реакт */
 body > .app-container {
   display: flex !important;
-  flex-direction: row !important;
   width: 100vw !important;
-  height: 100vh !important;
+  height: 100dvh !important; /* Используем dvh для мобилок */
   max-width: none !important;
   padding: 0 !important;
   margin: 0 !important;
+  overflow: hidden;
+  position: relative;
 }
 
 #sidebar {
@@ -200,8 +201,8 @@ body > .app-container {
   color: var(--sidebar-text); 
   font-size: 28px; 
   cursor: pointer;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -218,8 +219,9 @@ body > .app-container {
 /* Профиль юзера */
 .sidebar-bottom {
   margin-top: auto;
-  padding: 10px 0; /* Убрали боковые паддинги, чтобы не жать аватар */
+  padding: 10px 0;
   border-top: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg); /* Чтобы контент чата не просвечивал */
 }
 
 .user-profile {
@@ -310,4 +312,37 @@ body > .app-container {
   padding: 0;
   width: 48px;
   margin: 4px auto;
+}
+
+@media (max-width: 768px) {
+  /* Сайдбар вырывается из потока и ложится сверху */
+  #sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    height: 100dvh !important;
+    z-index: 9999;
+    /* Вместо width юзаем transform для плавности */
+    transform: translateX(0); 
+    min-width: 280px !important;
+    width: 280px !important;
+    box-shadow: 10px 0 20px rgba(0,0,0,0.3);
+  }
+
+  /* Логика сворачивания на мобиле — уезжает за экран */
+  #sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+
+  /* Когда сайдбар открыт на мобиле, он НЕ должен менять ширину */
+  #sidebar.active {
+    width: 280px !important;
+    min-width: 280px !important;
+  }
+
+  /* Контент чата теперь всегда на всю ширину */
+  .app-container > div:not(#sidebar) {
+    width: 100vw !important;
+    flex-shrink: 0;
+  }
 }

@@ -149,45 +149,43 @@ function App() {
 
         // Слушаем успешную авторизацию из main.jsx
         const handleAuthSuccess = (event) => {
-            const data = event.detail; 
-            console.log("App: Получены данные авторизации:", data);
-        
-            if (!data) return;
-        
-            // Определяем ID (поддержка и объекта, и просто строки)
+            const data = event.detail; if (!data) return;
             const userId = (typeof data === 'object') ? (data.vk_user_id || data.id) : data;
             setCurrentUserId(userId);
-        
-            // Если это объект с данными профиля
             if (typeof data === 'object' && data.userName) {
-                // Сохраняем в локалку на всякий случай, если индекс этого еще не сделал
-                localStorage.setItem('vk_user_name', data.userName);
-                localStorage.setItem('vk_user_photo', data.userPhoto);
-                
-                // ВАЖНО: вызываем функцию из main.jsx для обновления DOM
-                if (window.handleStatusResponse) {
-                    window.handleStatusResponse(data);
-                } else if (window.updateProfileUI) {
-                    window.updateProfileUI();
-                }
+                if (window.handleStatusResponse) window.handleStatusResponse(data);
             } else {
-                // Если пришел только ID
-                if (window.updateProfileUI) window.updateProfileUI();
+                const savedData = { vk_user_id: userId, userName: localStorage.getItem('vk_user_name'), userPhoto: localStorage.getItem('vk_user_photo') };
+                if (savedData.userName && window.handleStatusResponse) window.handleStatusResponse(savedData);
             }
         };
 
-        // Слушаем команду на авто-отправку (например, после логина)
-        const handleBotCommand = (event) => {
-            const command = event.detail;
-            handleSend(command);
+        const handleBotCommand = (event) => { handleSend(event.detail); };
+
+        // --- ЛОГИКА СВАЙПА САЙДБАРА ---
+        const sb = document.getElementById('sidebar');
+        const mBtn = document.getElementById('toggle-menu');
+        let tsX = 0;
+        const hTS = (e) => { tsX = e.touches[0].clientX; };
+        const hTE = (e) => {
+            const teX = e.changedTouches[0].clientX; if (!sb) return;
+            if (teX - tsX > 70 && tsX < 40) sb.classList.remove('collapsed'); // Свайп вправо (открытие)
+            if (tsX - teX > 70) sb.classList.add('collapsed'); // Свайп влево (закрытие)
         };
+        const hMC = (e) => { e.stopPropagation(); if (sb) sb.classList.toggle('collapsed'); };
 
         window.addEventListener('vk-auth-success', handleAuthSuccess);
         window.addEventListener('send-bot-command', handleBotCommand);
+        document.addEventListener('touchstart', hTS);
+        document.addEventListener('touchend', hTE);
+        if (mBtn) mBtn.addEventListener('click', hMC);
 
         return () => {
             window.removeEventListener('vk-auth-success', handleAuthSuccess);
             window.removeEventListener('send-bot-command', handleBotCommand);
+            document.removeEventListener('touchstart', hTS);
+            document.removeEventListener('touchend', hTE);
+            if (mBtn) mBtn.removeEventListener('click', hMC);
         };
     }, []);
 
