@@ -476,6 +476,8 @@ function App() {
     };
 
     return (
+        <div className="layout-wrapper"> {/* НОВАЯ ОБЕРТКА */}
+            <Sidebar /> {/* ТВОЙ САЙДБАР ТУТ */}
         <div 
             ref={appContainerRef}
             className={`app-container ${isDragging ? 'dragging' : ''}`}
@@ -559,6 +561,7 @@ function App() {
                 {t.upload}
             </button>
         </div>
+        </div> /* Закрываем layout-wrapper */
     );
 }
 

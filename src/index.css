@@ -9,30 +9,30 @@ html, body, #root {
   width: 100vw; 
   height: 100vh; 
   overflow: hidden; 
-  background-color: #19191a; /* Цвет под твою темную тему */
+  background-color: #19191a; 
 }
 
-/* Это единственный контейнер, который видит и Сайдбар, и твой Чат */
-.app-container { 
-  display: flex !important; 
-  flex-direction: row !important; /* Строго в ряд */
-  width: 100vw !important; 
-  height: 100vh !important; 
-  overflow: hidden; 
+/* Эта штука просто ставит Сайдбар и твой Чат в ряд */
+.layout-wrapper {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
 }
 
-/* Сайдбар просто забирает свои пиксели */
-.sidebar { 
-  flex-shrink: 0; 
-  height: 100%;
-  z-index: 100;
+/* Сайдбар - жесткий блок слева */
+.sidebar {
+  flex-shrink: 0 !important;
+  height: 100% !important;
+  z-index: 1000;
 }
 
-/* А твой исходный чат (который в App.css называется .app-container) 
-   теперь просто живет внутри и забирает всё остальное пространство */
-.app-container > div:not(.sidebar) {
-  flex-grow: 1;
-  min-width: 0;
-  height: 100%;
-  position: relative;
+/* Твой РОДНОЙ ЧАТ из App.css */
+/* Мы просто говорим ему: "Занимай всё свободное место и не сжимайся" */
+.app-container {
+  flex-grow: 1 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  /* Твои 800px из App.css применятся сами внутри этого блока */
 }
