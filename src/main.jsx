@@ -12,30 +12,34 @@ createRoot(document.getElementById('root')).render(
 
 // Вспомогательная функция (вынесена в глобальную область для слушателей)
 window.updateProfileUI = (data = null) => {
-  const nameEl = document.getElementById('display-name');
-  const avatarEl = document.getElementById('user-avatar');
+  // Используем селекторы из твоего CSS
+  const nameEl = document.querySelector('.user-name');
+  const avatarImg = document.querySelector('.avatar-container img');
 
-  // Если данные пришли (из Реакта), берем их. Если нет — из памяти.
   const name = data?.userName || localStorage.getItem('vk_user_name');
   const photo = data?.userPhoto || localStorage.getItem('vk_user_photo');
   const id = data?.vk_user_id || localStorage.getItem('vk_user_id');
 
   if (id && id !== 'null') {
-      if (nameEl) nameEl.textContent = (name && name !== 'undefined') ? name : `ID: ${id}`;
-      if (avatarEl && photo) avatarEl.src = photo;
-  } else {
-      if (nameEl) nameEl.textContent = "Войти через VK";
-      if (avatarEl) avatarEl.src = "https://vk.com/images/camera_100.png";
+      if (nameEl) {
+          nameEl.textContent = (name && name !== 'undefined') ? name : `ID: ${id}`;
+      }
+      if (avatarImg) {
+          // Если фото есть — ставим, если нет — дефолт ВК
+          avatarImg.src = (photo && photo !== 'null' && photo !== 'undefined') 
+              ? photo 
+              : "https://vk.com/images/camera_100.png";
+      }
   }
 };
 
-// Вызывается из App.jsx при получении get-status
 window.handleStatusResponse = (statusData) => {
   if (!statusData) return;
   
+  // Сохраняем ключи именно так, как они приходят в JSON
+  if (statusData.vk_user_id) localStorage.setItem('vk_user_id', statusData.vk_user_id);
   if (statusData.userName) localStorage.setItem('vk_user_name', statusData.userName);
   if (statusData.userPhoto) localStorage.setItem('vk_user_photo', statusData.userPhoto);
-  if (statusData.vk_user_id) localStorage.setItem('vk_user_id', statusData.vk_user_id);
 
   window.updateProfileUI(statusData);
 };
@@ -73,10 +77,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 1. Переключалка меню (Sidebar)
+    // ВАЖНО: на мобилке мы юзаем .active, на ПК .collapsed
     if (toggleBtn && sidebar) {
-        toggleBtn.addEventListener('click', () => {
-          sidebar.classList.toggle('collapsed');
-        });
+      toggleBtn.onclick = () => {
+          if (window.innerWidth <= 768) {
+              sidebar.classList.toggle('active'); // Выезжает на мобиле
+          } else {
+              sidebar.classList.toggle('collapsed'); // Сужается на ПК
+          }
+      };
     }
 
     // 2. Открыть хранилище (Safe)
@@ -117,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             storageModal.style.display = 'none';
         }
     });
-    
+
     // 5. Закрытие модалки по крестику (ты забыл добавить слушатель)
     if (closeStorage) {
       closeStorage.onclick = () => {

@@ -149,14 +149,29 @@ function App() {
 
         // Слушаем успешную авторизацию из main.jsx
         const handleAuthSuccess = (event) => {
-            const data = event.detail; if (!data) return;
+            const data = event.detail; 
+            if (!data) return;
+        
+            // 1. Определяем ID (может быть объектом или просто строкой/числом)
             const userId = (typeof data === 'object') ? (data.vk_user_id || data.id) : data;
             setCurrentUserId(userId);
-            if (typeof data === 'object' && data.userName) {
-                if (window.handleStatusResponse) window.handleStatusResponse(data);
-            } else {
-                const savedData = { vk_user_id: userId, userName: localStorage.getItem('vk_user_name'), userPhoto: localStorage.getItem('vk_user_photo') };
-                if (savedData.userName && window.handleStatusResponse) window.handleStatusResponse(savedData);
+        
+            // 2. Если пришел объект (с сервера) — прокидываем его целиком
+            if (typeof data === 'object') {
+                if (window.handleStatusResponse) {
+                    window.handleStatusResponse(data);
+                }
+            } 
+            // 3. Если пришло только ID (строка), собираем данные из памяти и обновляем UI
+            else {
+                const savedData = { 
+                    vk_user_id: userId, 
+                    userName: localStorage.getItem('vk_user_name'), 
+                    userPhoto: localStorage.getItem('vk_user_photo') 
+                };
+                if (window.handleStatusResponse) {
+                    window.handleStatusResponse(savedData);
+                }
             }
         };
 
