@@ -3,36 +3,38 @@
   --sidebar-width-collapsed: 68px; 
 }
 
+/* Убираем лишние отступы, которые могут всё ломать */
 html, body, #root { 
   margin: 0; 
   padding: 0; 
-  width: 100vw; 
-  height: 100vh; 
+  width: 100%; 
+  height: 100%; 
   overflow: hidden; 
   background-color: #19191a; 
 }
 
-/* Эта штука просто ставит Сайдбар и твой Чат в ряд */
+/* Главный ряд: Сайдбар + Чат */
 .layout-wrapper {
   display: flex !important;
   flex-direction: row !important;
   width: 100vw !important;
   height: 100vh !important;
-  overflow: hidden !important;
+  overflow: hidden;
 }
 
-/* Сайдбар - жесткий блок слева */
+/* Сайдбар - стоит слева и не шевелится */
 .sidebar {
   flex-shrink: 0 !important;
-  height: 100% !important;
-  z-index: 1000;
+  height: 100vh !important;
 }
 
-/* Твой РОДНОЙ ЧАТ из App.css */
-/* Мы просто говорим ему: "Занимай всё свободное место и не сжимайся" */
-.app-container {
-  flex-grow: 1 !important;
+/* Твой ЧАТ из App.css */
+/* Мы ПРИНУДИТЕЛЬНО заставляем его занять всё место справа от сайдбара */
+.layout-wrapper > .app-container {
+  flex: 1 !important; /* ЗАНИМАЙ ВСЁ МЕСТО */
+  display: flex !important;
+  flex-direction: column !important;
   min-width: 0 !important;
-  height: 100% !important;
-  /* Твои 800px из App.css применятся сами внутри этого блока */
+  height: 100vh !important;
+  position: relative !important;
 }
