@@ -1,89 +1,146 @@
-/* 1. Убираем глобальные конфликты */
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden; /* Чтобы не было двойной прокрутки */
-  background-color: #19191a;
+/* 1. Переменные тем и системные настройки */
+:root {
+  --sidebar-bg: #111;
+  --sidebar-text: #fff;
+  --sidebar-border: #333;
+  --sidebar-hover: #222;
+  --main-bg: #19191a;
 }
 
-/* 2. Настраиваем ВНЕШНИЙ контейнер из index.html */
+[data-theme='light'] {
+  --sidebar-bg: #f5f5f7;
+  --sidebar-text: #1d1d1f;
+  --sidebar-border: #d2d2d7;
+  --sidebar-hover: #e8e8ed;
+  --main-bg: #ffffff;
+}
+
+html, body {
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background-color: var(--main-bg);
+}
+
+/* 2. Макет: Сайдбар + Реакт */
 body > .app-container {
   display: flex !important;
   flex-direction: row !important;
   width: 100vw !important;
   height: 100vh !important;
-  max-width: none !important; /* Убираем 800px, если они там были */
+  max-width: none !important;
   padding: 0 !important;
   margin: 0 !important;
 }
 
-/* 3. Сайдбар — жестко фиксируем слева */
 #sidebar {
   width: 260px !important;
   min-width: 260px !important;
   height: 100% !important;
-  background-color: #111;
-  border-right: 1px solid #333;
+  background-color: var(--sidebar-bg) !important;
+  color: var(--sidebar-text) !important;
+  border-right: 1px solid var(--sidebar-border) !important;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0; /* Чтобы чат его не сдавливал */
+  flex-shrink: 0;
   z-index: 10;
+  transition: width 0.3s ease, min-width 0.3s ease !important;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-/* 4. Контейнер для React */
 #root {
-  flex: 1 !important; /* Занимает всё оставшееся пространство */
+  flex: 1 !important;
   height: 100% !important;
   position: relative;
-  min-width: 0; /* Фикс для flex-контейнеров */
+  min-width: 0;
 }
 
-/* 5. Исправляем ВНУТРЕННИЙ контейнер (из App.jsx) */
+/* Внутренний контейнер чата */
 #root .app-container {
-  width: 100% !important; /* Больше никаких 100vw! */
+  width: 100% !important;
   max-width: none !important;
   height: 100% !important;
   margin: 0 !important;
-  padding: 0 10px 10px !important; /* Возвращаем падинги чата */
+  padding: 0 10px 10px !important;
   display: flex;
   flex-direction: column;
 }
 
-/* 6. Стили модалки Хранилища (чтобы не была "убожеством") */
+/* 3. Логика сворачивания (Active) */
+#sidebar.active {
+  width: 70px !important;
+  min-width: 70px !important;
+}
+
+#sidebar.active .text, 
+#sidebar.active .user-info, 
+#sidebar.active .user-name {
+  display: none !important; /* Жестко скрываем при сворачивании */
+}
+
+#sidebar.active .nav-item, 
+#sidebar.active .new-chat {
+  justify-content: center;
+  padding: 15px 0;
+}
+
+/* 4. Элементы интерфейса */
+.nav-item, .new-chat {
+  padding: 12px 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--sidebar-text) !important;
+  transition: background 0.2s;
+}
+
+.nav-item:hover, .new-chat:hover {
+  background-color: var(--sidebar-hover) !important;
+}
+
+.avatar-circle {
+  width: 40px; height: 40px;
+  background: #333;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+
+.user-status { color: #4cd964 !important; font-size: 12px; }
+
+/* 5. Хранилище (Модалка) */
 .storage-modal {
-  display: none; /* Скрыта по умолчанию, main.jsx переключит на flex */
+  display: none;
   position: fixed;
   top: 0; left: 0;
   width: 100vw; height: 100vh;
   background: rgba(0,0,0,0.85);
   z-index: 10001;
-  justify-content: center;
-  align-items: center;
+  justify-content: center; align-items: center;
 }
 
 .storage-content {
-  width: 90%;
-  height: 90%;
-  background: #1e1e1e;
+  width: 95%; height: 90%;
+  background: var(--main-bg);
   border-radius: 12px;
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
   overflow: hidden;
+  border: 1px solid var(--sidebar-border);
 }
 
-#storage-frame {
-  flex: 1;
-  border: none;
-  background: white;
-}
+#storage-frame { flex: 1; border: none; background: white; }
 
 .storage-header {
   padding: 15px;
-  background: #252526;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
+  background: var(--sidebar-bg);
+  display: flex; justify-content: space-between; align-items: center;
+  color: var(--sidebar-text);
+  border-bottom: 1px solid var(--sidebar-border);
+}
+
+.close-btn { 
+  background: none; border: none; color: var(--sidebar-text); 
+  font-size: 24px; cursor: pointer; 
 }

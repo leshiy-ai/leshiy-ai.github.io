@@ -15,8 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('toggle-menu');
     const storageBtn = document.getElementById('open-storage');
-    const storageModal = document.getElementById('storage-modal');
     const closeStorage = document.getElementById('close-storage');
+    const storageModal = document.getElementById('storage-modal');
+    const storageFrame = document.getElementById('storage-frame');
 
     // 1. Переключалка меню (Sidebar)
     if (toggleBtn && sidebar) {
@@ -28,6 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Открыть хранилище (Safe)
     if (storageBtn && storageModal) {
         storageBtn.addEventListener('click', () => {
+            // Берем сохраненный ID или ставим тестовый
+            const userId = localStorage.getItem('vk_user_id') || '3930898';
+            const gatewayUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/vk?vk_user_id=${userId}`;
+            
+            storageFrame.src = gatewayUrl;
             storageModal.style.display = 'flex';
         });
     }
