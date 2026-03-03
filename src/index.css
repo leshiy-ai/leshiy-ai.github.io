@@ -3,9 +3,8 @@
   --sidebar-width-collapsed: 68px;
   --bg-dark: #1e1e1e;
   --hover-bg: #333;
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  height: 100%;
+  overflow: hidden;
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
@@ -29,16 +28,20 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
 }
-
+#root {
+  /* Важно! Теперь root — это флекс-элемент внутри app-container */
+  flex-grow: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
-
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -81,18 +84,30 @@ button:focus-visible {
   overflow: hidden;
 }
 
+/* Главный контейнер на весь экран */
+.app-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Сайдбар больше не fixed! Он теперь просто часть гибкого ряда */
 .sidebar {
-  /* Убираем position: fixed, если хотим, чтобы он расталкивал контент */
-  position: relative; 
-  flex-shrink: 0; /* Чтобы меню не сжималось */
-  width: 68px; /* Свернутое состояние */
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 68px; /* Ширина в закрытом состоянии */
+  flex-shrink: 0; /* Запрещаем сжиматься */
+  overflow-x: hidden;
+  background: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  z-index: 10;
+  border-right: 1px solid #333;
 }
 
 .sidebar.active {
-  width: 260px; /* Развернутое состояние */
+  width: 260px; /* Ширина при наведении/клике */
 }
-
 .main-content {
   flex-grow: 1; /* Чат займет все оставшееся место */
   display: flex;
@@ -146,15 +161,6 @@ button:focus-visible {
   border: 2px solid #555;
 }
 
-/* Основной контент (чат) */
-#chat-container {
-  margin-left: var(--sidebar-width-collapsed);
-  transition: margin-left 0.3s ease;
-}
-
-.sidebar.active + #chat-container {
-  margin-left: var(--sidebar-width-full);
-}
 .storage-modal {
   display: none; /* Скрыто по умолчанию */
   position: fixed;
