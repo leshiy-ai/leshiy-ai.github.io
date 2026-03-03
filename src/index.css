@@ -1,4 +1,8 @@
 :root {
+  --sidebar-width-full: 260px;
+  --sidebar-width-collapsed: 68px;
+  --bg-dark: #1e1e1e;
+  --hover-bg: #333;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -69,4 +73,78 @@ button:focus-visible {
 @keyframes slideUp {
   from { transform: translateY(100px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-width-collapsed);
+  background: var(--bg-dark);
+  color: white;
+  transition: width 0.3s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  border-right: 1px solid #444;
+}
+
+/* Раздвигаем при клике (через класс .active) */
+.sidebar.active {
+  width: var(--sidebar-width-full);
+}
+
+.sidebar .text {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+  margin-left: 15px;
+}
+
+.sidebar.active .text {
+  opacity: 1;
+}
+
+/* Элементы меню */
+.nav-item, .new-chat {
+  display: flex;
+  align-items: center;
+  padding: 15px 22px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: 5px;
+}
+
+.nav-item:hover {
+  background: var(--hover-bg);
+}
+
+/* Профиль внизу */
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 15px;
+  border-top: 1px solid #444;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #555;
+}
+
+/* Основной контент (чат) */
+#chat-container {
+  margin-left: var(--sidebar-width-collapsed);
+  transition: margin-left 0.3s ease;
+}
+
+.sidebar.active + #chat-container {
+  margin-left: var(--sidebar-width-full);
 }
