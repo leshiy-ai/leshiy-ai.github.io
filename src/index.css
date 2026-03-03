@@ -5,6 +5,7 @@
   --sidebar-border: #333;
   --sidebar-hover: #222;
   --main-bg: #19191a;
+  --sb-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-theme='light'] {
@@ -40,23 +41,32 @@ body > .app-container {
   border-right: 1px solid var(--sidebar-border) !important;
   display: flex;
   flex-direction: column;
-  padding: 10px 0; /* Убираем лишние отступы */
-  transition: all 0.3s ease;
-  padding-top: 10px !important;
+  transition: var(--sb-transition);
+  padding-top: 10px !important; /* Выравнивание по высоте с кнопками чата */
 }
-/* Центрируем саму кнопку-бургер */
+
+/* Кнопка-бургер (Бутерброд) */
 #toggle-menu {
-  margin-left: 10px; /* Чтобы не прилипала к левому краю */
   background: transparent;
   border: none;
   color: var(--sidebar-text);
   font-size: 20px;
   cursor: pointer;
-  height: 40px; /* Высота как у кнопок в чате */
+  height: 42px;
+  width: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0 10px 10px 12px; /* Сдвиг в колонку к остальным кнопкам */
+  border-radius: 12px;
+  transition: var(--sb-transition);
 }
+
+/* Подсветка бутерброда как у всех кнопок */
+#toggle-menu:hover {
+  background-color: var(--sidebar-hover);
+}
+
 #root {
   flex: 1 !important;
   height: 100% !important;
@@ -84,13 +94,19 @@ body > .app-container {
 #sidebar.active .text, 
 #sidebar.active .user-info, 
 #sidebar.active .user-name {
-  display: none !important; /* Жестко скрываем при сворачивании */
+  display: none !important;
 }
 
 #sidebar.active .nav-item, 
 #sidebar.active .new-chat {
   justify-content: center;
   padding: 15px 0;
+  margin: 4px auto;
+}
+
+#sidebar.active #toggle-menu {
+  margin: 0 auto 10px auto;
+  width: 42px;
 }
 
 /* 4. Элементы интерфейса */
@@ -136,25 +152,43 @@ body > .app-container {
 .storage-content {
   width: 95%; height: 90%;
   background: var(--main-bg);
-  border-radius: 12px;
+  border-radius: 20px;
   display: flex; flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--sidebar-border);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
 
 #storage-frame { flex: 1; border: none; background: white; }
 
 .storage-header {
-  padding: 15px;
+  padding: 15px 20px;
   background: var(--sidebar-bg);
   display: flex; justify-content: space-between; align-items: center;
   color: var(--sidebar-text);
   border-bottom: 1px solid var(--sidebar-border);
 }
 
+/* Стилизованный крестик закрытия */
 .close-btn { 
-  background: none; border: none; color: var(--sidebar-text); 
-  font-size: 24px; cursor: pointer; 
+  background: transparent; 
+  border: none; 
+  color: var(--sidebar-text); 
+  font-size: 28px; 
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: var(--sb-transition);
+  line-height: 1;
+}
+
+.close-btn:hover {
+  background-color: var(--sidebar-hover);
+  transform: rotate(90deg);
 }
 
 /* Профиль юзера */
@@ -168,10 +202,8 @@ body > .app-container {
   display: flex;
   align-items: center;
   gap: 12px;
-  position: relative;
 }
 
-/* Круглый аватар */
 .avatar-container {
   width: 42px;
   height: 42px;
@@ -188,13 +220,6 @@ body > .app-container {
   object-fit: cover;
 }
 
-/* Надпись Online - скрываем, показываем только точку */
-.user-info {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 .user-name {
   font-size: 14px;
   font-weight: 500;
@@ -203,23 +228,8 @@ body > .app-container {
   overflow: hidden;
 }
 
-.user-status {
-  font-size: 11px;
-  color: #4cd964 !important;
-}
-
 .sidebar-top {
   display: flex;
   flex-direction: column;
-  gap: 8px;
   padding-bottom: 10px;
-}
-/* Если сайдбар свернут (active), выравниваем бутерброд строго по центру */
-#sidebar.active #toggle-menu {
-  margin-left: 0;
-  width: 100%;
-}
-/* Подсказка при наведении (Tooltip) */
-#sidebar.active .user-name {
-  display: none;
 }
