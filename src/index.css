@@ -1,64 +1,89 @@
-/* Полный сброс, чтобы ничего не вылетало */
+/* 1. Убираем глобальные конфликты */
 html, body {
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  background: #19191a;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Чтобы не было двойной прокрутки */
+  background-color: #19191a;
 }
 
-#main-layout {
+/* 2. Настраиваем ВНЕШНИЙ контейнер из index.html */
+body > .app-container {
   display: flex !important;
   flex-direction: row !important;
   width: 100vw !important;
   height: 100vh !important;
+  max-width: none !important; /* Убираем 800px, если они там были */
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-/* Сайдбар слева */
+/* 3. Сайдбар — жестко фиксируем слева */
 #sidebar {
   width: 260px !important;
-  height: 100vh !important;
-  background: #111 !important;
-  flex-shrink: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
+  min-width: 260px !important;
+  height: 100% !important;
+  background-color: #111;
   border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0; /* Чтобы чат его не сдавливал */
+  z-index: 10;
 }
 
-/* React-приложение справа */
+/* 4. Контейнер для React */
 #root {
-  flex-grow: 1 !important;
-  height: 100vh !important;
-  position: relative !important;
-  min-width: 0 !important; /* Критично для flex-контейнеров */
+  flex: 1 !important; /* Занимает всё оставшееся пространство */
+  height: 100% !important;
+  position: relative;
+  min-width: 0; /* Фикс для flex-контейнеров */
 }
 
-/* Убираем конфликт с .app-container внутри React */
+/* 5. Исправляем ВНУТРЕННИЙ контейнер (из App.jsx) */
 #root .app-container {
-  width: 100% !important;
+  width: 100% !important; /* Больше никаких 100vw! */
   max-width: none !important;
+  height: 100% !important;
   margin: 0 !important;
-  height: 100vh !important;
-  position: relative !important;
+  padding: 0 10px 10px !important; /* Возвращаем падинги чата */
+  display: flex;
+  flex-direction: column;
 }
 
-/* Стили модалки (чтобы не была текстом) */
+/* 6. Стили модалки Хранилища (чтобы не была "убожеством") */
 .storage-modal {
+  display: none; /* Скрыта по умолчанию, main.jsx переключит на flex */
   position: fixed;
   top: 0; left: 0;
   width: 100vw; height: 100vh;
-  background: rgba(0,0,0,0.8);
-  z-index: 10000;
-  display: none; /* Управляется через main.jsx */
+  background: rgba(0,0,0,0.85);
+  z-index: 10001;
   justify-content: center;
   align-items: center;
 }
 
 .storage-content {
-  width: 90%; height: 90%;
+  width: 90%;
+  height: 90%;
   background: #1e1e1e;
   border-radius: 12px;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+#storage-frame {
+  flex: 1;
+  border: none;
+  background: white;
+}
+
+.storage-header {
+  padding: 15px;
+  background: #252526;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
 }
