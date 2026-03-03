@@ -88,6 +88,31 @@ body.sidebar-collapsed #toggle-menu {
   margin: 4px auto;
 }
 
+/* Подсветка при перетаскивании файла */
+.app-container.drag-over {
+  position: relative;
+}
+
+.app-container.drag-over::after {
+  content: "Отпустите файлы для загрузки";
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(59, 130, 246, 0.15); /* Нежно-синий фон */
+  border: 3px dashed #3b82f6 !important; /* Тот самый синий пунктир */
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  font-size: 20px;
+  font-weight: bold;
+  z-index: 99999; /* Поверх всего */
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
 
 /* --- ЭЛЕМЕНТЫ САЙДБАРА --- */
 
@@ -146,4 +171,4 @@ body.sidebar-collapsed #toggle-menu {
 .storage-content { width: 95%; height: 90%; max-width: 900px; max-height: 800px; background: var(--main-bg); border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--sidebar-border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
 #storage-frame { flex: 1; border: none; }
 .storage-header { padding: 12px 20px; background: var(--sidebar-bg); display: flex; justify-content: space-between; align-items: center; color: var(--sidebar-text); border-bottom: 1px solid var(--sidebar-border); height: 50px; flex-shrink: 0; }
-
+.storage-header .close-btn { background: transparent !important; border: none !important; color: var(--sidebar-text) !important; font-size: 28px !important; cursor: pointer !important; width: 36px !important; height: 36px !important; min-width: 36px !important; display: flex !important; align-items: center !important; justify-content: center !important; border-radius: 50% !important; transition: var(--sb-transition) !important; padding: 0 !important; line-height: 1 !important; }
