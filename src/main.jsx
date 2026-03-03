@@ -10,32 +10,33 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>,
 )
 
+// Вспомогательная функция (вынесена в глобальную область для слушателей)
+const updateProfileUI = () => {
+  const userId = localStorage.getItem('vk_user_id');
+  const nameEl = document.getElementById('display-name');
+  const avatarEl = document.getElementById('user-avatar');
+
+  if (userId && userId !== 'null') {
+      const savedName = localStorage.getItem('vk_user_name');
+      const savedPhoto = localStorage.getItem('vk_user_photo');
+      
+      if (nameEl) nameEl.textContent = savedName || `ID: ${userId}`;
+      if (avatarEl && savedPhoto) avatarEl.src = savedPhoto;
+  } else {
+      if (nameEl) nameEl.textContent = "Войти через VK";
+      if (avatarEl) avatarEl.src = "https://vk.com/images/camera_100.png";
+  }
+};
+
 // Оживляем интерфейс (DOM)
 document.addEventListener('DOMContentLoaded', () => {
   
-    // Вспомогательная функция для обновления профиля (чтобы вызвать её и при загрузке, и при входе)
-    const updateProfileUI = () => {
-      const userId = localStorage.getItem('vk_user_id');
-      const nameEl = document.getElementById('display-name');
-      const avatarEl = document.getElementById('user-avatar');
-
-      if (userId && userId !== 'null') {
-          const savedName = localStorage.getItem('vk_user_name');
-          const savedPhoto = localStorage.getItem('vk_user_photo');
-          
-          if (nameEl) nameEl.textContent = savedName || `ID: ${userId}`;
-          if (avatarEl && savedPhoto) avatarEl.src = savedPhoto;
-      } else {
-          if (nameEl) nameEl.textContent = "Войти через VK";
-          if (avatarEl) avatarEl.src = "https://vk.com/images/camera_100.png"; // дефолт
-      }
-    };
-
+    // Сразу обновляем UI и тему
     updateProfileUI();
-
     const currentTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', currentTheme);
 
+    // Ищем все элементы один раз
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('toggle-menu');
     const storageBtn = document.getElementById('open-storage');
@@ -43,29 +44,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const storageModal = document.getElementById('storage-modal');
     const storageFrame = document.getElementById('storage-frame');
     const profileBtn = document.querySelector('.user-profile');
+    const overlay = document.getElementById('vk_auth_overlay');
 
-    // Логика авторизации по клику на аватар/профиль
-    const profileArea = document.querySelector('.user-profile');
-    if (profileArea) {
-        profileArea.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // Чтобы событие не улетало выше
-            
-            const userId = localStorage.getItem('vk_user_id');
-            if (!userId || userId === 'null') {
-                console.log("Запуск авторизации...");
-                const overlay = document.getElementById('vk_auth_overlay');
-                const container = document.getElementById('vk_auth_container');
-                
-                if (overlay && container) {
-                    overlay.style.setProperty('display', 'flex', 'important');
-                    container.innerHTML = '';
-                    
-                    // Вызываем твою команду инициализации, если она нужна
-                    window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/auth_init_vk' }));
+    // Логика авторизации: показываем твой готовый оверлей
+    if (profileBtn) {
+        profileBtn.onclick = (e) => {
+            if (!localStorage.getItem('vk_user_id')) {
+                if (overlay) {
+                    overlay.style.display = 'flex';
+                    console.log("Окно авторизации отображено");
                 } else {
-                    // Если оверлея нет в DOM, пробуем редирект как запасной вариант
-                    console.error("Оверлей не найден!");
+                    console.error("Блок vk_auth_overlay не найден в HTML");
                 }
             }
         };
