@@ -1,210 +1,28 @@
 :root {
   --sidebar-width-full: 260px;
   --sidebar-width-collapsed: 68px;
-  --bg-dark: #1e1e1e;
-  --hover-bg: #333;
-  height: 100%;
-  overflow: hidden;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
+body, html {
   margin: 0;
-  display: flex;
+  padding: 0;
   width: 100vw;
   height: 100vh;
-}
-#root {
-  /* Важно! Теперь root — это флекс-элемент внутри app-container */
-  flex-grow: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  overflow: hidden; /* Запрещаем скролл всему телу сайта */
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
-@keyframes slideUp {
-  from { transform: translateY(100px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-.app-wrapper {
-  display: flex; /* Сайдбар и чат встанут в ряд */
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Главный контейнер на весь экран */
+/* Главная обертка из твоего index.html */
 .app-container {
   display: flex;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
-
-/* Сайдбар больше не fixed! Он теперь просто часть гибкого ряда */
-.sidebar {
-  width: 68px; /* Ширина в закрытом состоянии */
-  flex-shrink: 0; /* Запрещаем сжиматься */
-  overflow-x: hidden;
-  background: #1e1e1e;
-  display: flex;
-  flex-direction: column;
-  transition: width 0.3s ease;
-  z-index: 10;
-  border-right: 1px solid #333;
-}
-
-.sidebar.active {
-  width: 260px; /* Ширина при наведении/клике */
-}
-.main-content {
-  flex-grow: 1; /* Чат займет все оставшееся место */
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  background: #121212; /* Цвет фона как на скрине */
-  overflow-y: auto;
-}
-
-.sidebar .text {
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  white-space: nowrap;
-  margin-left: 15px;
-}
-
-.sidebar.active .text {
-  opacity: 1;
-}
-
-/* Элементы меню */
-.nav-item, .new-chat {
-  display: flex;
-  align-items: center;
-  padding: 15px 22px;
-  cursor: pointer;
-  border-radius: 8px;
-  margin: 5px;
-}
-
-.nav-item:hover {
-  background: var(--hover-bg);
-}
-
-/* Профиль внизу */
-.sidebar-bottom {
-  margin-top: auto;
-  padding: 15px;
-  border-top: 1px solid #444;
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-}
-
-.avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 2px solid #555;
-}
-
-.storage-modal {
-  display: none; /* Скрыто по умолчанию */
-  position: fixed;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(5px);
-  z-index: 2000;
-  justify-content: center;
-  align-items: center;
 }
 
-.storage-content {
-  width: 90%;
-  height: 90%;
-  background: #252525;
-  border-radius: 12px;
+#root {
+  flex-grow: 1; /* Растягивает чат на всю оставшуюся ширину */
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 0 30px rgba(0,0,0,0.5);
-}
-
-.storage-header {
-  padding: 15px;
-  background: #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-}
-
-#storage-frame {
-  flex-grow: 1;
-  border: none;
-  background: white; /* Или темный, если приложение поддерживает */
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
-  cursor: pointer;
 }

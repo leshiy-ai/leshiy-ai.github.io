@@ -18,8 +18,8 @@
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
-body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; position: fixed; width: 100%; height: 100%; overscroll-behavior-y: contain; }
-.app-container { display: flex; flex-direction: column; height: 100dvh; padding: 0 10px 10px; width: 100vw; margin: 0 auto; max-width: 800px; box-sizing: border-box; position: relative; transition: transform 0.3s; will-change: transform; }
+body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; height: 100%; overscroll-behavior-y: contain; }
+.app-container { display: flex; flex-direction: column; height: 100vh; padding: 0 10px 10px; width: 100vw; margin: 0 auto; max-width: none; margin: 0; box-sizing: border-box; position: relative; transition: transform 0.3s; will-change: transform; }
 .app-header { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); flex-shrink: 0; gap: 10px; height: 60px; }
 .logo { height: 35px; flex-shrink: 0; }
 .app-header h1 { font-size: 1.3em; margin: 0; line-height: 1.2; min-width: 0; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
