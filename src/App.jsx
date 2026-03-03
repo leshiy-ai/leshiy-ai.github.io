@@ -162,19 +162,19 @@ function App() {
             console.log("App: Авторизация получена, ID:", userId);
         
             // 3. Если прилетел объект с ФИО и фото — сохраняем и обновляем UI
-            if (typeof data === 'object') {
-                console.log("Обновляем профиль данными из JSON:", data);
+            if (data && typeof data === 'object') {
+                // Обновляем состояние Реакта
+                setCurrentUserId(data.vk_user_id);
                 
-                if (data.userName) localStorage.setItem('vk_user_name', data.userName);
-                if (data.userPhoto) localStorage.setItem('vk_user_photo', data.userPhoto);
-                if (data.vk_user_id) localStorage.setItem('vk_user_id', data.vk_user_id);
-                
-                // Передаем весь объект в main.jsx (там handleStatusResponse всё отрисует)
+                console.log("App: Получен объект пользователя:", data);
+        
+                // Пинаем main.jsx, чтобы он обновил аватарку и имя в DOM
                 if (window.handleStatusResponse) {
                     window.handleStatusResponse(data);
                 }
-            } else {
-                // Если пришел только ID, просто просим main.jsx обновить что есть
+            } else if (data) {
+                // Если прилетел только ID строкой (на всякий случай)
+                setCurrentUserId(data);
                 if (window.updateProfileUI) window.updateProfileUI();
             }
         };

@@ -106,10 +106,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 3. Закрыть хранилище
-    if (closeStorage) {
-        closeStorage.addEventListener('click', () => {
-            storageModal.style.display = 'none';
-        });
+    if (logoutBtn) {
+        logoutBtn.onclick = () => {
+            console.log("Выход из системы...");
+            localStorage.removeItem('vk_user_id');
+            localStorage.removeItem('vk_user_name');
+            localStorage.removeItem('vk_user_photo');
+            
+            // Очищаем аватарку вручную перед релоадом для красоты
+            document.getElementById('display-name').textContent = "Войти через VK";
+            document.getElementById('user-avatar').src = "https://vk.com/images/camera_100.png";
+            
+            window.location.reload(); 
+        };
     }
 
     // 4. Закрытие модалки по клику на фон

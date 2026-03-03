@@ -23,14 +23,21 @@
                   document.head.appendChild(script);
 
                   window.vkCallback = function(response) {
-                      if (response.response && response.response[0]) {
-                          const user = response.response[0];
-                          localStorage.setItem('vk_user_name', `${user.first_name} ${user.last_name}`);
-                          localStorage.setItem('vk_user_photo', user.photo_100);
-                          
-                          // Уведомляем систему, что данные обновились
-                          window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: userId }));
-                      }
+                    if (response.response && response.response[0]) {
+                      const user = response.response[0];
+                      const userData = {
+                          vk_user_id: userId,
+                          userName: `${user.first_name} ${user.last_name}`,
+                          userPhoto: user.photo_100
+                      };
+
+                      localStorage.setItem('vk_user_id', userData.vk_user_id);
+                      localStorage.setItem('vk_user_name', userData.userName);
+                      localStorage.setItem('vk_user_photo', userData.userPhoto);
+                      
+                      // ПЕРЕДАЕМ ВЕСЬ ОБЪЕКТ, а не только ID
+                      window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: userData }));
+                    }
                       delete window.vkCallback;
                       script.remove();
                   };
@@ -58,8 +65,8 @@
             <span class="text">Хранилка</span>
           </div>
         </div>
-        
-        <div class="sidebar" id="logout-btn">
+
+        <div id="logout-btn" class="logout-btn">
           <span class="icon">🚪</span>
           <span class="text">Выход</span>
         </div>
