@@ -12,31 +12,47 @@ createRoot(document.getElementById('root')).render(
 
 // Оживляем интерфейс (DOM)
 document.addEventListener('DOMContentLoaded', () => {
-    const userId = localStorage.getItem('vk_user_id');
-    const nameEl = document.getElementById('display-name');
-    const avatarEl = document.getElementById('user-avatar');
+  
+    // Вспомогательная функция для обновления профиля (чтобы вызвать её и при загрузке, и при входе)
+    const updateProfileUI = () => {
+      const userId = localStorage.getItem('vk_user_id');
+      const nameEl = document.getElementById('display-name');
+      const avatarEl = document.getElementById('user-avatar');
 
-    if (userId) {
-      // Если у тебя есть сохраненное имя/фото из VK после авторизации
-      const savedName = localStorage.getItem('vk_user_name');
-      const savedPhoto = localStorage.getItem('vk_user_photo');
-      
-      if (savedName) nameEl.textContent = savedName;
-      if (savedPhoto) avatarEl.src = savedPhoto;
-      
-      // Если данных нет, можно вывести хотя бы ID для теста
-      if (!savedName) nameEl.textContent = `User ID: ${userId}`;
-    }
+      if (userId && userId !== 'null') {
+          const savedName = localStorage.getItem('vk_user_name');
+          const savedPhoto = localStorage.getItem('vk_user_photo');
+          
+          if (nameEl) nameEl.textContent = savedName || `ID: ${userId}`;
+          if (avatarEl && savedPhoto) avatarEl.src = savedPhoto;
+      } else {
+          if (nameEl) nameEl.textContent = "Войти через VK";
+          if (avatarEl) avatarEl.src = "https://vk.com/images/camera_100.png"; // дефолт
+      }
+    };
+
+    updateProfileUI();
 
     const currentTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', currentTheme);
-    
+
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('toggle-menu');
     const storageBtn = document.getElementById('open-storage');
     const closeStorage = document.getElementById('close-storage');
     const storageModal = document.getElementById('storage-modal');
     const storageFrame = document.getElementById('storage-frame');
+    const profileBtn = document.querySelector('.user-profile');
+
+    // Логика авторизации по клику на аватар/профиль
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => {
+          if (!localStorage.getItem('vk_user_id')) {
+              const vkOverlay = document.getElementById('vk_auth_overlay'); 
+              if (vkOverlay) vkOverlay.style.display = 'flex';
+          }
+      });
+    }
 
     // 1. Переключалка меню (Sidebar)
     if (toggleBtn && sidebar) {
@@ -76,4 +92,5 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('vk-auth-success', (event) => {
   const newUserId = event.detail;
   console.log("Система: Пользователь авторизован!", newUserId);
+  updateProfileUI();
 });

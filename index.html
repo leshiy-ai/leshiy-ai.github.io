@@ -5,19 +5,37 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leshiy-AI Ecosystem</title>
+    <script src="https://vk.com/js/api/openapi.js?169" type="text/javascript"></script>
     <script>
       (function handleVKAuth() {
-          // Проверяем наличие параметров после решетки (Implicit Flow)
           const hash = window.location.hash.substring(1);
           if (hash) {
               const params = new URLSearchParams(hash);
               const userId = params.get('user_id');
-              
-              if (userId) {
+              const accessToken = params.get('access_token'); // Получаем токен из хэша
+
+              if (userId && accessToken) {
                   localStorage.setItem('vk_user_id', userId);
-                  // Очищаем URL, чтобы при обновлении страницы всё было чисто
+
+                  // Делаем JSONP запрос к ВК, чтобы обойти CORS и получить данные профиля
+                  const script = document.createElement('script');
+                  script.src = `https://api.vk.com/method/users.get?user_ids=${userId}&fields=photo_100&access_token=${accessToken}&v=5.131&callback=vkCallback`;
+                  document.head.appendChild(script);
+
+                  window.vkCallback = function(response) {
+                      if (response.response && response.response[0]) {
+                          const user = response.response[0];
+                          localStorage.setItem('vk_user_name', `${user.first_name} ${user.last_name}`);
+                          localStorage.setItem('vk_user_photo', user.photo_100);
+                          
+                          // Уведомляем систему, что данные обновились
+                          window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: userId }));
+                      }
+                      delete window.vkCallback;
+                      script.remove();
+                  };
+
                   window.history.replaceState({}, document.title, window.location.pathname);
-                  console.log("✅ VK ID сохранен:", userId);
               }
           }
       })();
