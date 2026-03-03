@@ -11,37 +11,33 @@ createRoot(document.getElementById('root')).render(
 )
 
 // Вспомогательная функция (вынесена в глобальную область для слушателей)
-const updateProfileUI = () => {
-  const userId = localStorage.getItem('vk_user_id');
+window.updateProfileUI = (data = null) => {
   const nameEl = document.getElementById('display-name');
   const avatarEl = document.getElementById('user-avatar');
 
-  // Ключевые данные из твоего JSON
-  const savedName = localStorage.getItem('vk_user_name');
-  const savedPhoto = localStorage.getItem('vk_user_photo');
+  // Если данные пришли (из Реакта), берем их. Если нет — из памяти.
+  const name = data?.userName || localStorage.getItem('vk_user_name');
+  const photo = data?.userPhoto || localStorage.getItem('vk_user_photo');
+  const id = data?.vk_user_id || localStorage.getItem('vk_user_id');
 
-  if (userId && userId !== 'null') {
-      // ПРИОРИТЕТ: сначала ФИО, если нет - ID
-      if (nameEl) {
-          nameEl.textContent = savedName && savedName !== 'null' ? savedName : `ID: ${userId}`;
-      }
-      
-      if (avatarEl && savedPhoto && savedPhoto !== 'null') {
-          avatarEl.src = savedPhoto;
-      }
+  if (id && id !== 'null') {
+      if (nameEl) nameEl.textContent = (name && name !== 'undefined') ? name : `ID: ${id}`;
+      if (avatarEl && photo) avatarEl.src = photo;
   } else {
       if (nameEl) nameEl.textContent = "Войти через VK";
       if (avatarEl) avatarEl.src = "https://vk.com/images/camera_100.png";
   }
 };
 
-// Функция для обработки того самого JSON со статусом
-window.handleStatusResponse = (data) => {
-  if (data.userName) localStorage.setItem('vk_user_name', data.userName);
-  if (data.userPhoto) localStorage.setItem('vk_user_photo', data.userPhoto);
-  if (data.vk_user_id) localStorage.setItem('vk_user_id', data.vk_user_id); // если ID тоже там
+// Вызывается из App.jsx при получении get-status
+window.handleStatusResponse = (statusData) => {
+  if (!statusData) return;
   
-  updateProfileUI();
+  if (statusData.userName) localStorage.setItem('vk_user_name', statusData.userName);
+  if (statusData.userPhoto) localStorage.setItem('vk_user_photo', statusData.userPhoto);
+  if (statusData.vk_user_id) localStorage.setItem('vk_user_id', statusData.vk_user_id);
+
+  window.updateProfileUI(statusData);
 };
 
 // Оживляем интерфейс (DOM)
@@ -61,24 +57,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const storageFrame = document.getElementById('storage-frame');
     const profileBtn = document.querySelector('.user-profile');
     const overlay = document.getElementById('vk_auth_overlay');
+    const logoutBtn = document.getElementById('logout-btn');
 
     // Логика авторизации: показываем твой готовый оверлей
     if (profileBtn) {
-      profileBtn.onclick = (e) => {
-          // Ловим клик ВСЕГДА, а внутри решаем что делать
+      profileBtn.onclick = () => {
           const userId = localStorage.getItem('vk_user_id');
-          
           if (!userId || userId === 'null') {
               if (overlay) {
                   overlay.style.display = 'flex';
-                  // Пинаем SDK для отрисовки кнопок
                   window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/auth_init_vk' }));
               }
-          } else {
-              console.log("Юзер уже залогинен:", userId);
-              // Тут можно открыть меню профиля или настройки
           }
       };
+    }
+
+    // Выход (LogOut) — перенес сюда для надежности
+    if (logoutBtn) {
+        logoutBtn.onclick = () => {
+            localStorage.removeItem('vk_user_id');
+            localStorage.removeItem('vk_user_name');
+            localStorage.removeItem('vk_user_photo');
+            location.reload(); 
+        };
     }
 
     // 1. Переключалка меню (Sidebar)
@@ -92,7 +93,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (storageBtn && storageModal) {
         storageBtn.addEventListener('click', () => {
             // Берем сохраненный ID или ставим тестовый
-            const userId = localStorage.getItem('vk_user_id') || '3930898';
+            const userId = localStorage.getItem('vk_user_id');
+            if (!userId) {
+              alert("Сначала авторизуйтесь!");
+              return;
+            }
             const gatewayUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/vk?vk_user_id=${userId}`;
             
             storageFrame.src = gatewayUrl;
@@ -115,21 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// LogOut - сброс авторизации ВК ИД
-const logoutBtn = document.getElementById('logout-btn'); // Если создашь такую кнопку
-
-if (logoutBtn) {
-    logoutBtn.onclick = () => {
-        localStorage.removeItem('vk_user_id');
-        localStorage.removeItem('vk_user_name');
-        localStorage.removeItem('vk_user_photo');
-        // Перезагружаем, чтобы сработал updateProfileUI()
-        location.reload(); 
-    };
-}
 // Глобальный слушатель для VK
 window.addEventListener('vk-auth-success', (event) => {
   const newUserId = event.detail;
   console.log("Система: Пользователь авторизован!", newUserId);
-  updateProfileUI();
+  window.updateProfileUI();
 });

@@ -149,15 +149,34 @@ function App() {
 
         // Слушаем успешную авторизацию из main.jsx
         const handleAuthSuccess = (event) => {
-            const newUserId = event.detail;
-            setCurrentUserId(newUserId);
-            console.log("App: Авторизация получена, ID обновлен:", newUserId);
-            console.log("Обновляем профиль данными из JSON:", data);
-            if (data.userName) localStorage.setItem('vk_user_name', data.userName);
-            if (data.userPhoto) localStorage.setItem('vk_user_photo', data.userPhoto);
+            // 1. Объявляем data (это и есть наш объект из event.detail)
+            const data = event.detail; 
             
-            // Мгновенный пинок интерфейсу
-            updateProfileUI();
+            if (!data) return;
+        
+            // 2. Обновляем ID для Реакта (чтобы работала Хранилка и чат)
+            // Проверяем: если data это объект, берем из него ID, если просто строка - берем саму строку
+            const userId = (typeof data === 'object') ? (data.vk_user_id || data.id) : data;
+            setCurrentUserId(userId);
+            
+            console.log("App: Авторизация получена, ID:", userId);
+        
+            // 3. Если прилетел объект с ФИО и фото — сохраняем и обновляем UI
+            if (typeof data === 'object') {
+                console.log("Обновляем профиль данными из JSON:", data);
+                
+                if (data.userName) localStorage.setItem('vk_user_name', data.userName);
+                if (data.userPhoto) localStorage.setItem('vk_user_photo', data.userPhoto);
+                if (data.vk_user_id) localStorage.setItem('vk_user_id', data.vk_user_id);
+                
+                // Передаем весь объект в main.jsx (там handleStatusResponse всё отрисует)
+                if (window.handleStatusResponse) {
+                    window.handleStatusResponse(data);
+                }
+            } else {
+                // Если пришел только ID, просто просим main.jsx обновить что есть
+                if (window.updateProfileUI) window.updateProfileUI();
+            }
         };
 
         // Слушаем команду на авто-отправку (например, после логина)
