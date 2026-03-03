@@ -57,9 +57,11 @@ body > .app-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 10px 10px 12px; /* Сдвиг в колонку к остальным кнопкам */
+  /* Убираем прыгающие отступы, ставим фиксированные */
+  margin: 5px 13px !important; 
   border-radius: 12px;
   transition: var(--sb-transition);
+  flex-shrink: 0;
 }
 
 /* Единый стандарт для всех интерактивных элементов сайдбара */
@@ -96,7 +98,6 @@ body > .app-container {
 }
 
 /* В свернутом виде все элементы превращаются в квадраты по центру */
-#sidebar.active #toggle-menu,
 #sidebar.active .nav-item,
 #sidebar.active .new-chat,
 #sidebar.active .user-profile {
@@ -105,7 +106,10 @@ body > .app-container {
   margin: 4px 12px !important; /* Выравниваем ровно по центру узкой панели */
   width: 44px;
 }
-
+#sidebar.active #toggle-menu {
+  margin: 5px 13px !important; /* Те же отступы, что и в открытом */
+  justify-content: center;
+}
 /* Скрываем всё лишнее в свернутом виде */
 #sidebar.active .text, 
 #sidebar.active .user-info, 
@@ -166,11 +170,20 @@ body > .app-container {
 #storage-frame { flex: 1; border: none; background: white; }
 
 .storage-header {
-  padding: 15px 20px;
+  padding: 8px 16px; /* Сделали уже */
   background: var(--sidebar-bg);
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center;
   color: var(--sidebar-text);
   border-bottom: 1px solid var(--sidebar-border);
+  height: 40px; /* Фиксированная стандартная высота */
+}
+
+.storage-header h2 {
+  font-size: 14px; /* Компактный текст */
+  margin: 0;
+  font-weight: 400;
 }
 
 /* Стилизованный крестик закрытия */
@@ -209,8 +222,8 @@ body > .app-container {
 }
 
 .avatar-container {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;

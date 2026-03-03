@@ -45,13 +45,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileBtn = document.querySelector('.user-profile');
 
     // Логика авторизации по клику на аватар/профиль
-    if (profileBtn) {
-      profileBtn.addEventListener('click', () => {
-          if (!localStorage.getItem('vk_user_id')) {
-              const vkOverlay = document.getElementById('vk_auth_overlay'); 
-              if (vkOverlay) vkOverlay.style.display = 'flex';
-          }
-      });
+    const profileArea = document.querySelector('.user-profile');
+    if (profileArea) {
+        profileArea.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Чтобы событие не улетало выше
+            
+            const userId = localStorage.getItem('vk_user_id');
+            if (!userId || userId === 'null') {
+                console.log("Запуск авторизации...");
+                const overlay = document.getElementById('vk_auth_overlay');
+                const container = document.getElementById('vk_auth_container');
+                
+                if (overlay && container) {
+                    overlay.style.setProperty('display', 'flex', 'important');
+                    container.innerHTML = '';
+                    
+                    // Вызываем твою команду инициализации, если она нужна
+                    window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/auth_init_vk' }));
+                } else {
+                    // Если оверлея нет в DOM, пробуем редирект как запасной вариант
+                    console.error("Оверлей не найден!");
+                }
+            }
+        };
     }
 
     // 1. Переключалка меню (Sidebar)
