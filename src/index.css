@@ -30,16 +30,19 @@ body > .app-container {
   width: 100vw !important;
   height: 100vh !important;
   overflow: hidden !important;
+  position: relative !important;
 }
 
-/* Основной контент (Чат) */
+/* Основной контент (Чат) - ИСПРАВЛЕНО */
+body > .app-container > #root,
 body > .app-container > div:not(#sidebar) {
   flex: 1 !important;
   min-width: 0 !important;
   height: 100% !important;
-  display: flex;
-  flex-direction: column;
-  padding-top: 60px !important; /* Отступ под фиксированную шапку */
+  display: flex !important;
+  flex-direction: column !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
 }
 
 /* 3. САЙДБАР (БАЗОВЫЕ СТИЛИ) */
