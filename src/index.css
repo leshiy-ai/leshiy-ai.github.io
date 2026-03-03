@@ -1,40 +1,40 @@
-:root { 
-  --sidebar-width-full: 260px; 
-  --sidebar-width-collapsed: 68px; 
-}
+/* index.css */
 
-/* Убираем лишние отступы, которые могут всё ломать */
-html, body, #root { 
-  margin: 0; 
-  padding: 0; 
-  width: 100%; 
-  height: 100%; 
-  overflow: hidden; 
-  background-color: #19191a; 
-}
-
-/* Главный ряд: Сайдбар + Чат */
 .layout-wrapper {
   display: flex !important;
-  flex-direction: row !important;
   width: 100vw !important;
   height: 100vh !important;
-  overflow: hidden;
+  overflow: hidden !important;
+  background-color: #19191a;
 }
 
-/* Сайдбар - стоит слева и не шевелится */
 .sidebar {
+  width: 68px !important; /* Ширина сайдбара */
   flex-shrink: 0 !important;
-  height: 100vh !important;
+  height: 100% !important;
 }
 
-/* Твой ЧАТ из App.css */
-/* Мы ПРИНУДИТЕЛЬНО заставляем его занять всё место справа от сайдбара */
 .layout-wrapper > .app-container {
-  flex: 1 !important; /* ЗАНИМАЙ ВСЁ МЕСТО */
+  /* НЕЙТРАЛИЗАЦИЯ App.css */
+  width: auto !important;      /* Отменяем 100vw, иначе он вылетает за экран */
+  max-width: none !important;  /* Убираем ограничение здесь, перенесем его внутрь */
+  margin: 0 !important;        /* Убираем центровку контейнера, теперь центруем контент */
+  
+  /* НОВАЯ ЛОГИКА */
+  flex-grow: 1 !important;     /* Заставляем занять всё свободное место справа */
   display: flex !important;
   flex-direction: column !important;
-  min-width: 0 !important;
-  height: 100vh !important;
-  position: relative !important;
+  height: 100dvh !important;
+  min-width: 0 !important;     /* Важно для flex-элементов */
+}
+
+/* Возвращаем твою центровку и 800px для красоты контента внутри */
+.app-header, 
+.chat-window, 
+.input-area {
+  width: 100% !important;
+  max-width: 800px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box;
 }
