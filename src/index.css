@@ -200,8 +200,8 @@ body > .app-container {
   color: var(--sidebar-text); 
   font-size: 28px; 
   cursor: pointer;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,7 +238,6 @@ body > .app-container {
   user-select: none;
 }
 
-/* Аватар: строго 48x48, всегда ровный квадрат */
 /* Аватар: убираем всё лишнее, оставляем только логику круга */
 .avatar-container {
   width: 48px !important;
@@ -280,4 +279,35 @@ body > .app-container {
   display: flex;
   flex-direction: column;
   padding-bottom: 10px;
+}
+
+/* Кнопка Выход */
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 15px;
+  height: 40px;
+  margin: 4px 10px 8px 10px; /* Отступ снизу до черты */
+  color: #ff4d4f !important; /* Ненавязчивый красный */
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: 0.2s;
+}
+
+.logout-btn:hover {
+  background: rgba(255, 77, 79, 0.1); /* Легкий фон при наведении */
+}
+
+/* Скрываем текст выхода при свернутом сайдбаре */
+#sidebar.active .logout-btn .text {
+  display: none !important;
+}
+
+#sidebar.active .logout-btn {
+  justify-content: center;
+  padding: 0;
+  width: 48px;
+  margin: 4px auto;
 }

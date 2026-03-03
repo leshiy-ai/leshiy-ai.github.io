@@ -16,22 +16,20 @@ const updateProfileUI = () => {
   const nameEl = document.getElementById('display-name');
   const avatarEl = document.getElementById('user-avatar');
 
-  // Получаем динамические данные из хранилища
+  // Ключевые данные из твоего JSON
   const savedName = localStorage.getItem('vk_user_name');
   const savedPhoto = localStorage.getItem('vk_user_photo');
 
   if (userId && userId !== 'null') {
-      // Если есть имя в памяти - ставим, если нет - показываем ID
-      if (nameEl) nameEl.textContent = savedName || `ID: ${userId}`;
+      // ПРИОРИТЕТ: сначала ФИО, если нет - ID
+      if (nameEl) {
+          nameEl.textContent = savedName && savedName !== 'null' ? savedName : `ID: ${userId}`;
+      }
       
-      if (avatarEl) {
-          // Если есть фото - ставим, если нет - оставляем текущий src (заглушку)
-          if (savedPhoto) {
-              avatarEl.src = savedPhoto;
-          }
+      if (avatarEl && savedPhoto && savedPhoto !== 'null') {
+          avatarEl.src = savedPhoto;
       }
   } else {
-      // Состояние разлогина
       if (nameEl) nameEl.textContent = "Войти через VK";
       if (avatarEl) avatarEl.src = "https://vk.com/images/camera_100.png";
   }

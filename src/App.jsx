@@ -152,6 +152,12 @@ function App() {
             const newUserId = event.detail;
             setCurrentUserId(newUserId);
             console.log("App: Авторизация получена, ID обновлен:", newUserId);
+            console.log("Обновляем профиль данными из JSON:", data);
+            if (data.userName) localStorage.setItem('vk_user_name', data.userName);
+            if (data.userPhoto) localStorage.setItem('vk_user_photo', data.userPhoto);
+            
+            // Мгновенный пинок интерфейсу
+            updateProfileUI();
         };
 
         // Слушаем команду на авто-отправку (например, после логина)
