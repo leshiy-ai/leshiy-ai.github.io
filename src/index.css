@@ -1,40 +1,64 @@
-/* index.css */
+/* Полный сброс, чтобы ничего не вылетало */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #19191a;
+}
 
-.layout-wrapper {
+#main-layout {
   display: flex !important;
+  flex-direction: row !important;
   width: 100vw !important;
   height: 100vh !important;
-  overflow: hidden !important;
-  background-color: #19191a;
 }
 
-.sidebar {
-  width: 68px !important; /* Ширина сайдбара */
+/* Сайдбар слева */
+#sidebar {
+  width: 260px !important;
+  height: 100vh !important;
+  background: #111 !important;
   flex-shrink: 0 !important;
-  height: 100% !important;
-}
-
-.layout-wrapper > .app-container {
-  /* НЕЙТРАЛИЗАЦИЯ App.css */
-  width: auto !important;      /* Отменяем 100vw, иначе он вылетает за экран */
-  max-width: none !important;  /* Убираем ограничение здесь, перенесем его внутрь */
-  margin: 0 !important;        /* Убираем центровку контейнера, теперь центруем контент */
-  
-  /* НОВАЯ ЛОГИКА */
-  flex-grow: 1 !important;     /* Заставляем занять всё свободное место справа */
   display: flex !important;
   flex-direction: column !important;
-  height: 100dvh !important;
-  min-width: 0 !important;     /* Важно для flex-элементов */
+  border-right: 1px solid #333;
 }
 
-/* Возвращаем твою центровку и 800px для красоты контента внутри */
-.app-header, 
-.chat-window, 
-.input-area {
+/* React-приложение справа */
+#root {
+  flex-grow: 1 !important;
+  height: 100vh !important;
+  position: relative !important;
+  min-width: 0 !important; /* Критично для flex-контейнеров */
+}
+
+/* Убираем конфликт с .app-container внутри React */
+#root .app-container {
   width: 100% !important;
-  max-width: 800px !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  box-sizing: border-box;
+  max-width: none !important;
+  margin: 0 !important;
+  height: 100vh !important;
+  position: relative !important;
+}
+
+/* Стили модалки (чтобы не была текстом) */
+.storage-modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.8);
+  z-index: 10000;
+  display: none; /* Управляется через main.jsx */
+  justify-content: center;
+  align-items: center;
+}
+
+.storage-content {
+  width: 90%; height: 90%;
+  background: #1e1e1e;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
 }
