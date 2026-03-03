@@ -48,16 +48,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Логика авторизации: показываем твой готовый оверлей
     if (profileBtn) {
-        profileBtn.onclick = (e) => {
-            if (!localStorage.getItem('vk_user_id')) {
-                if (overlay) {
-                    overlay.style.display = 'flex';
-                    console.log("Окно авторизации отображено");
-                } else {
-                    console.error("Блок vk_auth_overlay не найден в HTML");
-                }
-            }
-        };
+      profileBtn.onclick = (e) => {
+          if (!localStorage.getItem('vk_user_id')) {
+              if (overlay) {
+                  overlay.style.display = 'flex';
+                  
+                  // Генерируем событие, чтобы App.jsx (где живет SDK) 
+                  // понял, что пора рисовать кнопки в оверлее
+                  window.dispatchEvent(new CustomEvent('send-bot-command', { 
+                      detail: '/auth_init_vk' 
+                  }));
+                  
+                  console.log("Окно авторизации открыто, инициирован вызов кнопок");
+              }
+          }
+      };
     }
 
     // 1. Переключалка меню (Sidebar)
@@ -94,6 +99,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// LogOut - сброс авторизации ВК ИД
+const logoutBtn = document.getElementById('logout-btn'); // Если создашь такую кнопку
+
+if (logoutBtn) {
+    logoutBtn.onclick = () => {
+        localStorage.removeItem('vk_user_id');
+        localStorage.removeItem('vk_user_name');
+        localStorage.removeItem('vk_user_photo');
+        // Перезагружаем, чтобы сработал updateProfileUI()
+        location.reload(); 
+    };
+}
 // Глобальный слушатель для VK
 window.addEventListener('vk-auth-success', (event) => {
   const newUserId = event.detail;
