@@ -72,20 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    // Выход (LogOut) — перенес сюда для надежности
-    if (logoutBtn) {
-        logoutBtn.onclick = () => {
-            localStorage.removeItem('vk_user_id');
-            localStorage.removeItem('vk_user_name');
-            localStorage.removeItem('vk_user_photo');
-            location.reload(); 
-        };
-    }
-
     // 1. Переключалка меню (Sidebar)
     if (toggleBtn && sidebar) {
         toggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('active');
+          sidebar.classList.toggle('collapsed');
         });
     }
 
@@ -127,6 +117,13 @@ document.addEventListener('DOMContentLoaded', () => {
             storageModal.style.display = 'none';
         }
     });
+    
+    // 5. Закрытие модалки по крестику (ты забыл добавить слушатель)
+    if (closeStorage) {
+      closeStorage.onclick = () => {
+          storageModal.style.display = 'none';
+      };
+    }
 });
 
 // Глобальный слушатель для VK
