@@ -1,3 +1,4 @@
+
 :root {
   --bg-color: #19191a;
   --panel-bg: #222222;
@@ -18,8 +19,11 @@
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
-body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; position: fixed; width: 100%; height: 100%; overscroll-behavior-y: contain; }
-.app-container { display: flex; flex-direction: column; height: 100dvh; padding: 0 10px 10px; width: 100vw; margin: 0 auto; max-width: 800px; box-sizing: border-box; position: relative; transition: transform 0.3s; will-change: transform; }
+
+body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; width: 100%; height: 100%; overscroll-behavior-y: contain; }
+
+/* ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ v2: height: 100dvh предотвращает 'прыжок' контента при анимации. */
+.app-container { display: flex; flex-direction: column; height: 100dvh; width: 100%; box-sizing: border-box; position: relative; }
 .app-header { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); flex-shrink: 0; gap: 10px; height: 60px; }
 .logo { height: 35px; flex-shrink: 0; }
 .app-header h1 { font-size: 1.3em; margin: 0; line-height: 1.2; min-width: 0; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -89,3 +93,5 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .file-preview-name { position: absolute; bottom: -12px; font-size: 8px; color: #888; white-space: nowrap; }
 .image-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 7px; }
 .clear-file-btn { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: #ff4d4d; color: white; border: none; border-radius: 50%; font-size: 10px; cursor: pointer; z-index: 10; }
+.input-area.drag-over { border: 2px dashed var(--accent-color) !important; background-color: var(--bubble-bg) !important; }
+.clear-file-btn { position: absolute !important; top: -8px !important; right: -8px !important; width: 22px !important; height: 22px !important; min-width: 0 !important; background: #ff4d4d !important; color: white !important; border: 2px solid var(--bg-color) !important; border-radius: 50% !important; font-size: 12px !important; font-weight: bold !important; line-height: 1 !important; cursor: pointer !important; z-index: 10 !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.2s; } .clear-file-btn:hover { background: #ff1a1a !important; transform: scale(1.1); }

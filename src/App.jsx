@@ -85,7 +85,7 @@ const Message = ({ message, onSwipe, onAction }) => {
             <div className="bubble">
                 {message.attachments && <div className="attachments-grid">{message.attachments.map((f, i) => renderFile(f, i))}</div>}
                 {message.text ? <ReactMarkdown>{message.text}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
-                {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
+                {message.buttons && <div className="message-buttons\">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
             </div>
         </div>
     );
@@ -177,17 +177,36 @@ function App() {
 
         const handleBotCommand = (event) => { handleSend(event.detail); };
 
-        // --- ЛОГИКА СВАЙПА САЙДБАРА ---
-        const sb = document.getElementById('sidebar');
+        // --- SIDEBAR COLLAPSE LOGIC ---
         const mBtn = document.getElementById('toggle-menu');
+        const body = document.body;
+
+        // Set initial state to collapsed
+        if (body) {
+            body.classList.add('sidebar-collapsed');
+        }
+
+        const hMC = (e) => {
+            e.stopPropagation();
+            if (body) {
+                body.classList.toggle('sidebar-collapsed');
+            }
+        };
+
         let tsX = 0;
         const hTS = (e) => { tsX = e.touches[0].clientX; };
         const hTE = (e) => {
-            const teX = e.changedTouches[0].clientX; if (!sb) return;
-            if (teX - tsX > 70 && tsX < 40) sb.classList.remove('collapsed'); // Свайп вправо (открытие)
-            if (tsX - teX > 70) sb.classList.add('collapsed'); // Свайп влево (закрытие)
+            const teX = e.changedTouches[0].clientX;
+            if (!body) return;
+            // Swipe right to open
+            if (teX - tsX > 70 && tsX < 40) {
+                body.classList.remove('sidebar-collapsed');
+            }
+            // Swipe left to close
+            if (tsX - teX > 70) {
+                body.classList.add('sidebar-collapsed');
+            }
         };
-        const hMC = (e) => { e.stopPropagation(); if (sb) sb.classList.toggle('collapsed'); };
 
         window.addEventListener('vk-auth-success', handleAuthSuccess);
         window.addEventListener('send-bot-command', handleBotCommand);
@@ -525,7 +544,7 @@ function App() {
             {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
             <div id="pull-to-refresh">
                 <div id="ptr-loader" className="loader"></div>
-                <span id="ptr-text">Потяните для обновления</span>
+                <span id="ptr-text\">Потяните для обновления</span>
             </div>
 
             <header className="app-header">
@@ -565,8 +584,8 @@ function App() {
                                     <img src={file.preview} className="image-preview" />
                                 ) : (
                                     <div className="file-preview-icon">{icon}</div>
-                                )}
-                                <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
+                                )}\
+                                <button onClick={() => removeFile(file.id)} className="clear-file-btn\">✕</button>
                                 <span className="file-preview-name">{name.length > 6 ? name.substring(0,4)+'..' : name}</span>
                             </div>
                         );
