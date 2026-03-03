@@ -36,17 +36,12 @@ body > .app-container {
 #sidebar {
   width: 260px !important;
   min-width: 260px !important;
-  height: 100% !important;
   background-color: var(--sidebar-bg) !important;
-  color: var(--sidebar-text) !important;
   border-right: 1px solid var(--sidebar-border) !important;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  z-index: 10;
-  transition: width 0.3s ease, min-width 0.3s ease !important;
-  overflow: hidden;
-  white-space: nowrap;
+  padding: 10px 0; /* Убираем лишние отступы */
+  transition: all 0.3s ease;
 }
 
 #root {
@@ -87,17 +82,21 @@ body > .app-container {
 
 /* 4. Элементы интерфейса */
 .nav-item, .new-chat {
-  padding: 12px 20px;
-  cursor: pointer;
+  height: 48px;
+  margin: 4px 10px;
+  padding: 0 15px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
   color: var(--sidebar-text) !important;
-  transition: background 0.2s;
+  background: transparent;
+  transition: 0.2s;
 }
 
 .nav-item:hover, .new-chat:hover {
-  background-color: var(--sidebar-hover) !important;
+  background: var(--sidebar-hover) !important;
 }
 
 .avatar-circle {
@@ -143,4 +142,60 @@ body > .app-container {
 .close-btn { 
   background: none; border: none; color: var(--sidebar-text); 
   font-size: 24px; cursor: pointer; 
+}
+
+/* Профиль юзера */
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 20px 10px;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+/* Круглый аватар */
+.avatar-container {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #333;
+  flex-shrink: 0;
+  border: 2px solid var(--sidebar-border);
+}
+
+.avatar-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Надпись Online - скрываем, показываем только точку */
+.user-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.user-status {
+  font-size: 11px;
+  color: #4cd964 !important;
+}
+
+/* Подсказка при наведении (Tooltip) */
+#sidebar.active .user-name {
+  display: none;
 }

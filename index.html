@@ -42,11 +42,13 @@
         </div>
       
         <div class="sidebar-bottom">
-          <div class="user-profile">
-            <div class="avatar-circle">👤</div>
+          <div class="user-profile" title="Leshiy User (Online)">
+            <div class="avatar-container">
+              <img id="user-avatar" src="https://vk.com/images/camera_100.png" alt="Profile">
+            </div>
             <div class="user-info">
-              <span class="user-name">Leshiy User</span>
-              <span class="user-status">Online</span>
+              <span class="user-name" id="display-name">Leshiy User</span>
+              <span class="user-status">● Online</span>
             </div>
           </div>
         </div>
@@ -77,7 +79,7 @@
     <div id="storage-modal" class="storage-modal">
       <div class="storage-content">
           <div class="storage-header">
-              <span>🗄️ Leshiy Storage System</span>
+              <span>🗄️ Приложение "Хранилка" by Leshiy</span>
               <button id="close-storage" class="close-btn">×</button>
           </div>
           <iframe id="storage-frame"></iframe>

@@ -12,6 +12,25 @@ createRoot(document.getElementById('root')).render(
 
 // Оживляем интерфейс (DOM)
 document.addEventListener('DOMContentLoaded', () => {
+    const userId = localStorage.getItem('vk_user_id');
+    const nameEl = document.getElementById('display-name');
+    const avatarEl = document.getElementById('user-avatar');
+
+    if (userId) {
+      // Если у тебя есть сохраненное имя/фото из VK после авторизации
+      const savedName = localStorage.getItem('vk_user_name');
+      const savedPhoto = localStorage.getItem('vk_user_photo');
+      
+      if (savedName) nameEl.textContent = savedName;
+      if (savedPhoto) avatarEl.src = savedPhoto;
+      
+      // Если данных нет, можно вывести хотя бы ID для теста
+      if (!savedName) nameEl.textContent = `User ID: ${userId}`;
+    }
+
+    const currentTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    
     const sidebar = document.getElementById('sidebar');
     const toggleBtn = document.getElementById('toggle-menu');
     const storageBtn = document.getElementById('open-storage');
