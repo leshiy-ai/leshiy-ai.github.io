@@ -42,8 +42,21 @@ body > .app-container {
   flex-direction: column;
   padding: 10px 0; /* Убираем лишние отступы */
   transition: all 0.3s ease;
+  padding-top: 10px !important;
 }
-
+/* Центрируем саму кнопку-бургер */
+#toggle-menu {
+  margin-left: 10px; /* Чтобы не прилипала к левому краю */
+  background: transparent;
+  border: none;
+  color: var(--sidebar-text);
+  font-size: 20px;
+  cursor: pointer;
+  height: 40px; /* Высота как у кнопок в чате */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 #root {
   flex: 1 !important;
   height: 100% !important;
@@ -195,6 +208,17 @@ body > .app-container {
   color: #4cd964 !important;
 }
 
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 10px;
+}
+/* Если сайдбар свернут (active), выравниваем бутерброд строго по центру */
+#sidebar.active #toggle-menu {
+  margin-left: 0;
+  width: 100%;
+}
 /* Подсказка при наведении (Tooltip) */
 #sidebar.active .user-name {
   display: none;
