@@ -509,3 +509,94 @@ body > .app-container > div:not(#sidebar) {
   color: #1a1a1b !important;
   font-weight: 600 !important;
 }
+
+/* --- ФИНАЛЬНЫЙ ФИКС РАБОТОСПОСОБНОСТИ --- */
+
+/* 1. Возвращаем кликабельность сэндвичу и кнопкам */
+#sidebar {
+  z-index: 1002 !important; /* Выше шапки */
+}
+
+#toggle-menu {
+  position: relative !important;
+  z-index: 1003 !important;
+  pointer-events: auto !important; /* Гарантия клика */
+}
+
+/* 2. Исправляем геометрию чата, чтобы не улетал вверх */
+body > .app-container {
+  margin-top: 0 !important; /* Убираем то, что сдвигало весь экран */
+  padding-top: 0 !important;
+}
+
+/* Отодвигаем ТОЛЬКО контент чата, а не сайдбар */
+body > .app-container > div:not(#sidebar) {
+  padding-top: 60px !important; 
+  box-sizing: border-box !important;
+}
+
+/* 3. Гарантируем видимость текста "Выход" и Имени */
+#sidebar:not(.collapsed) .logout-btn .text,
+#sidebar:not(.collapsed) .user-name {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* 4. Фикс Аватара (чтобы не отъезжал от ID) */
+.user-profile {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+}
+
+.user-info {
+  margin-left: 12px !important;
+}
+
+/* 5. Шапка: чтобы не перекрывала интерактив */
+.app-header {
+  pointer-events: none !important; /* Пропускает клики сквозь фон */
+}
+.app-header > * {
+  pointer-events: auto !important; /* Возвращает клики кнопкам в шапке */
+}
+
+/* ФИНАЛЬНЫЙ РАСХЛЁБ */
+
+/* 1. Кнопка сэндвича ДОЛЖНА быть выше шапки, чтобы кликаться */
+#toggle-menu {
+  position: relative !important;
+  z-index: 11000 !important;
+  pointer-events: auto !important;
+}
+
+/* 2. На мобилках принудительно показываем сайдбар, когда есть .active */
+@media (max-width: 768px) {
+  #sidebar.active {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    display: flex !important;
+  }
+  
+  /* Гарантируем, что текст в меню на мобиле виден */
+  #sidebar.active .text, 
+  #sidebar.active .user-info {
+    display: flex !important;
+    opacity: 1 !important;
+  }
+}
+
+/* 3. Фикс шапки: чтобы не закрывала клики по верхним кнопкам сайдбара */
+.app-header {
+  z-index: 999 !important; /* Делаем чуть ниже сайдбара */
+}
+
+/* 4. Центровка аватара и ID: чтобы не разъезжались */
+.user-profile {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+}

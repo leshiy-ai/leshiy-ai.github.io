@@ -78,15 +78,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Переключалка меню (Sidebar)
     // ВАЖНО: на мобилке мы юзаем .active, на ПК .collapsed
-    if (toggleBtn && sidebar) {
-      toggleBtn.onclick = () => {
-          if (window.innerWidth <= 768) {
-              sidebar.classList.toggle('active'); // Выезжает на мобиле
-          } else {
-              sidebar.classList.toggle('collapsed'); // Сужается на ПК
-          }
-      };
-    }
+    toggleBtn.onclick = (e) => {
+      e.preventDefault(); // Чтобы страница не дергалась
+      e.stopPropagation(); // Чтобы клик не улетал дальше
+      
+      if (window.innerWidth <= 768) {
+          // На мобиле: убираем collapsed (чтобы не мешал) и тоглим active
+          sidebar.classList.remove('collapsed');
+          sidebar.classList.toggle('active');
+      } else {
+          // На ПК: убираем active (чтобы не мешал) и тоглим collapsed
+          sidebar.classList.remove('active');
+          sidebar.classList.toggle('collapsed');
+      }
+  };
 
     // 2. Открыть хранилище (Safe)
     if (storageBtn && storageModal) {
