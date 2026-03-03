@@ -19,8 +19,9 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; position: fixed; width: 100%; height: 100%; overscroll-behavior-y: contain; }
-.app-container { display: flex; flex-direction: column; height: 100dvh; padding: 0 10px 10px; width: 100vw; margin: 0 auto; max-width: 800px; box-sizing: border-box; position: relative; transition: transform 0.3s; will-change: transform; }
-.app-header { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); flex-shrink: 0; gap: 10px; height: 60px; }
+.app-container { display: flex; flex-direction: column; height: 100dvh; width: 100%; margin: 0; max-width: none; overflow: hidden; padding: 0; }
+.app-header { display: flex; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; height: 60px; width: 100%; box-sizing: border-box; }
+@media (max-width: 768px) { .sidebar { position: fixed; left: 0; top: 0; height: 100dvh; width: 250px; transform: translateX(-100%); z-index: 9999; } .sidebar:not(.collapsed) { transform: translateX(0); } }
 .logo { height: 35px; flex-shrink: 0; }
 .app-header h1 { font-size: 1.3em; margin: 0; line-height: 1.2; min-width: 0; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .app-header h1 span { color: var(--accent-color); font-size: 0.8em; text-transform: lowercase; font-weight: normal; }
@@ -67,7 +68,6 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .admin-footer-btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
 .admin-footer-btn.save { background: var(--accent-color); color: white; }
 .admin-footer-btn.cancel { background: var(--bubble-bg); color: var(--text-color); border: 1px solid var(--border-color); }
-@media (min-width: 600px) { .app-header h1 { font-size: 1.5em; } }
 .chat-window::-webkit-scrollbar { width: 8px; }
 .chat-window::-webkit-scrollbar-track { background: transparent; }
 .chat-window::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }

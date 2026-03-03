@@ -149,32 +149,29 @@ function App() {
 
         // Слушаем успешную авторизацию из main.jsx
         const handleAuthSuccess = (event) => {
-            // 1. Объявляем data (это и есть наш объект из event.detail)
             const data = event.detail; 
-            
+            console.log("App: Получены данные авторизации:", data);
+        
             if (!data) return;
         
-            // 2. Обновляем ID для Реакта (чтобы работала Хранилка и чат)
-            // Проверяем: если data это объект, берем из него ID, если просто строка - берем саму строку
+            // Определяем ID (поддержка и объекта, и просто строки)
             const userId = (typeof data === 'object') ? (data.vk_user_id || data.id) : data;
             setCurrentUserId(userId);
-            
-            console.log("App: Авторизация получена, ID:", userId);
         
-            // 3. Если прилетел объект с ФИО и фото — сохраняем и обновляем UI
-            if (data && typeof data === 'object') {
-                // Обновляем состояние Реакта
-                setCurrentUserId(data.vk_user_id);
+            // Если это объект с данными профиля
+            if (typeof data === 'object' && data.userName) {
+                // Сохраняем в локалку на всякий случай, если индекс этого еще не сделал
+                localStorage.setItem('vk_user_name', data.userName);
+                localStorage.setItem('vk_user_photo', data.userPhoto);
                 
-                console.log("App: Получен объект пользователя:", data);
-        
-                // Пинаем main.jsx, чтобы он обновил аватарку и имя в DOM
+                // ВАЖНО: вызываем функцию из main.jsx для обновления DOM
                 if (window.handleStatusResponse) {
                     window.handleStatusResponse(data);
+                } else if (window.updateProfileUI) {
+                    window.updateProfileUI();
                 }
-            } else if (data) {
-                // Если прилетел только ID строкой (на всякий случай)
-                setCurrentUserId(data);
+            } else {
+                // Если пришел только ID
                 if (window.updateProfileUI) window.updateProfileUI();
             }
         };
