@@ -2,15 +2,37 @@
   --sidebar-width-full: 260px; 
   --sidebar-width-collapsed: 68px; 
 }
-html, body { margin: 0; 
+
+html, body, #root { 
+  margin: 0; 
   padding: 0; 
   width: 100vw; 
   height: 100vh; 
   overflow: hidden; 
-  background-color: #242424; 
+  background-color: #19191a; /* Цвет под твою темную тему */
 }
-.app-container { display: flex; 
-  width: 100%; 
-  height: 100%; 
+
+/* Это единственный контейнер, который видит и Сайдбар, и твой Чат */
+.app-container { 
+  display: flex !important; 
+  flex-direction: row !important; /* Строго в ряд */
+  width: 100vw !important; 
+  height: 100vh !important; 
   overflow: hidden; 
+}
+
+/* Сайдбар просто забирает свои пиксели */
+.sidebar { 
+  flex-shrink: 0; 
+  height: 100%;
+  z-index: 100;
+}
+
+/* А твой исходный чат (который в App.css называется .app-container) 
+   теперь просто живет внутри и забирает всё остальное пространство */
+.app-container > div:not(.sidebar) {
+  flex-grow: 1;
+  min-width: 0;
+  height: 100%;
+  position: relative;
 }

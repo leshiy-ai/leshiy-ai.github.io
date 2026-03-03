@@ -19,43 +19,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; position: fixed; width: 100%; height: 100%; overscroll-behavior-y: contain; }
-/* 1. Главный контейнер теперь ГОРЕЗОНТАЛЬНЫЙ flex, чтобы сайдбар встал СЛЕВА */
-.app-container { 
-  display: flex !important; 
-  flex-direction: row !important; 
-  height: 100dvh; 
-  width: 100vw; 
-  margin: 0; 
-  padding: 0; 
-  max-width: none; 
-  position: relative; 
-  overflow: hidden; 
-}
-/* 2. Сайдбар - жестко фиксируем ширину, чтобы он не сжимался чатом */
-.sidebar { 
-  width: 68px; 
-  flex-shrink: 0; 
-  background: #1e1e1e; 
-  display: flex; 
-  flex-direction: column; 
-  transition: width 0.3s ease; 
-  z-index: 100; 
-  border-right: 1px solid #333; 
-  height: 100%; 
-}
-.sidebar.active { width: 260px; }
-
-/* 3. Твой ЧАТ - теперь это отдельный блок внутри контейнера, который занимает всё остальное место */
-#root-chat-area { 
-  flex-grow: 1; 
-  display: flex; 
-  flex-direction: column; 
-  height: 100%; 
-  max-width: 800px; /* Твое ограничение ширины чата */
-  margin: 0 auto; 
-  padding: 0 10px 10px; 
-  min-width: 0; /* ГЛАВНЫЙ ФИКС ОТ СХЛОПЫВАНИЯ */
-}
+.app-container { display: flex; flex-direction: column; height: 100dvh; padding: 0 10px 10px; width: 100vw; margin: 0 auto; max-width: 800px; box-sizing: border-box; position: relative; transition: transform 0.3s; will-change: transform; }
 .app-header { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color); flex-shrink: 0; gap: 10px; height: 60px; }
 .logo { height: 35px; flex-shrink: 0; }
 .app-header h1 { font-size: 1.3em; margin: 0; line-height: 1.2; min-width: 0; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
