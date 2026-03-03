@@ -16,16 +16,34 @@ const updateProfileUI = () => {
   const nameEl = document.getElementById('display-name');
   const avatarEl = document.getElementById('user-avatar');
 
+  // Получаем динамические данные из хранилища
+  const savedName = localStorage.getItem('vk_user_name');
+  const savedPhoto = localStorage.getItem('vk_user_photo');
+
   if (userId && userId !== 'null') {
-      const savedName = localStorage.getItem('vk_user_name');
-      const savedPhoto = localStorage.getItem('vk_user_photo');
-      
+      // Если есть имя в памяти - ставим, если нет - показываем ID
       if (nameEl) nameEl.textContent = savedName || `ID: ${userId}`;
-      if (avatarEl && savedPhoto) avatarEl.src = savedPhoto;
+      
+      if (avatarEl) {
+          // Если есть фото - ставим, если нет - оставляем текущий src (заглушку)
+          if (savedPhoto) {
+              avatarEl.src = savedPhoto;
+          }
+      }
   } else {
+      // Состояние разлогина
       if (nameEl) nameEl.textContent = "Войти через VK";
       if (avatarEl) avatarEl.src = "https://vk.com/images/camera_100.png";
   }
+};
+
+// Функция для обработки того самого JSON со статусом
+window.handleStatusResponse = (data) => {
+  if (data.userName) localStorage.setItem('vk_user_name', data.userName);
+  if (data.userPhoto) localStorage.setItem('vk_user_photo', data.userPhoto);
+  if (data.vk_user_id) localStorage.setItem('vk_user_id', data.vk_user_id); // если ID тоже там
+  
+  updateProfileUI();
 };
 
 // Оживляем интерфейс (DOM)
@@ -49,18 +67,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Логика авторизации: показываем твой готовый оверлей
     if (profileBtn) {
       profileBtn.onclick = (e) => {
-          if (!localStorage.getItem('vk_user_id')) {
+          // Ловим клик ВСЕГДА, а внутри решаем что делать
+          const userId = localStorage.getItem('vk_user_id');
+          
+          if (!userId || userId === 'null') {
               if (overlay) {
                   overlay.style.display = 'flex';
-                  
-                  // Генерируем событие, чтобы App.jsx (где живет SDK) 
-                  // понял, что пора рисовать кнопки в оверлее
-                  window.dispatchEvent(new CustomEvent('send-bot-command', { 
-                      detail: '/auth_init_vk' 
-                  }));
-                  
-                  console.log("Окно авторизации открыто, инициирован вызов кнопок");
+                  // Пинаем SDK для отрисовки кнопок
+                  window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/auth_init_vk' }));
               }
+          } else {
+              console.log("Юзер уже залогинен:", userId);
+              // Тут можно открыть меню профиля или настройки
           }
       };
     }
