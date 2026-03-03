@@ -74,25 +74,32 @@ button:focus-visible {
   from { transform: translateY(100px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
-.sidebar {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: var(--sidebar-width-collapsed);
-  background: var(--bg-dark);
-  color: white;
-  transition: width 0.3s ease;
+.app-wrapper {
+  display: flex; /* Сайдбар и чат встанут в ряд */
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  z-index: 1000;
-  border-right: 1px solid #444;
 }
 
-/* Раздвигаем при клике (через класс .active) */
+.sidebar {
+  /* Убираем position: fixed, если хотим, чтобы он расталкивал контент */
+  position: relative; 
+  flex-shrink: 0; /* Чтобы меню не сжималось */
+  width: 68px; /* Свернутое состояние */
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .sidebar.active {
-  width: var(--sidebar-width-full);
+  width: 260px; /* Развернутое состояние */
+}
+
+.main-content {
+  flex-grow: 1; /* Чат займет все оставшееся место */
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #121212; /* Цвет фона как на скрине */
+  overflow-y: auto;
 }
 
 .sidebar .text {
@@ -147,4 +154,51 @@ button:focus-visible {
 
 .sidebar.active + #chat-container {
   margin-left: var(--sidebar-width-full);
+}
+.storage-modal {
+  display: none; /* Скрыто по умолчанию */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+  z-index: 2000;
+  justify-content: center;
+  align-items: center;
+}
+
+.storage-content {
+  width: 90%;
+  height: 90%;
+  background: #252525;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 0 30px rgba(0,0,0,0.5);
+}
+
+.storage-header {
+  padding: 15px;
+  background: #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+
+#storage-frame {
+  flex-grow: 1;
+  border: none;
+  background: white; /* Или темный, если приложение поддерживает */
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
 }
