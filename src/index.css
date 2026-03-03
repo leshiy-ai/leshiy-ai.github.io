@@ -34,15 +34,24 @@ body > .app-container {
   margin: 0 !important;
 }
 
+/* Базовый стиль (Десктоп) */
 #sidebar {
-  width: 260px !important;
-  min-width: 260px !important;
-  background-color: var(--sidebar-bg) !important;
-  border-right: 1px solid var(--sidebar-border) !important;
+  width: 260px;
+  min-width: 260px;
+  height: 100vh;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
   display: flex;
   flex-direction: column;
   transition: var(--sb-transition);
-  padding-top: 10px !important; /* Выравнивание по высоте с кнопками чата */
+  z-index: 1000;
+  position: relative; /* На десктопе он в потоке */
+}
+
+/* Логика для десктопа: когда свернут — просто узкая полоса */
+#sidebar.collapsed {
+  width: 68px !important;
+  min-width: 68px !important;
 }
 
 /* Кнопка-бургер (Бутерброд) */
@@ -300,14 +309,28 @@ body > .app-container {
   background: rgba(255, 77, 79, 0.1); /* Легкий фон при наведении */
 }
 
-/* Скрываем текст выхода при свернутом сайдбаре */
-#sidebar.active .logout-btn .text {
-  display: none !important;
-}
+/* --- ФИКС ДЛЯ МОБИЛОК (ДОБАВИТЬ В КОНЕЦ) --- */
+@media (max-width: 768px) {
+  /* Чтобы контент (чат) не сжимался и не уползал, когда сайдбар стал fixed */
+  body > .app-container {
+    display: block !important; /* Отключаем флекс, чтобы чат занял 100% */
+    position: relative !important;
+  }
 
-#sidebar.active .logout-btn {
-  justify-content: center;
-  padding: 0;
-  width: 48px;
-  margin: 4px auto;
+  /* Чат и любые другие элементы внутри контейнера кроме сайдбара */
+  body > .app-container > div:not(#sidebar) {
+    width: 100vw !important;
+    height: 100vh !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 1 !important;
+  }
+
+  /* Сайдбар должен быть выше чата */
+  #sidebar {
+    z-index: 9999 !important;
+    /* Убираем возможные конфликты transition */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
 }
