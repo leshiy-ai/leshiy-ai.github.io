@@ -21,8 +21,9 @@ createRoot(document.getElementById('root')).render(
 // --- ГЛОБАЛЬНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ СТАТУСОМ ---
 
 /**
- * Обрабатывает данные о статусе пользователя, сохраняет их и обновляет UI.
- * @param {object | null} statusData - Объект с данными от /get-status или null для сброса.
+ * УМНАЯ функция для обработки данных о статусе пользователя.
+ * Обновляет localStorage, только если в полученных данных есть соответствующие поля.
+ * @param {object | null} statusData - Объект с данными (может быть неполным).
  */
 window.handleStatusResponse = (statusData) => {
   if (!statusData) {
@@ -32,13 +33,25 @@ window.handleStatusResponse = (statusData) => {
     localStorage.removeItem('vk_user_photo');
     localStorage.removeItem('isAdmin');
   } else {
-    // Сохраняем актуальные данные
-    localStorage.setItem('vk_user_id', statusData.vk_user_id || statusData.id);
-    localStorage.setItem('vk_user_name', statusData.userName);
-    localStorage.setItem('vk_user_photo', statusData.userPhoto);
-    localStorage.setItem('isAdmin', statusData.isAdmin); // `true` или `false`
+    // Обновляем ID пользователя, если он есть
+    const userId = statusData.vk_user_id || statusData.id;
+    if (userId) {
+        localStorage.setItem('vk_user_id', userId);
+    }
+    // Обновляем имя, только если оно пришло в ответе
+    if (statusData.userName) {
+        localStorage.setItem('vk_user_name', statusData.userName);
+    }
+    // Обновляем фото, только если оно пришло в ответе
+    if (statusData.userPhoto) {
+        localStorage.setItem('vk_user_photo', statusData.userPhoto);
+    }
+    // `isAdmin` может быть false, поэтому проверяем на undefined
+    if (typeof statusData.isAdmin !== 'undefined') {
+        localStorage.setItem('isAdmin', statusData.isAdmin);
+    }
   }
-  // Отправляем сигнал, что профиль обновился. Sidebar и другие компоненты могут его поймать.
+  // Отправляем сигнал, что профиль обновился, чтобы UI (Сайдбар) перерисовался
   window.dispatchEvent(new CustomEvent('user-profile-updated'));
 };
 
