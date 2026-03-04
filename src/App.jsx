@@ -392,7 +392,7 @@ function App() {
     const handlePaste = (e) => {
         if (e.clipboardData.files.length > 0) {
             e.preventDefault();
-            handleFileSelect(e.clipboardData.files);
+            handleFileSelect(e.dataTransfer.files);
         }
     };
 
@@ -466,6 +466,72 @@ function App() {
         setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
         softReload();
     };
+
+    // --- ИНТЕГРАЦИЯ СВАЙПА ДЛЯ МОДАЛЬНОГО ОКНА ---
+    const makeSwipable = (panel, onRemove, useRotation = true) => {
+      let startX = 0;
+      let currentX = 0;
+      const threshold = 100;
+      const style = window.getComputedStyle(panel);
+      const initialTransform = style.transform !== 'none' ? style.transform : '';
+  
+      const onTouchStart = (e) => {
+          startX = e.touches[0].clientX;
+          panel.style.transition = 'none';
+      };
+  
+      const onTouchMove = (e) => {
+          currentX = e.touches[0].clientX - startX;
+          if (Math.abs(currentX) > 5) {
+              var rotation = useRotation ? ' rotate(' + (currentX / 20) + 'deg)' : '';
+              panel.style.transform = initialTransform + ' translateX(' + currentX + 'px)' + rotation;
+              panel.style.opacity = 1 - (Math.abs(currentX) / 350);
+          }
+      };
+  
+      const onTouchEnd = () => {
+          panel.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
+          if (Math.abs(currentX) > threshold) {
+              var direction = currentX > 0 ? 1000 : -1000;
+              panel.style.transform = initialTransform + ' translateX(' + direction + 'px)';
+              panel.style.opacity = '0';
+              setTimeout(() => {
+                  panel.style.display = 'none';
+                  panel.style.transform = initialTransform;
+                  panel.style.opacity = '1';
+                  if (onRemove) onRemove();
+              }, 400);
+          } else {
+              panel.style.transform = initialTransform;
+              panel.style.opacity = '1';
+          }
+          currentX = 0;
+      };
+
+      panel.addEventListener('touchstart', onTouchStart, { passive: true });
+      panel.addEventListener('touchmove', onTouchMove, { passive: true });
+      panel.addEventListener('touchend', onTouchEnd);
+
+      // Возвращаем функцию для очистки слушателей
+      return () => {
+        panel.removeEventListener('touchstart', onTouchStart);
+        panel.removeEventListener('touchmove', onTouchMove);
+        panel.removeEventListener('touchend', onTouchEnd);
+      };
+    };
+
+    useEffect(() => {
+      const modalContent = document.querySelector('.storage-content');
+      if (isStorageVisible && modalContent) {
+        // Применяем свайп и сохраняем функцию очистки
+        const cleanupSwipe = makeSwipable(modalContent, () => setStorageVisible(false), false);
+        
+        // Очищаем слушатели при размонтировании или скрытии окна
+        return () => {
+          cleanupSwipe();
+        };
+      }
+    }, [isStorageVisible]); // Перезапускаем эффект при изменении видимости окна
 
     useEffect(() => {
       const handleOpenStorage = () => {
