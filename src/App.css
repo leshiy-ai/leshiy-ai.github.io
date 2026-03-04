@@ -1,4 +1,3 @@
-
 :root {
   --bg-color: #19191a;
   --panel-bg: #222222;
@@ -44,12 +43,12 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .menu-btn:hover { background: var(--accent-color); border-color: transparent; transform: translateY(-2px); }
 .input-area { position: relative; padding-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; flex-shrink: 0; align-items: center; width: 100%; }
 .input-area input { flex: 1; background: var(--panel-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 10px; color: var(--text-color); outline: none; min-width: 0; height: 50px; width: 100%; font-size: 16px; font-weight: 500; }
-.input-area button { background: var(--accent-color); border: none; padding: 0 20px; border-radius: 10px; color: white; cursor: pointer; font-weight: bold; height: 50px; flex-shrink: 0; min-width: 100px; }
+.send-btn { background: var(--accent-color); border: none; padding: 0 20px; border-radius: 10px; color: white; cursor: pointer; font-weight: bold; height: 50px; flex-shrink: 0; min-width: 100px; }
 .upload-btn { width: 100%; background: #3b82f6; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; margin-top: 10px; color: white; flex-shrink: 0; }
 .file-preview-container { display: flex; flex-wrap: wrap; gap: 15px; padding: 15px; margin-bottom: 10px; width: 100%; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; }
 .file-preview-item { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-color); }
-.clear-file-btn { position: absolute !important; top: -8px !important; right: -8px !important; width: 22px !important; height: 22px !important; border-radius: 50% !important; background: #ff4d4d !important; color: white !important; border: 2px solid var(--bg-color) !important; font-size: 12px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; min-width: 0 !important; height: 22px !important; font-weight: bold !important; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-.clear-file-btn:hover { background: #ff1a1a !important; transform: scale(1.1); }
+.clear-file-btn { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; background: #ff4d4d; color: white; border: 2px solid var(--bg-color); font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; min-width: 0; font-weight: bold; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.clear-file-btn:hover { background: #ff1a1a; transform: scale(1.1); }
 .image-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
 .file-info-preview { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); width: 60px; height: 60px; justify-content: center; background: var(--bg-color); border-radius: 8px; font-size: 24px; }
 #pull-to-refresh { position: absolute; top: -60px; left: 0; right: 0; height: 60px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px; gap: 10px; }
@@ -94,4 +93,4 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .image-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 7px; }
 .clear-file-btn { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; background: #ff4d4d; color: white; border: none; border-radius: 50%; font-size: 10px; cursor: pointer; z-index: 10; }
 .input-area.drag-over { border: 2px dashed var(--accent-color) !important; background-color: var(--bubble-bg) !important; }
-.clear-file-btn { position: absolute !important; top: -8px !important; right: -8px !important; width: 22px !important; height: 22px !important; min-width: 0 !important; background: #ff4d4d !important; color: white !important; border: 2px solid var(--bg-color) !important; border-radius: 50% !important; font-size: 12px !important; font-weight: bold !important; line-height: 1 !important; cursor: pointer !important; z-index: 10 !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.2s; } .clear-file-btn:hover { background: #ff1a1a !important; transform: scale(1.1); }
+.clear-file-btn { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; min-width: 0; background: #ff4d4d; color: white; border: 2px solid var(--bg-color); border-radius: 50%; font-size: 12px; font-weight: bold; line-height: 1; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.2s; } .clear-file-btn:hover { background: #ff1a1a; transform: scale(1.1); }

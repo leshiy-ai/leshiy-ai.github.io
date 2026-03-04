@@ -598,7 +598,7 @@ function App() {
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={t.placeholder}
                 />
-                <button onClick={() => handleSend()} disabled={isLoading}>{t.send}</button>
+                <button className="send-btn" onClick={() => handleSend()} disabled={isLoading}>{t.send}</button>
             </div>
 
             <input 
