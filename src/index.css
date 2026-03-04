@@ -138,7 +138,7 @@ body.sidebar-collapsed #toggle-menu {
 }
 
 /* Общий стиль для ОСТАЛЬНЫХ элементов */
-.nav-item, .new-chat, .user-profile, .logout-btn {
+.nav-item, .new-chat, .user-profile {
   display: flex;
   align-items: center;
   border-radius: 12px;
@@ -158,15 +158,59 @@ body.sidebar-collapsed #toggle-menu {
   text-decoration: none;
 }
 
-#toggle-menu:hover, .nav-item:hover, .new-chat:hover, .logout-btn:hover, .user-profile:hover { background: var(--sidebar-hover); }
+#toggle-menu:hover, .nav-item:hover, .new-chat:hover, .user-profile:hover { background: var(--sidebar-hover); }
 .icon { width: 24px; display: flex; justify-content: center; flex-shrink: 0; font-size: 18px; }
-.sidebar-bottom { margin-top: auto; padding-bottom: 10px; border-top: 1px solid var(--sidebar-border); }
+.sidebar-bottom { margin-top: auto; padding-bottom: 10px; border-top: 1px solid var(--sidebar-border); position: relative; /* Для позиционирования меню */ }
 .user-profile { width: calc(100% - 16px); }
 .avatar-container { width: 32px; height: 32px; min-width: 32px; border-radius: 50%; overflow: hidden; border: 2px solid var(--sidebar-border); flex-shrink: 0; background: #333; }
 .avatar-container img { width: 100%; height: 100%; object-fit: cover; }
 .user-name { font-weight: 500; white-space: nowrap; }
-.logout-btn { color: #ff4d4f; }
-.logout-btn:hover { background: rgba(255, 77, 79, 0.1); }
+
+/* --- НОВОЕ ВСПЛЫВАЮЩЕЕ МЕНЮ ПРОФИЛЯ --- */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.profile-menu {
+  position: absolute;
+  bottom: calc(100% + 5px); /* Над блоком .sidebar-bottom */
+  left: 8px; /* С тем же отступом, что и user-profile */
+  right: 8px;
+  background-color: var(--panel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--sidebar-border);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  z-index: 210;
+  padding: 5px;
+  animation: fade-in-up 0.2s ease-out;
+}
+
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--sidebar-text);
+  gap: 12px;
+  font-size: 14px;
+}
+
+/* Специальный стиль для кнопки Выхода */
+.profile-menu-item.logout {
+  color: #ff4d4f;
+}
+
+.profile-menu-item:hover {
+  background-color: var(--sidebar-hover);
+}
+
+.profile-menu-item.logout:hover {
+  background: rgba(255, 77, 79, 0.1);
+}
+
 
 /* --- СТИЛИ ФРЕЙМА (НЕ ТРОНУТЫ) --- */
 .storage-modal { display: none; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(0,0,0,0.85) !important; z-index: 10001 !important; justify-content: center !important; align-items: center !important; margin: 0 !important; padding: 0 !important; }

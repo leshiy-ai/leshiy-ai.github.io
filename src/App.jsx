@@ -100,6 +100,7 @@ function App() {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    const [isStorageVisible, setStorageVisible] = useState(false);
     
     // Динамический ID пользователя
     const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('vk_user_id') || "guest");
@@ -316,44 +317,55 @@ function App() {
     };
 
     const handleSend = async (commandOverride) => {
-        const rawText = typeof commandOverride === 'string' ? commandOverride : input;
-        const userMessageText = rawText.trim();
-        if (userMessageText.toLowerCase() === '/admin') { setShowAdminPanel(true); setInput(''); return; }
-        if (!userMessageText && files.length === 0) return;
-    
-        setIsLoading(true);
-        const messageId = Date.now();
-        const currentFiles = [...files];
-    
-        // Формируем вложения для истории чата
-        const attachments = currentFiles.map(f => ({
-            preview: f.preview, // будет null для не-картинок
-            name: f.file.name,
-            type: f.file.type,
-            size: f.file.size
-        }));
-    
-        setMessages(prev => [...prev, { 
-            id: messageId, 
-            role: 'user', 
-            text: userMessageText,
-            attachments: attachments // Теперь тут ВСЕ файлы
-        }]);
-    
-        setInput(''); setFiles([]);
-    
-        try {
-            const aiResponse = await askLeshiy({ text: userMessageText, files: currentFiles, userId: currentUserId });
-            setMessages(prev => [...prev, { 
-                id: Date.now() + 1, 
-                role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
-                text: aiResponse.text,
-                buttons: aiResponse.buttons 
-            }]);
-        } catch (err) {
-            setMessages(prev => [...prev, { id: Date.now(), role: 'ai error', text: 'Произошла ошибка при обращении к лешему.' }]);
-        } finally { setIsLoading(false); }
-    };
+      const rawText = typeof commandOverride === 'string' ? commandOverride : input;
+      const userMessageText = rawText.trim();
+  
+      if (userMessageText.toLowerCase() === '/admin') {
+          setShowAdminPanel(true);
+          setInput('');
+          return;
+      }
+  
+      if (!userMessageText && files.length === 0) return;
+  
+      const messageId = Date.now();
+      const currentFiles = [...files];
+      const attachments = currentFiles.map(f => ({ 
+          preview: f.preview, 
+          name: f.file.name, 
+          type: f.file.type, 
+          size: f.file.size 
+      }));
+  
+      // 1. ДОБАВЛЯЕМ сообщение в историю
+      setMessages(prev => [...prev, { 
+          id: messageId, 
+          role: 'user', 
+          text: userMessageText, 
+          attachments: attachments 
+      }]);
+  
+      // 2. ПЕРЕКЛЮЧАЕМ состояние загрузки
+      setIsLoading(true);
+  
+      // 3. УДАЛЯЕМ (очищаем) файлы и инпут
+      setFiles([]);
+      setInput('');
+      
+      try {
+          const aiResponse = await askLeshiy({ text: userMessageText, files: currentFiles, userId: currentUserId });
+          setMessages(prev => [...prev, { 
+              id: Date.now() + 1, 
+              role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
+              text: aiResponse.text,
+              buttons: aiResponse.buttons 
+          }]);
+      } catch (err) {
+          setMessages(prev => [...prev, { id: Date.now(), role: 'ai error', text: 'Произошла ошибка при обращении к лешему.' }]);
+      } finally { 
+          setIsLoading(false); 
+      }
+  };
 
     const handleMenuAction = (action) => {
         if (action.startsWith('http')) {
@@ -472,6 +484,51 @@ function App() {
         softReload();
     };
 
+    // --- НОВАЯ ЛОГИКА ДЛЯ САЙДБАРА ---
+    useEffect(() => {
+      const handleOpenStorage = () => {
+          const userId = localStorage.getItem('vk_user_id');
+          if (!userId || userId === 'null') {
+              alert("Сначала авторизуйтесь!"); // Или можно вызвать handleSend('/auth_init_vk')
+              return;
+          }
+          setStorageVisible(true);
+      };
+  
+      const handleVkAuth = () => {
+          const userId = localStorage.getItem('vk_user_id');
+          if (!userId || userId === 'null') {
+              const overlay = document.getElementById('vk_auth_overlay');
+              if (overlay) overlay.style.display = 'flex';
+              handleSend('/auth_init_vk');
+          }
+      };
+  
+      const handleNewChat = () => {
+          window.location.reload();
+      };
+  
+      const handleLogout = () => {
+          localStorage.removeItem('vk_user_id');
+          localStorage.removeItem('vk_user_name');
+          localStorage.removeItem('vk_user_photo');
+          sessionStorage.clear();
+          window.location.reload();
+      };
+  
+      window.addEventListener('sidebar-storage', handleOpenStorage);
+      window.addEventListener('sidebar-vk-auth', handleVkAuth);
+      window.addEventListener('sidebar-new-chat', handleNewChat);
+      window.addEventListener('sidebar-logout', handleLogout);
+  
+      return () => {
+          window.removeEventListener('sidebar-storage', handleOpenStorage);
+          window.removeEventListener('sidebar-vk-auth', handleVkAuth);
+          window.removeEventListener('sidebar-new-chat', handleNewChat);
+          window.removeEventListener('sidebar-logout', handleLogout);
+      };
+  }, []); // Пустой массив зависимостей, чтобы это выполнилось один раз
+
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
 
@@ -529,6 +586,8 @@ function App() {
         );
     };
 
+    const storageUrl = `${CONFIG.STORAGE_GATEWAY}/vk?vk_user_id=${currentUserId}`;
+
     return (
         <div 
             ref={appContainerRef}
@@ -542,6 +601,17 @@ function App() {
             onTouchEnd={handleTouchEnd}
         >
             {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
+            
+            {/* -- МОДАЛЬНОЕ ОКНО ХРАНИЛКИ -- */}
+            {isStorageVisible && (
+                <div id="storage-modal" className="modal-overlay" onClick={() => setStorageVisible(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <iframe id="storage-frame" src={storageUrl} title="Хранилка"></iframe>
+                        <button id="close-storage" className="close-btn" onClick={() => setStorageVisible(false)}>✕</button>
+                    </div>
+                </div>
+            )}
+
             <div id="pull-to-refresh">
                 <div id="ptr-loader" className="loader"></div>
                 <span id="ptr-text">Потяните для обновления</span>
