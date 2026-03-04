@@ -70,6 +70,9 @@ body.sidebar-collapsed #sidebar {
 body.sidebar-collapsed #root {
   padding-left: 72px;
 }
+body #root {
+  padding-left: 72px;
+}
 
 body.sidebar-collapsed .text,
 body.sidebar-collapsed .user-info {

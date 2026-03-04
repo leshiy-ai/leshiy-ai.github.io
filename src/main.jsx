@@ -1,7 +1,15 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import Sidebar from './Sidebar.jsx'
 import App from './App.jsx'
+
+// Рендерим Sidebar
+createRoot(document.getElementById('sidebar')).render(
+  <StrictMode>
+    <Sidebar />
+  </StrictMode>,
+)
 
 // Рендерим React
 createRoot(document.getElementById('root')).render(

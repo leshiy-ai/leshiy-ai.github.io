@@ -547,10 +547,10 @@ function App() {
                 <span id="ptr-text">Потяните для обновления</span>
             </div>
 
-            <header className="app-header">
+            <header className="top">
                 <img src="/Gemini.png" alt="Gemini AI" className="logo" />
                 <h1>{t.title} <span>ECOSYSTEM</span></h1>
-                <div className="header-actions">
+                <div className="top-actions">
                     <button className="action-btn" onClick={toggleLanguage}>{language === 'ru' ? '🇷🇺' : '🇺🇸'}</button>
                     <button className="action-btn" onClick={toggleTheme}>{theme === 'light' ? '☀️' : '🌙'}</button>
                     <button className="action-btn" onClick={softReload}>⟳</button>
