@@ -85,7 +85,7 @@ const Message = ({ message, onSwipe, onAction }) => {
             <div className="bubble">
                 {message.attachments && <div className="attachments-grid">{message.attachments.map((f, i) => renderFile(f, i))}</div>}
                 {message.text ? <ReactMarkdown>{message.text}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
-                {message.buttons && <div className="message-buttons\">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
+                {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
             </div>
         </div>
     );
@@ -544,7 +544,7 @@ function App() {
             {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
             <div id="pull-to-refresh">
                 <div id="ptr-loader" className="loader"></div>
-                <span id="ptr-text\">Потяните для обновления</span>
+                <span id="ptr-text">Потяните для обновления</span>
             </div>
 
             <header className="app-header">
@@ -584,8 +584,8 @@ function App() {
                                     <img src={file.preview} className="image-preview" />
                                 ) : (
                                     <div className="file-preview-icon">{icon}</div>
-                                )}\
-                                <button onClick={() => removeFile(file.id)} className="clear-file-btn\">✕</button>
+                                )}
+                                <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
                                 <span className="file-preview-name">{name.length > 6 ? name.substring(0,4)+'..' : name}</span>
                             </div>
                         );
