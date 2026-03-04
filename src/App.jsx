@@ -595,7 +595,7 @@ function App() {
                 className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>
                 <div className="storage-content" onClick={(e) => e.stopPropagation()}>
                     <div className="storage-header">
-                        <span>🗄️ Хранилка</span>
+                        <span>🗄️ Приложение "Хранилка" by Leshiy</span>
                         <button 
                             id="close-storage" 
                             className="close-btn" 

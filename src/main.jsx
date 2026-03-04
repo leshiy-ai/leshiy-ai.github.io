@@ -1,70 +1,110 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import Sidebar from './Sidebar.jsx'
-import App from './App.jsx'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import Sidebar from './Sidebar.jsx';
+import App from './App.jsx';
+import { CONFIG } from './config'; // Импортируем конфиг
 
-// Рендерим Sidebar
+// --- РЕНДЕРИНГ КОМПОНЕНТОВ ---
 createRoot(document.getElementById('sidebar')).render(
   <StrictMode>
     <Sidebar />
-  </StrictMode>,
-)
-
-// Рендерим React
+  </StrictMode>
+);
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
-  </StrictMode>,
-)
+  </StrictMode>
+);
 
-// Эта функция теперь центральный "оповещатель" для всего приложения
+
+// --- ГЛОБАЛЬНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ СТАТУСОМ ---
+
+/**
+ * Обрабатывает данные о статусе пользователя, сохраняет их и обновляет UI.
+ * @param {object | null} statusData - Объект с данными от /get-status или null для сброса.
+ */
 window.handleStatusResponse = (statusData) => {
-  // Если данных нет, ничего не делаем
-  if (!statusData) return;
-
-  // НАДЁЖНОЕ СОХРАНЕНИЕ: 
-  // Принудительно сохраняем каждое поле. Если поля нет в ответе, 
-  // localStorage.setItem(key, undefined) превратит его в строку "undefined",
-  // а null в "null". Это именно то, что нам нужно для последующей проверки в Sidebar.jsx.
-  localStorage.setItem('vk_user_id', statusData.vk_user_id);
-  localStorage.setItem('vk_user_name', statusData.userName);
-  localStorage.setItem('vk_user_photo', statusData.userPhoto);
-
-  // Отправляем сигнал, что профиль обновился. Sidebar его поймает.
+  if (!statusData) {
+    // Сброс данных при выходе или ошибке
+    localStorage.removeItem('vk_user_id');
+    localStorage.removeItem('vk_user_name');
+    localStorage.removeItem('vk_user_photo');
+    localStorage.removeItem('isAdmin');
+  } else {
+    // Сохраняем актуальные данные
+    localStorage.setItem('vk_user_id', statusData.vk_user_id || statusData.id);
+    localStorage.setItem('vk_user_name', statusData.userName);
+    localStorage.setItem('vk_user_photo', statusData.userPhoto);
+    localStorage.setItem('isAdmin', statusData.isAdmin); // `true` или `false`
+  }
+  // Отправляем сигнал, что профиль обновился. Sidebar и другие компоненты могут его поймать.
   window.dispatchEvent(new CustomEvent('user-profile-updated'));
 };
 
-
-// Оживляем интерфейс (DOM)
-document.addEventListener('DOMContentLoaded', () => {
-  
-    const currentTheme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', currentTheme);
-
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtn = document.getElementById('toggle-menu');
-
-    // Переключалка меню (Sidebar) остаётся здесь, т.к. управляет классами на <body>
-    if (toggleBtn && sidebar) {
-      toggleBtn.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        if (window.innerWidth <= 768) {
-            sidebar.classList.remove('collapsed');
-            sidebar.classList.toggle('active');
-        } else {
-            sidebar.classList.remove('active');
-            sidebar.classList.toggle('collapsed');
-        }
-      };
+/**
+ * Запрашивает статус пользователя с сервера.
+ * @param {string | number} userId - ID пользователя VK.
+ */
+window.fetchUserStatus = async (userId) => {
+  if (!userId || userId === 'null' || userId === 'guest') {
+    window.handleStatusResponse(null); // Сбрасываем данные для гостя
+    return;
+  }
+  try {
+    const response = await fetch(`${CONFIG.STORAGE_GATEWAY}/?action=get-status&vk_user_id=${userId}`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    if (data) {
+      // Прокидываем в обработчик, добавляя ID для консистентности
+      window.handleStatusResponse({ ...data, vk_user_id: userId });
     }
+  } catch (error) {
+    console.error("Ошибка при получении статуса пользователя:", error);
+    window.handleStatusResponse(null); // Сброс в случае ошибки
+  }
+};
+
+
+// --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
+
+// Срабатывает при полной загрузке HTML
+document.addEventListener('DOMContentLoaded', () => {
+  // Устанавливаем тему
+  const currentTheme = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+
+  // Первоначальная проверка статуса при загрузке страницы
+  const initialUserId = localStorage.getItem('vk_user_id');
+  window.fetchUserStatus(initialUserId);
+
+  // Логика сворачивания/разворачивания сайдбара
+  const sidebar = document.getElementById('sidebar');
+  const toggleBtn = document.getElementById('toggle-menu');
+  if (toggleBtn && sidebar) {
+    toggleBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.innerWidth <= 768) {
+        sidebar.classList.remove('collapsed');
+        sidebar.classList.toggle('active');
+      } else {
+        sidebar.classList.remove('active');
+        sidebar.classList.toggle('collapsed');
+      }
+    };
+  }
 });
 
-// Глобальный слушатель для VK: после успешной авторизации, App.jsx пришлет нам данные
-// Нам больше не нужно здесь ничего делать, так как App.jsx вызовет handleStatusResponse
+// Срабатывает, когда App.jsx подтверждает успешную авторизацию VK
 window.addEventListener('vk-auth-success', (event) => {
-  console.log("Система: Пользователь авторизован! ID:", event.detail);
-  // App.jsx возьмет на себя дальнейшую логику и вызовет handleStatusResponse
+  const detail = event.detail;
+  // ID может быть как строкой, так и в объекте
+  const userId = (typeof detail === 'object' && detail !== null) ? detail.vk_user_id : detail;
+  
+  console.log("Система: Пользователь авторизован! ID:", userId);
+
+  if (userId && userId !== 'null') {
+    window.fetchUserStatus(userId); // Запрашиваем полный статус с сервера
+  }
 });

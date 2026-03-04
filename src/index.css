@@ -211,7 +211,6 @@ body.sidebar-collapsed #toggle-menu {
   background: rgba(255, 77, 79, 0.1);
 }
 
-
 /* --- СТИЛИ ФРЕЙМА (НЕ ТРОНУТЫ) --- */
 .storage-modal { display: none; position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; background: rgba(0,0,0,0.85) !important; z-index: 10001 !important; justify-content: center !important; align-items: center !important; margin: 0 !important; padding: 0 !important; }
 .storage-modal.active { display: flex !important; }
@@ -219,3 +218,13 @@ body.sidebar-collapsed #toggle-menu {
 #storage-frame { flex: 1; border: none; }
 .storage-header { padding: 12px 20px; background: var(--sidebar-bg); display: flex; justify-content: space-between; align-items: center; color: var(--sidebar-text); border-bottom: 1px solid var(--sidebar-border); height: 50px; flex-shrink: 0; }
 .storage-header .close-btn { background: transparent !important; border: none !important; color: var(--sidebar-text) !important; font-size: 28px !important; cursor: pointer !important; width: 36px !important; height: 36px !important; min-width: 36px !important; display: flex !important; align-items: center !important; justify-content: center !important; border-radius: 50% !important; transition: var(--sb-transition) !important; padding: 0 !important; line-height: 1 !important; }
+
+.profile-menu-item .text {
+  flex-grow: 1;
+}
+
+.profile-menu-divider {
+  height: 1px;
+  background-color: var(--sidebar-border);
+  margin: 4px 8px;
+}

@@ -5,34 +5,32 @@ const Sidebar = () => {
   const [userPhoto, setUserPhoto] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileMenuVisible, setProfileMenuVisible] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false); // Состояние для админских прав
+  const [isAdmin, setIsAdmin] = useState(false);
   const profileRef = useRef(null);
 
-  // Эффект для обновления данных профиля и проверки прав админа
   useEffect(() => {
     const updateProfileAndCheckAdmin = () => {
       const id = localStorage.getItem('vk_user_id');
       const name = localStorage.getItem('vk_user_name');
       const photo = localStorage.getItem('vk_user_photo');
-      const adminKey = localStorage.getItem('IS_ADMIN'); // <-- ИСПРАВЛЕНО: Проверяем ключ IS_ADMIN
+      const adminKey = localStorage.getItem('isAdmin'); // Исправлено
 
       if (id && id !== 'null') {
         setUserName((name && name !== 'undefined') ? name : `ID: ${id}`);
-        setUserPhoto((photo && photo !== 'null' && photo !== 'undefined') ? photo : "https://vk.com/images/camera_100.png");
+        setUserPhoto((photo && photo !== 'null' && photo !== 'undefined') ? photo : 'https://vk.com/images/camera_100.png');
         setIsLoggedIn(true);
       } else {
         setUserName('Войти через VK');
-        setUserPhoto("https://vk.com/images/camera_100.png");
+        setUserPhoto('https://vk.com/images/camera_100.png');
         setIsLoggedIn(false);
       }
       
-      setIsAdmin(adminKey === 'true'); // <-- ИСПРАВЛЕНО: Устанавливаем статус админа, если ключ равен 'true'
+      setIsAdmin(adminKey === 'true');
     };
 
     updateProfileAndCheckAdmin();
-    // Добавляем слушатель и на storage, чтобы при изменении ключа админа права обновлялись
     window.addEventListener('user-profile-updated', updateProfileAndCheckAdmin);
-    window.addEventListener('storage', updateProfileAndCheckAdmin); 
+    window.addEventListener('storage', updateProfileAndCheckAdmin);
 
     return () => {
       window.removeEventListener('user-profile-updated', updateProfileAndCheckAdmin);
@@ -40,20 +38,18 @@ const Sidebar = () => {
     };
   }, []);
 
-  // Эффект для закрытия меню по клику вне его
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setProfileMenuVisible(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [profileRef]);
 
-  // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
   const handleNewChat = () => window.dispatchEvent(new CustomEvent('sidebar-new-chat'));
   const handleStorage = () => window.dispatchEvent(new CustomEvent('sidebar-storage'));
   const handleAdminPanel = () => window.dispatchEvent(new CustomEvent('sidebar-admin-panel'));
@@ -62,7 +58,6 @@ const Sidebar = () => {
     window.dispatchEvent(new CustomEvent('sidebar-logout'));
   };
 
-  // Главный обработчик для клика по профилю
   const handleProfileClick = () => {
     if (isLoggedIn) {
       setProfileMenuVisible(!isProfileMenuVisible);
