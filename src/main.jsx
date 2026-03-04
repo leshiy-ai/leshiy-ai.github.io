@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import Sidebar from './Sidebar.jsx';
 import App from './App.jsx';
-import { CONFIG } from './config'; // Импортируем конфиг
+import { CONFIG } from './config';
 
 // --- РЕНДЕРИНГ КОМПОНЕНТОВ ---
 createRoot(document.getElementById('sidebar')).render(
@@ -17,129 +17,91 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>
 );
 
-// --- ИСПРАВЛЕННАЯ АРХИТЕКТУРА УПРАВЛЕНИЯ СТАТУСОМ ---
+// --- ПРАВИЛЬНАЯ АРХИТЕКТУРА УПРАВЛЕНИЯ СТАТУСОМ ---
 
-/**
- * Обрабатывает данные профиля и обновляет localStorage для UI.
- * Эта функция теперь получает данные из двух источников:
- * 1. Напрямую от VK (базовые данные: фото, имя).
- * 2. От нашего сервера (расширенные данные: isAdmin, кастомное имя).
- * @param {object | null} data - Объект с данными профиля.
- */
 window.handleStatusResponse = (data) => {
   if (!data) {
-    // Сценарий выхода: полная очистка
-    localStorage.removeItem('vk_auth_data');
     localStorage.removeItem('vk_user_id');
     localStorage.removeItem('vk_user_name');
     localStorage.removeItem('vk_user_photo');
     localStorage.removeItem('isAdmin');
   } else {
-    // Сценарий обновления: накладываем данные на localStorage
-    // ID пользователя
     const userId = data.id || data.vk_user_id;
     if (userId) localStorage.setItem('vk_user_id', userId);
 
-    // Имя пользователя (приоритет у данных с нашего сервера `userName`)
-    const userName = data.userName || (data.first_name && `${data.first_name} ${data.last_name}`);
+    // Данные приходят с нашего сервера, где они уже обработаны
+    const userName = data.userName;
     if (userName) localStorage.setItem('vk_user_name', userName);
 
-    // Фото пользователя (приоритет у данных с нашего сервера `userPhoto`)
-    const userPhoto = data.userPhoto || data.photo_100;
+    const userPhoto = data.userPhoto;
     if (userPhoto) localStorage.setItem('vk_user_photo', userPhoto);
-    else localStorage.removeItem('vk_user_photo'); // Если фото нет нигде - чистим
 
-    // Статус админа (приходит только с нашего сервера)
     if (typeof data.isAdmin !== 'undefined') {
-      localStorage.setItem('isAdmin', data.isAdmin);
+      localStorage.setItem('isAdmin', String(data.isAdmin));
     }
   }
-  // Отправляем сигнал, что профиль обновился, чтобы UI (Сайдбар) перерисовался
   window.dispatchEvent(new CustomEvent('user-profile-updated'));
 };
 
-/**
- * **ИСПРАВЛЕНО**: Запрашивает статус пользователя с сервера, используя ПОДПИСАННЫЙ запрос.
- */
 window.fetchUserStatus = async () => {
-  // 1. Читаем ПОЛНЫЕ данные авторизации, сохраненные на шаге 1.
-  const authDataString = localStorage.getItem('vk_auth_data');
-  if (!authDataString) {
-    // Если данных для аутентификации нет, ничего не делаем.
-    // Профиль либо гостевой, либо будет сброшен при выходе.
+  const userId = localStorage.getItem('vk_user_id');
+  if (!userId || userId === 'null' || userId === 'undefined') {
+    // Если ID нет, очищаем данные, чтобы не было "Пользователь" и серой аватарки
+    window.handleStatusResponse(null);
     return;
   }
 
   try {
-    const authData = JSON.parse(authDataString);
-
-    // 2. Строим ПОДПИСАННЫЙ URL, как это делает работающая команда /storage.
-    // Создаем URLSearchParams из ВСЕХ параметров, полученных от VK.
-    const params = new URLSearchParams(authData);
-    params.append('action', 'get-status'); // Добавляем нашу команду
-
-    const fullUrl = `${CONFIG.STORAGE_GATEWAY}/?${params.toString()}`;
-
-    // 3. Делаем правильный, верифицируемый запрос.
+    // Простой и правильный запрос, как вы и сказали
+    const fullUrl = `${CONFIG.STORAGE_GATEWAY}/?action=get-status&userId=${userId}`;
     const response = await fetch(fullUrl);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     
     const serverData = await response.json();
-
-    // 4. Отправляем РАСШИРЕННЫЕ данные в обработчик.
-    // `serverData` (isAdmin, userName) наложится поверх `authData` (фото, id).
     if (serverData) {
-      window.handleStatusResponse({ ...authData, ...serverData });
+      // Передаем ПОЛНЫЙ профиль от сервера в обработчик
+      window.handleStatusResponse(serverData);
     }
   } catch (error) {
-    console.error("Ошибка при получении статуса пользователя с сервера:", error);
-    // В случае ошибки не сбрасываем статус, чтобы не терять базовые данные от VK.
+    console.error("Ошибка при получении статуса пользователя от Хранилки:", error);
   }
 };
-
 
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Устанавливаем тему
   const currentTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
-
-  // Первоначальная проверка статуса при загрузке страницы.
-  // Функция сама найдет в localStorage все необходимые данные.
+  
+  // Запускаем проверку статуса при загрузке страницы
   window.fetchUserStatus();
 
-  // Логика сворачивания/разворачивания сайдбара
-  const sidebar = document.getElementById('sidebar');
   const toggleBtn = document.getElementById('toggle-menu');
-  if (toggleBtn && sidebar) {
+  if (toggleBtn) {
     toggleBtn.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      // Используем классы на body для глобального эффекта
       document.body.classList.toggle('sidebar-collapsed');
     };
   }
 });
 
-/**
- * **ИСПРАВЛЕНО**: Слушатель для успешной авторизации VK.
- */
+// Слушатель для OneTap кнопки VK
 window.addEventListener('vk-auth-success', (event) => {
   const authData = event.detail;
-  if (!authData || !authData.id) {
-    console.error("VK Auth Success: не получены или неполные данные", authData);
+  // Ответ от кнопки приходит с полем user_id
+  const userId = authData.user_id;
+
+  if (!userId) {
+    console.error("VK Auth Success: 'user_id' не найден в ответе OAuth", authData);
     return;
   }
   
-  console.log("Система: Получены полные данные авторизации. ID:", authData.id);
+  console.log("Система: Получен VK User ID:", userId);
 
-  // ШАГ 1: Сохраняем ВЕСЬ объект с параметрами подписи в localStorage.
-  localStorage.setItem('vk_auth_data', JSON.stringify(authData));
+  // Сохраняем ТОЛЬКО ID
+  localStorage.setItem('vk_user_id', String(userId));
   
-  // Немедленно обновляем UI базовыми данными (имя, аватар).
-  window.handleStatusResponse(authData);
-
-  // ШАГ 2: СРАЗУ ЖЕ запрашиваем расширенный статус с нашего сервера.
+  // Сразу после получения ID, запрашиваем полный статус с нашего сервера
   window.fetchUserStatus();
 });

@@ -90,6 +90,60 @@ const Message = ({ message, onSwipe, onAction }) => {
     );
 };
 
+// --- ПРАВИЛЬНАЯ РЕАЛИЗАЦИЯ СВАЙПА (КАК В ХРАНИЛКЕ) ---
+const makeSwipable = (panel, onRemove) => {
+    let startX = 0;
+    let currentX = 0;
+    const threshold = 100;
+    const style = window.getComputedStyle(panel);
+    const initialTransform = style.transform !== 'none' ? style.transform : '';
+
+    const onTouchStart = (e) => {
+        startX = e.touches[0].clientX;
+        panel.style.transition = 'none';
+    };
+
+    const onTouchMove = (e) => {
+        currentX = e.touches[0].clientX - startX;
+        if (Math.abs(currentX) > 5) {
+            panel.style.transform = initialTransform + ` translateX(${currentX}px)`;
+            panel.style.opacity = 1 - (Math.abs(currentX) / 350);
+        }
+    };
+
+    const onTouchEnd = () => {
+        panel.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1), opacity 0.4s';
+        if (Math.abs(currentX) > threshold) {
+            const direction = currentX > 0 ? 1000 : -1000;
+            panel.style.transform = initialTransform + ` translateX(${direction}px)`;
+            panel.style.opacity = '0';
+            
+            setTimeout(() => {
+                // Единственное действие - вызываем коллбэк, который изменит состояние React
+                if (onRemove) onRemove();
+                
+                // Сбрасываем стили для следующего открытия
+                panel.style.transform = initialTransform;
+                panel.style.opacity = '1';
+            }, 400);
+        } else {
+            panel.style.transform = initialTransform;
+            panel.style.opacity = '1';
+        }
+        currentX = 0;
+    };
+
+    panel.addEventListener('touchstart', onTouchStart, { passive: true });
+    panel.addEventListener('touchmove', onTouchMove, { passive: true });
+    panel.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      panel.removeEventListener('touchstart', onTouchStart);
+      panel.removeEventListener('touchmove', onTouchMove);
+      panel.removeEventListener('touchend', onTouchEnd);
+    };
+};
+
 function App() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
@@ -149,22 +203,11 @@ function App() {
             const data = event.detail; 
             if (!data) return;
         
-            const userId = (typeof data === 'object') ? (data.vk_user_id || data.id) : data;
+            const userId = data.user_id || data.id;
             setCurrentUserId(userId);
         
-            if (typeof data === 'object') {
-                if (window.handleStatusResponse) {
-                    window.handleStatusResponse(data);
-                }
-            } else {
-                const savedData = { 
-                    vk_user_id: userId, 
-                    userName: localStorage.getItem('vk_user_name'), 
-                    userPhoto: localStorage.getItem('vk_user_photo') 
-                };
-                if (window.handleStatusResponse) {
-                    window.handleStatusResponse(savedData);
-                }
+            if (window.handleStatusResponse) {
+                window.handleStatusResponse(data);
             }
         };
 
@@ -467,71 +510,15 @@ function App() {
         softReload();
     };
 
-    // --- ИНТЕГРАЦИЯ СВАЙПА ДЛЯ МОДАЛЬНОГО ОКНА ---
-    const makeSwipable = (panel, onRemove, useRotation = true) => {
-      let startX = 0;
-      let currentX = 0;
-      const threshold = 100;
-      const style = window.getComputedStyle(panel);
-      const initialTransform = style.transform !== 'none' ? style.transform : '';
-  
-      const onTouchStart = (e) => {
-          startX = e.touches[0].clientX;
-          panel.style.transition = 'none';
-      };
-  
-      const onTouchMove = (e) => {
-          currentX = e.touches[0].clientX - startX;
-          if (Math.abs(currentX) > 5) {
-              var rotation = useRotation ? ' rotate(' + (currentX / 20) + 'deg)' : '';
-              panel.style.transform = initialTransform + ' translateX(' + currentX + 'px)' + rotation;
-              panel.style.opacity = 1 - (Math.abs(currentX) / 350);
-          }
-      };
-  
-      const onTouchEnd = () => {
-          panel.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1)';
-          if (Math.abs(currentX) > threshold) {
-              var direction = currentX > 0 ? 1000 : -1000;
-              panel.style.transform = initialTransform + ' translateX(' + direction + 'px)';
-              panel.style.opacity = '0';
-              setTimeout(() => {
-                  panel.style.display = 'none';
-                  panel.style.transform = initialTransform;
-                  panel.style.opacity = '1';
-                  if (onRemove) onRemove();
-              }, 400);
-          } else {
-              panel.style.transform = initialTransform;
-              panel.style.opacity = '1';
-          }
-          currentX = 0;
-      };
-
-      panel.addEventListener('touchstart', onTouchStart, { passive: true });
-      panel.addEventListener('touchmove', onTouchMove, { passive: true });
-      panel.addEventListener('touchend', onTouchEnd);
-
-      // Возвращаем функцию для очистки слушателей
-      return () => {
-        panel.removeEventListener('touchstart', onTouchStart);
-        panel.removeEventListener('touchmove', onTouchMove);
-        panel.removeEventListener('touchend', onTouchEnd);
-      };
-    };
-
     useEffect(() => {
       const modalContent = document.querySelector('.storage-content');
       if (isStorageVisible && modalContent) {
-        // Применяем свайп и сохраняем функцию очистки
-        const cleanupSwipe = makeSwipable(modalContent, () => setStorageVisible(false), false);
-        
-        // Очищаем слушатели при размонтировании или скрытии окна
+        const cleanupSwipe = makeSwipable(modalContent, () => setStorageVisible(false));
         return () => {
           cleanupSwipe();
         };
       }
-    }, [isStorageVisible]); // Перезапускаем эффект при изменении видимости окна
+    }, [isStorageVisible]);
 
     useEffect(() => {
       const handleOpenStorage = () => {
