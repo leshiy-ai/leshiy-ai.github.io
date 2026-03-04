@@ -47,8 +47,8 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .upload-btn { width: 100%; background: #3b82f6; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; margin-top: 10px; color: white; flex-shrink: 0; }
 .file-preview-container { display: flex; flex-wrap: wrap; gap: 15px; padding: 15px; margin-bottom: 10px; width: 100%; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; }
 .file-preview-item { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-color); }
-.clear-file-btn { position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; background: #ff3b30; color: white; border: 2px solid var(--bg-color); border-radius: 50%; font-size: 11px; font-weight: bold; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 0 1px 0; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: all 0.2s ease; min-width: auto; margin: 0; }
-.clear-file-btn:hover { background: #ff1a1a; transform: scale(1.1); }
+.file-preview-item .clear-file-btn { position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; background: #ff3b30; color: white; border: 2px solid var(--bg-color); border-radius: 50%; font-size: 11px; font-weight: bold; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 0 1px 0; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: all 0.2s ease; min-width: auto; margin: 0; }
+.file-preview-item .clear-file-btn:hover { background: #ff1a1a; transform: scale(1.1); }
 .image-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
 .file-info-preview { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); width: 60px; height: 60px; justify-content: center; background: var(--bg-color); border-radius: 8px; font-size: 24px; }
 #pull-to-refresh { position: absolute; top: -60px; left: 0; right: 0; height: 60px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px; gap: 10px; }
@@ -86,9 +86,6 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .file-label { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.3); font-size: 7px; text-align: center; padding: 2px 0; font-weight: bold; color: #ccc; }
 .file-badge.video { border-color: #ff5722; } .file-badge.audio { border-color: #2196f3; } .file-badge.archive { border-color: #ffc107; } .file-badge.doc { border-color: #4caf50; }
 .media-msg-label { font-style: italic; opacity: 0.6; font-size: 0.9em; margin: 4px 0; }
-.file-preview-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 8px; }
-.file-preview-item { position: relative; width: 50px; height: 50px; background: #222; border-radius: 8px; border: 1px solid #444; display: flex; align-items: center; justify-content: center; }
 .file-preview-icon { font-size: 24px; }
 .file-preview-name { position: absolute; bottom: -12px; font-size: 8px; color: #888; white-space: nowrap; }
-.image-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 7px; }
 .input-area.drag-over { border: 2px dashed var(--accent-color) !important; background-color: var(--bubble-bg) !important; }
