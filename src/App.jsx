@@ -586,7 +586,7 @@ function App() {
                                     <div className="file-preview-icon">{icon}</div>
                                 )}
                                 <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
-                                <span className="file-preview-name">{name.length > 6 ? name.substring(0,4)+'..' : name}</span>
+                                <span className="file-preview-name">{name}</span>
                             </div>
                         );
                     })}
