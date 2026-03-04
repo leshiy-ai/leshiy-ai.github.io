@@ -5,14 +5,16 @@ const Sidebar = () => {
   const [userPhoto, setUserPhoto] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false); // Состояние для админских прав
   const profileRef = useRef(null);
 
-  // Эффект для обновления данных профиля
+  // Эффект для обновления данных профиля и проверки прав админа
   useEffect(() => {
-    const updateProfile = () => {
+    const updateProfileAndCheckAdmin = () => {
       const id = localStorage.getItem('vk_user_id');
       const name = localStorage.getItem('vk_user_name');
       const photo = localStorage.getItem('vk_user_photo');
+      const adminKey = localStorage.getItem('IS_ADMIN'); // <-- ИСПРАВЛЕНО: Проверяем ключ IS_ADMIN
 
       if (id && id !== 'null') {
         setUserName((name && name !== 'undefined') ? name : `ID: ${id}`);
@@ -23,13 +25,18 @@ const Sidebar = () => {
         setUserPhoto("https://vk.com/images/camera_100.png");
         setIsLoggedIn(false);
       }
+      
+      setIsAdmin(adminKey === 'true'); // <-- ИСПРАВЛЕНО: Устанавливаем статус админа, если ключ равен 'true'
     };
 
-    updateProfile();
-    window.addEventListener('user-profile-updated', updateProfile);
+    updateProfileAndCheckAdmin();
+    // Добавляем слушатель и на storage, чтобы при изменении ключа админа права обновлялись
+    window.addEventListener('user-profile-updated', updateProfileAndCheckAdmin);
+    window.addEventListener('storage', updateProfileAndCheckAdmin); 
 
     return () => {
-      window.removeEventListener('user-profile-updated', updateProfile);
+      window.removeEventListener('user-profile-updated', updateProfileAndCheckAdmin);
+      window.removeEventListener('storage', updateProfileAndCheckAdmin);
     };
   }, []);
 
@@ -49,17 +56,18 @@ const Sidebar = () => {
   // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
   const handleNewChat = () => window.dispatchEvent(new CustomEvent('sidebar-new-chat'));
   const handleStorage = () => window.dispatchEvent(new CustomEvent('sidebar-storage'));
+  const handleAdminPanel = () => window.dispatchEvent(new CustomEvent('sidebar-admin-panel'));
   const handleLogout = () => {
-    setProfileMenuVisible(false); // Сначала закрываем меню
+    setProfileMenuVisible(false);
     window.dispatchEvent(new CustomEvent('sidebar-logout'));
   };
 
   // Главный обработчик для клика по профилю
   const handleProfileClick = () => {
     if (isLoggedIn) {
-      setProfileMenuVisible(!isProfileMenuVisible); // Показываем/скрываем меню
+      setProfileMenuVisible(!isProfileMenuVisible);
     } else {
-      window.dispatchEvent(new CustomEvent('sidebar-vk-auth')); // Авторизуем
+      window.dispatchEvent(new CustomEvent('sidebar-vk-auth'));
     }
   };
 
@@ -78,13 +86,18 @@ const Sidebar = () => {
             <span className="icon">🗄️</span>
             <span className="text">Хранилка</span>
           </div>
+          {isAdmin && (
+            <div className="nav-item" id="open-admin-panel" onClick={handleAdminPanel}>
+              <span className="icon">🅰️</span>
+              <span className="text">Админ меню</span>
+            </div>
+          )}
         </div>
 
         <div className="sidebar-bottom" ref={profileRef}>
-          {/* -- НОВОЕ ВСПЛЫВАЮЩЕЕ МЕНЮ -- */}
           {isProfileMenuVisible && (
             <div className="profile-menu">
-              <div className="profile-menu-item" onClick={handleLogout}>
+              <div className="profile-menu-item logout" onClick={handleLogout}>
                 <span className="icon">🚪</span>
                 <span className="text">Выход</span>
               </div>
@@ -95,7 +108,7 @@ const Sidebar = () => {
             className="user-profile"
             title={isLoggedIn ? `Профиль: ${userName}` : 'Нажмите для авторизации через VK'}
             onClick={handleProfileClick}
-            style={{ cursor: 'pointer' }} // Курсор всегда pointer, так как есть действие
+            style={{ cursor: 'pointer' }}
           >
             <div className="avatar-container">
               <img id="user-avatar" src={userPhoto} alt="User Avatar" />

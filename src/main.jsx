@@ -20,16 +20,21 @@ createRoot(document.getElementById('root')).render(
 
 // Эта функция теперь центральный "оповещатель" для всего приложения
 window.handleStatusResponse = (statusData) => {
+  // Если данных нет, ничего не делаем
   if (!statusData) return;
-  
-  // 1. Сохраняем свежие данные в localStorage
-  if (statusData.vk_user_id) localStorage.setItem('vk_user_id', statusData.vk_user_id);
-  if (statusData.userName) localStorage.setItem('vk_user_name', statusData.userName);
-  if (statusData.userPhoto) localStorage.setItem('vk_user_photo', statusData.userPhoto);
 
-  // 2. Отправляем сигнал, что профиль обновился. Sidebar его поймает.
+  // НАДЁЖНОЕ СОХРАНЕНИЕ: 
+  // Принудительно сохраняем каждое поле. Если поля нет в ответе, 
+  // localStorage.setItem(key, undefined) превратит его в строку "undefined",
+  // а null в "null". Это именно то, что нам нужно для последующей проверки в Sidebar.jsx.
+  localStorage.setItem('vk_user_id', statusData.vk_user_id);
+  localStorage.setItem('vk_user_name', statusData.userName);
+  localStorage.setItem('vk_user_photo', statusData.userPhoto);
+
+  // Отправляем сигнал, что профиль обновился. Sidebar его поймает.
   window.dispatchEvent(new CustomEvent('user-profile-updated'));
 };
+
 
 // Оживляем интерфейс (DOM)
 document.addEventListener('DOMContentLoaded', () => {

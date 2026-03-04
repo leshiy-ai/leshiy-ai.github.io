@@ -53,7 +53,6 @@ const Message = ({ message, onSwipe, onAction }) => {
         currentX.current = 0;
     };
 
-    // Функция для отрисовки иконок вложений
     const renderFile = (file, i) => {
         const type = file.type || '';
         const name = file.name || '';
@@ -102,7 +101,6 @@ function App() {
     const [showAdminPanel, setShowAdminPanel] = useState(false);
     const [isStorageVisible, setStorageVisible] = useState(false);
     
-    // Динамический ID пользователя
     const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('vk_user_id') || "guest");
 
     const chatEndRef = useRef(null);
@@ -142,29 +140,23 @@ function App() {
 
     const t = translations[language];
 
-    // Инициализация и слушатели событий
     useEffect(() => {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
 
-        // Слушаем успешную авторизацию из main.jsx
         const handleAuthSuccess = (event) => {
             const data = event.detail; 
             if (!data) return;
         
-            // 1. Определяем ID (может быть объектом или просто строкой/числом)
             const userId = (typeof data === 'object') ? (data.vk_user_id || data.id) : data;
             setCurrentUserId(userId);
         
-            // 2. Если пришел объект (с сервера) — прокидываем его целиком
             if (typeof data === 'object') {
                 if (window.handleStatusResponse) {
                     window.handleStatusResponse(data);
                 }
-            } 
-            // 3. Если пришло только ID (строка), собираем данные из памяти и обновляем UI
-            else {
+            } else {
                 const savedData = { 
                     vk_user_id: userId, 
                     userName: localStorage.getItem('vk_user_name'), 
@@ -178,11 +170,9 @@ function App() {
 
         const handleBotCommand = (event) => { handleSend(event.detail); };
 
-        // --- SIDEBAR COLLAPSE LOGIC ---
         const mBtn = document.getElementById('toggle-menu');
         const body = document.body;
 
-        // Set initial state to collapsed
         if (body) {
             body.classList.add('sidebar-collapsed');
         }
@@ -199,11 +189,11 @@ function App() {
         const hTE = (e) => {
             const teX = e.changedTouches[0].clientX;
             if (!body) return;
-            // Swipe right to open
+
             if (teX - tsX > 70 && tsX < 40) {
                 body.classList.remove('sidebar-collapsed');
             }
-            // Swipe left to close
+
             if (tsX - teX > 70) {
                 body.classList.add('sidebar-collapsed');
             }
@@ -253,7 +243,6 @@ function App() {
             try {
                 const formData = new FormData();
                 formData.append('file', file);
-                // Используем текущий ID вместо хардкода
                 formData.append('chat_id', currentUserId);
 
                 await axios.post(CONFIG.STORAGE_GATEWAY, formData, {
@@ -337,7 +326,6 @@ function App() {
           size: f.file.size 
       }));
   
-      // 1. ДОБАВЛЯЕМ сообщение в историю
       setMessages(prev => [...prev, { 
           id: messageId, 
           role: 'user', 
@@ -345,10 +333,8 @@ function App() {
           attachments: attachments 
       }]);
   
-      // 2. ПЕРЕКЛЮЧАЕМ состояние загрузки
       setIsLoading(true);
   
-      // 3. УДАЛЯЕМ (очищаем) файлы и инпут
       setFiles([]);
       setInput('');
       
@@ -375,8 +361,7 @@ function App() {
 
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
-            sessionStorage.setItem('waiting_for_auth', 'true'); // Ставим метку
-            // Используем актуальный ID
+            sessionStorage.setItem('waiting_for_auth', 'true');
             window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
         } else {
             const command = action.startsWith('/') ? action : `/${action}`;
@@ -385,10 +370,8 @@ function App() {
     };
 
     window.addEventListener('focus', () => {
-        // Если в сессии висит флаг, что мы уходили на авторизацию
         if (sessionStorage.getItem('waiting_for_auth') === 'true') {
             sessionStorage.removeItem('waiting_for_auth');
-            // Автоматически отправляем команду на получение папок
             handleSend('/storage_list'); 
         }
     }, { once: false });
@@ -484,12 +467,11 @@ function App() {
         softReload();
     };
 
-    // --- НОВАЯ ЛОГИКА ДЛЯ САЙДБАРА ---
     useEffect(() => {
       const handleOpenStorage = () => {
           const userId = localStorage.getItem('vk_user_id');
           if (!userId || userId === 'null') {
-              alert("Сначала авторизуйтесь!"); // Или можно вызвать handleSend('/auth_init_vk')
+              alert("Сначала авторизуйтесь!");
               return;
           }
           setStorageVisible(true);
@@ -503,6 +485,10 @@ function App() {
               handleSend('/auth_init_vk');
           }
       };
+
+      const handleAdminPanel = () => {
+        setShowAdminPanel(true);
+    };
   
       const handleNewChat = () => {
           window.location.reload();
@@ -520,14 +506,16 @@ function App() {
       window.addEventListener('sidebar-vk-auth', handleVkAuth);
       window.addEventListener('sidebar-new-chat', handleNewChat);
       window.addEventListener('sidebar-logout', handleLogout);
+      window.addEventListener('sidebar-admin-panel', handleAdminPanel);
   
       return () => {
           window.removeEventListener('sidebar-storage', handleOpenStorage);
           window.removeEventListener('sidebar-vk-auth', handleVkAuth);
           window.removeEventListener('sidebar-new-chat', handleNewChat);
           window.removeEventListener('sidebar-logout', handleLogout);
+          window.removeEventListener('sidebar-admin-panel', handleAdminPanel);
       };
-  }, []); // Пустой массив зависимостей, чтобы это выполнилось один раз
+  }, []);
 
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
@@ -602,15 +590,26 @@ function App() {
         >
             {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
             
-            {/* -- МОДАЛЬНОЕ ОКНО ХРАНИЛКИ -- */}
-            {isStorageVisible && (
-                <div id="storage-modal" className="modal-overlay" onClick={() => setStorageVisible(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <iframe id="storage-frame" src={storageUrl} title="Хранилка"></iframe>
-                        <button id="close-storage" className="close-btn" onClick={() => setStorageVisible(false)}>✕</button>
+            <div 
+                id="storage-modal" 
+                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>
+                <div className="storage-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="storage-header">
+                        <span>🗄️ Хранилка</span>
+                        <button 
+                            id="close-storage" 
+                            className="close-btn" 
+                            onClick={() => setStorageVisible(false)}>
+                            &times;
+                        </button>
                     </div>
+                    {isStorageVisible && <iframe 
+                        id="storage-frame" 
+                        src={storageUrl} 
+                        title="Хранилка">
+                    </iframe>}
                 </div>
-            )}
+            </div>
 
             <div id="pull-to-refresh">
                 <div id="ptr-loader" className="loader"></div>
@@ -641,7 +640,7 @@ function App() {
                     {files.map(file => {
                         const type = file.file.type;
                         const name = file.file.name;
-                        // Определяем иконку
+
                         let icon = '📎';
                         if (type.startsWith('video/')) icon = '🎬';
                         else if (type.startsWith('audio/') || name.endsWith('.mp3')) icon = '🎵';
