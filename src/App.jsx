@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey } from './ai-config';
+import Sidebar from './Sidebar';
 import './App.css';
 
 const fileToDataURL = (file) => {
@@ -154,7 +156,14 @@ function App() {
     const [showAdminPanel, setShowAdminPanel] = useState(false);
     const [isStorageVisible, setStorageVisible] = useState(false);
     
+    const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
+    const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
+    const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('vk_user_id'));
+    const [isAdmin, setIsAdmin] = useState(localStorage.getItem('isAdmin') === 'true');
+
     const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('vk_user_id') || "guest");
+    const [currentChatId, setCurrentChatId] = useState(null);
+    const [chatList, setChatList] = useState([]); // Для хранения списка из KV
 
     const chatEndRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -365,53 +374,204 @@ function App() {
         setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
 
+    const generateSmartTitle = async (userText) => {
+        try {
+            // Просим ИИ кратко назвать чат
+            const prompt = `Придумай очень короткое название (2-4 слова) для чата на основе этого вопроса: "${userText.substring(0, 100)}". Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            
+            // Используем твой askLeshiy
+            const aiResponse = await askLeshiy({ 
+                text: prompt, 
+                userId: currentUserId,
+                isSystemTask: true // Флаг, если захочешь в core фильтровать такие запросы
+            });
+    
+            if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
+                return aiResponse.text.replace(/["'«»]/g, '').trim();
+            }
+        } catch (e) {
+            console.warn("AI Title Generation failed, using fallback:", e);
+        }
+        
+        // Fallback: если 429, 403 или таймаут — просто режем текст
+        return userText.substring(0, 30) + "...";
+    };
+
+    const syncChatHistory = async (chatId, currentMessages) => {
+        if (currentUserId === "guest") return; // Не сохраняем для гостей
+        const title = currentMessages.find(m => m.role === 'user')?.text?.substring(0, 35) + "..." || "Новый чат";
+        try {
+            const response = await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
+                userId: String(currentUserId),
+                chatId: chatId,
+                chatTitle: title,
+                messages: currentMessages.map(m => ({
+                    role: m.role,
+                    content: m.text, // Воркер ждет content
+                    id: m.id
+                }))
+            });
+            
+            if (response.data.chatList) {
+                setChatList(response.data.chatList);
+            }
+        } catch (err) {
+            console.error("Ошибка сохранения истории:", err);
+        }
+    };
+
+    const loadChatFromHistory = async (chatId) => {
+        setIsLoading(true);
+        try {
+            const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
+                params: { userId: currentUserId, chatId: chatId }
+            });
+            // Преобразуем формат воркера (content) в формат фронтенда (text)
+            const history = res.data.map(m => ({
+                id: m.id || Date.now() + Math.random(),
+                role: m.role,
+                text: m.content
+            }));
+            setMessages(history);
+            setCurrentChatId(chatId);
+        } catch (e) {
+            console.error("Не удалось подгрузить историю:", e);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Удаление чата
+    const handleDeleteChat = async (chatId) => {
+        if (!window.confirm("Удалить этот чат безвозвратно?")) return;
+        
+        try {
+            await fetch(`${CONFIG.STORAGE_GATEWAY}/api/history?userId=${currentUserId}&chatId=${chatId}`, {
+                method: 'DELETE'
+            });
+            
+            // Обновляем список локально, чтобы он сразу исчез из меню
+            setChatList(prev => prev.filter(c => c.id !== chatId));
+            
+            // Если удалили тот чат, в котором сидим — очищаем экран
+            if (currentChatId === chatId) {
+                setMessages([]);
+                setCurrentChatId(null);
+            }
+        } catch (e) {
+            console.error("Ошибка удаления:", e);
+        }
+    };
+
+    // Переименование чата
+    const handleRenameChat = async (chatId) => {
+        const oldChat = chatList.find(c => c.id === chatId);
+        const newTitle = window.prompt("Новое название чата:", oldChat?.title);
+        
+        if (newTitle && newTitle !== oldChat?.title) {
+            // Тут мы просто вызываем твой существующий syncChatHistory, 
+            // но передаем новый заголовок и текущие сообщения
+            const currentMessages = (currentChatId === chatId) ? messages : []; 
+            // (Если чат не открыт, сообщения подтянутся из S3 на воркере, 
+            // но для простоты лучше переименовывать через отдельный мелкий метод в API)
+            
+            await syncChatHistory(chatId, currentMessages, newTitle);
+            
+            // Обновляем заголовок в списке
+            setChatList(prev => prev.map(c => c.id === chatId ? {...c, title: newTitle} : c));
+        }
+    };
+
     const handleSend = async (commandOverride) => {
-      const rawText = typeof commandOverride === 'string' ? commandOverride : input;
-      const userMessageText = rawText.trim();
-  
-      if (userMessageText.toLowerCase() === '/admin') {
-          setShowAdminPanel(true);
-          setInput('');
-          return;
-      }
-  
-      if (!userMessageText && files.length === 0) return;
-  
-      const messageId = Date.now();
-      const currentFiles = [...files];
-      const attachments = currentFiles.map(f => ({ 
-          preview: f.preview, 
-          name: f.file.name, 
-          type: f.file.type, 
-          size: f.file.size 
-      }));
-  
-      setMessages(prev => [...prev, { 
-          id: messageId, 
-          role: 'user', 
-          text: userMessageText, 
-          attachments: attachments 
-      }]);
-  
-      setIsLoading(true);
-  
-      setFiles([]);
-      setInput('');
-      
-      try {
-          const aiResponse = await askLeshiy({ text: userMessageText, files: currentFiles, userId: currentUserId });
-          setMessages(prev => [...prev, { 
-              id: Date.now() + 1, 
-              role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
-              text: aiResponse.text,
-              buttons: aiResponse.buttons 
-          }]);
-      } catch (err) {
-          setMessages(prev => [...prev, { id: Date.now(), role: 'ai error', text: 'Произошла ошибка при обращении к лешему.' }]);
-      } finally { 
-          setIsLoading(false); 
-      }
-  };
+        const rawText = typeof commandOverride === 'string' ? commandOverride : input;
+        const userMessageText = rawText.trim();
+    
+        if (userMessageText.toLowerCase() === '/admin') {
+            setShowAdminPanel(true);
+            setInput('');
+            return;
+        }
+    
+        if (!userMessageText && files.length === 0) return;
+    
+        // 1. Идентификация чата
+        let chatId = currentChatId;
+        if (!chatId) {
+            chatId = `chat_${Date.now()}`;
+            setCurrentChatId(chatId);
+        }
+    
+        // 2. Подготовка сообщения пользователя
+        const currentFiles = [...files];
+        const userMsg = { 
+            id: Date.now(), 
+            role: 'user', 
+            text: userMessageText, 
+            attachments: currentFiles.map(f => ({ 
+                preview: f.preview, 
+                name: f.file.name, 
+                type: f.file.type 
+            })) 
+        };
+    
+        // Очищаем ввод сразу
+        setMessages(prev => [...prev, userMsg]);
+        setIsLoading(true);
+        setFiles([]);
+        setInput('');
+    
+        try {
+            // 3. Запрос к API
+            const aiResponse = await askLeshiy({ 
+                text: userMessageText, 
+                files: currentFiles, 
+                userId: currentUserId 
+            });
+    
+            // 4. Подготовка ответа нейронки
+            const assistantMsg = { 
+                id: Date.now() + 1, 
+                role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
+                text: aiResponse.text,
+                buttons: aiResponse.buttons 
+            };
+    
+            // Обновляем сообщения в интерфейсе
+            setMessages(prev => {
+                const updated = [...prev, assistantMsg];
+                
+                // 5. Логика заголовка и сохранения (делаем внутри, чтобы иметь доступ к актуальному списку)
+                handleHistorySync(chatId, updated, userMessageText);
+                
+                return updated;
+            });
+    
+        } catch (err) {
+            console.error("Ошибка связи с Лешим:", err);
+            setMessages(prev => [...prev, { 
+                id: Date.now(), 
+                role: 'ai error', 
+                text: 'Произошла ошибка при обращении к лешему.' 
+            }]);
+        } finally { 
+            setIsLoading(false); 
+        }
+    };
+    
+    // Вспомогательная функция, чтобы не загромождать основной код
+    const handleHistorySync = async (chatId, messages, firstText) => {
+        let title = "Новый чат";
+        if (messages.length === 2) {
+            title = await Promise.race([
+                generateSmartTitle(firstText),
+                new Promise(res => setTimeout(() => res(firstText.substring(0, 30) + "..."), 3000))
+            ]);
+        }
+        // Вызываем сохранение
+        if (typeof syncChatHistory === 'function') {
+            await syncChatHistory(chatId, messages, title);
+        }
+    };
 
     const handleMenuAction = (action) => {
         if (action.startsWith('http')) {
@@ -548,6 +708,18 @@ function App() {
       }, [showAdminPanel]);
 
     useEffect(() => {
+    const handleProfileUpdate = () => {
+        setUserName(localStorage.getItem('vk_user_name') || "Пользователь");
+        setUserPhoto(localStorage.getItem('vk_user_photo') || "");
+        setIsLoggedIn(!!localStorage.getItem('vk_user_id'));
+        setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+    };
+
+    window.addEventListener('user-profile-updated', handleProfileUpdate);
+    return () => window.removeEventListener('user-profile-updated', handleProfileUpdate);
+    }, []);
+    
+    useEffect(() => {
       const handleOpenStorage = () => {
           const userId = localStorage.getItem('vk_user_id');
           if (!userId || userId === 'null') {
@@ -568,7 +740,7 @@ function App() {
 
       const handleAdminPanel = () => {
         setShowAdminPanel(true);
-    };
+        };
   
       const handleNewChat = () => {
           window.location.reload();
@@ -657,6 +829,28 @@ function App() {
     const storageUrl = `${CONFIG.STORAGE_GATEWAY}/vk?vk_user_id=${currentUserId}`;
 
     return (
+        <div className="app-wrapper">
+            {/* ПОРТАЛ: теперь он просто часть общего дерева */}
+            {document.getElementById('sidebar') && createPortal(
+            <Sidebar
+            chatList={chatList || []} 
+            currentChatId={currentChatId}
+            onSelectChat={(id) => console.log("Загрузка чата:", id)} // Тут будет функция loadChat
+            onDeleteChat={(id) => console.log("Удаление:", id)}
+            onRenameChat={(id) => console.log("Переименование:", id)}
+            userName={userName}
+            isLoggedIn={isLoggedIn}
+            userPhoto={userPhoto}
+            isAdmin={isAdmin}
+            handleNewChat={() => { setMessages([]); setCurrentChatId(null); }}
+            handleStorage={() => setStorageVisible(true)}
+            handleAdminPanel={() => setShowAdminPanel(true)}
+            handleLogout={() => { localStorage.clear(); window.location.reload(); }}
+            />,
+            document.getElementById('sidebar')
+          )}
+
+        /* ОСНОВНОЙ КОНТЕЙНЕР App (остается как был) */
         <div 
             ref={appContainerRef}
             className={`app-container ${isDragging ? 'dragging' : ''}`}
@@ -781,6 +975,7 @@ function App() {
                 style={{ display: 'none' }} 
                 onChange={(e) => handleFileSelect(e.target.files)}
             />
+        </div>
         </div>
     );
 }

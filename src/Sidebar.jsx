@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
-const Sidebar = () => {
+const Sidebar = ({ 
+  chatList = [], 
+  currentChatId, 
+  onSelectChat, 
+  onDeleteChat, 
+  onRenameChat 
+}) => {
+
   const [userName, setUserName] = useState(null);
   const [userPhoto, setUserPhoto] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -79,7 +86,7 @@ const Sidebar = () => {
         <div className="sidebar-top">
           <button id="toggle-menu" className="menu-btn">☰</button>
           <div className="new-chat" onClick={handleNewChat}>
-            <span className="icon">➕</span>
+            <span className="icon">📝</span>
             <span className="text">Новый чат</span>
           </div>
         </div>
@@ -96,7 +103,44 @@ const Sidebar = () => {
             </div>
           )}
         </div>
-
+        {/* --- НОВЫЙ БЛОК: ИСТОРИЯ ЧАТОВ --- */}
+        <div className="sidebar-history">
+          {chatList && chatList.length > 0 ? (
+            chatList.map((chat) => (
+              <div 
+                key={chat.id} 
+                className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
+                onClick={() => onSelectChat(chat.id)}
+              >
+                <span className="icon">💬</span>
+                <div className="history-text">
+                  <span className="chat-title">{chat.title}</span>
+                  <span className="chat-date">{new Date(chat.lastUpdate).toLocaleDateString()}</span>
+                </div>
+                {/* Кнопки действий (скрыты по умолчанию через CSS) */}
+                <div className="history-actions">
+                  <button 
+                    className="action-icon rename" 
+                    onClick={(e) => { e.stopPropagation(); onRenameChat(chat.id); }}
+                    title="Переименовать"
+                  >
+                    ✏️
+                  </button>
+                  <button 
+                    className="action-icon delete" 
+                    onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
+                    title="Удалить"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="history-empty">История пуста</div>
+          )}
+        </div>
+        {/* ---------------------------------- */}
         <div className="sidebar-bottom" ref={profileRef}>
           {isProfileMenuVisible && (
             <div className="profile-menu">

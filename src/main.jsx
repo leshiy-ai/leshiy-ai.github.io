@@ -5,12 +5,6 @@ import Sidebar from './Sidebar.jsx';
 import App from './App.jsx';
 import { CONFIG } from './config';
 
-// --- РЕНДЕРИНГ КОМПОНЕНТОВ ---
-createRoot(document.getElementById('sidebar')).render(
-  <StrictMode>
-    <Sidebar />
-  </StrictMode>
-);
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

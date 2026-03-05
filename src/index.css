@@ -333,3 +333,111 @@ body.sidebar-collapsed #toggle-menu {
 .user-status.offline::before {
   color: #ff4d4f; /* Красный */
 }
+
+/* --- БЛОК ИСТОРИИ ЧАТОВ --- */
+
+.sidebar-history {
+  flex: 1; 
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 10px 0;
+  padding: 0 5px;
+}
+
+/* Кастомный скроллбар */
+.sidebar-history::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-history::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+/* Сам элемент списка чата */
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  position: relative; /* Важно для позиционирования кнопок действий */
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.history-item.active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Текстовая часть (название и дата) */
+.history-text {
+  display: flex;
+  flex-direction: column;
+  margin-left: 10px;
+  overflow: hidden;
+  flex: 1; /* Чтобы текст занимал место и не выталкивал кнопки */
+}
+
+.chat-title {
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.chat-date {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+/* Блок с кнопками (карандаш и корзина) */
+.history-actions {
+  display: none; 
+  position: absolute;
+  right: 5px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  padding: 2px;
+  z-index: 2;
+}
+
+.history-item:hover .history-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-icon:hover {
+  transform: scale(1.2);
+}
+
+/* Состояние при схлопнутом сайдбаре */
+.sidebar.collapsed .history-text,
+.sidebar.collapsed .history-empty,
+.sidebar.collapsed .history-actions {
+  display: none !important;
+}
+
+.history-empty {
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.4;
+  padding: 20px 0;
+}
