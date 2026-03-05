@@ -377,7 +377,7 @@ function App() {
     const generateSmartTitle = async (userText) => {
         try {
             // Просим ИИ кратко назвать чат
-            const prompt = `Придумай очень короткое название (2-4 слова) для чата на основе этого вопроса: "${userText.substring(0, 100)}". Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            const prompt = `Проанализируй диалог и дай короткое название (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
             // Используем твой askLeshiy
             const aiResponse = await askLeshiy({ 
@@ -421,20 +421,37 @@ function App() {
         }
     };
 
-    const loadChatFromHistory = async (chatId) => {
+    const [chatOffset, setChatOffset] = useState(0); // Храним, сколько уже загрузили
+    const [hasMore, setHasMore] = useState(true);
+
+    const loadChatFromHistory = async (chatId, isLoadMore = false) => {
+        const limit = 10;
+        const currentOffset = isLoadMore ? chatOffset : 0;
+
         setIsLoading(true);
         try {
             const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
                 params: { userId: currentUserId, chatId: chatId }
             });
-            // Преобразуем формат воркера (content) в формат фронтенда (text)
-            const history = res.data.map(m => ({
+
+            // ВАЖНО: Достаем сообщения из поля .messages, а не из всего data
+            const historyMessages = res.data.messages || []; 
+
+            const formattedMsgs = historyMessages.map(m => ({
                 id: m.id || Date.now() + Math.random(),
                 role: m.role,
-                text: m.content
+                text: m.content || m.text // Поддержка разных имен полей
             }));
-            setMessages(history);
-            setCurrentChatId(chatId);
+
+            if (isLoadMore) {
+                setMessages(prev => [...formattedMsgs, ...prev]); // Старые добавляем ВВЕРХ
+                setChatOffset(prev => prev + limit);
+            } else {
+                setMessages(formattedMsgs); // Свежая загрузка чата
+                setChatOffset(limit);
+                setHasMore(moreAvailable);
+                setCurrentChatId(chatId);
+            }
         } catch (e) {
             console.error("Не удалось подгрузить историю:", e);
         } finally {
@@ -521,11 +538,17 @@ function App() {
         setFiles([]);
         setInput('');
     
+        // Берем только последние 10 сообщений для ИИ
+        const historyForAi = messages.slice(-10).map(m => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.text || m.content }]
+        }));
+
         try {
             // 3. Запрос к API
             const aiResponse = await askLeshiy({ 
                 text: userMessageText, 
-                files: currentFiles, 
+                history: historyForAi, // Только 10 последних
                 userId: currentUserId 
             });
     
@@ -560,33 +583,40 @@ function App() {
     };
     
     // Вспомогательная функция, чтобы не загромождать основной код
-    const handleHistorySync = async (chatId, messages, firstText) => {
-        let title = "Новый чат";
+    const handleHistorySync = async (chatId, updatedMessages, firstText) => {
+        const currentChat = chatList.find(c => c.id === chatId);
         
-        // Если это начало диалога (юзер + бот)
-        if (messages.length === 2) {
+        // По умолчанию заголовок либо старый, либо временный
+        let title = currentChat ? currentChat.title : "Новый чат...";
+    
+        // ЖДЕМ 4-го СООБЩЕНИЯ (2-й ответ нейронки), чтобы понять ТЕМУ
+        if (updatedMessages.length === 4) {
+            // Формируем контекст специально для генератора заголовка
+            const contextForTitle = updatedMessages
+                .map(m => `${m.role}: ${m.text}`)
+                .join('\n');
+    
             title = await Promise.race([
-                generateSmartTitle(firstText),
+                generateSmartTitle(contextForTitle), // Передаем все 4 сообщения для анализа темы
                 new Promise(res => setTimeout(() => res(firstText.substring(0, 30) + "..."), 3000))
             ]);
-
-            // ОБНОВЛЯЕМ САЙДБАР ЛОКАЛЬНО
-            setChatList(prev => {
-                // Если чат уже есть в списке, не дублируем
-                if (prev.some(c => c.id === chatId)) return prev;
-                
-                const newEntry = {
-                    id: chatId,
-                    title: title,
-                    lastMessage: firstText,
-                    timestamp: Date.now()
-                };
-                return [newEntry, ...prev]; // Добавляем в начало списка
-            });
+    
+            // Обновляем сайдбар
+            setChatList(prev => prev.map(c => 
+                c.id === chatId ? { ...c, title: title } : c
+            ));
+        } 
+        // Если сообщений меньше 4, но чата еще нет в списке — добавляем его с временным именем
+        else if (updatedMessages.length === 2 && !currentChat) {
+            setChatList(prev => [
+                { id: chatId, title: "💭 Определяю тему...", lastUpdate: new Date().toISOString() },
+                ...prev
+            ]);
         }
-
+    
+        // Сохраняем всё в S3 (на каждом шаге)
         if (typeof syncChatHistory === 'function') {
-            await syncChatHistory(chatId, messages, title);
+            await syncChatHistory(chatId, updatedMessages, title);
         }
     };
 
@@ -721,7 +751,7 @@ function App() {
             fetchChats();
         }
     }, [currentUserId]); // Массив зависимостей: сработает при изменении ID
-    
+
     useEffect(() => {
       const modalContent = document.querySelector('.storage-content');
       if (isStorageVisible && modalContent) {

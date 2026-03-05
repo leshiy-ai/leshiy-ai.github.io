@@ -104,6 +104,14 @@ const Sidebar = ({
           )}
         </div>
         {/* --- НОВЫЙ БЛОК: ИСТОРИЯ ЧАТОВ --- */}
+        <div className="sidebar-history-container">
+        {/* Заголовок "Чаты" с эмодзи 💬 */}
+        {!collapsed && (
+          <div className="history-section-header">
+            <span className="text">💬 Чаты</span>
+          </div>
+        )}
+
         <div className="sidebar-history">
           {chatList && chatList.length > 0 ? (
             chatList.map((chat) => (
@@ -111,35 +119,43 @@ const Sidebar = ({
                 key={chat.id} 
                 className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
                 onClick={() => onSelectChat(chat.id)}
+                title={collapsed ? chat.title : ""} 
               >
-                <span className="icon">💬</span>
-                <div className="history-text">
-                  <span className="chat-title">{chat.title}</span>
-                  <span className="chat-date">{new Date(chat.lastUpdate).toLocaleDateString()}</span>
-                </div>
-                {/* Кнопки действий (скрыты по умолчанию через CSS) */}
-                <div className="history-actions">
-                  <button 
-                    className="action-icon rename" 
-                    onClick={(e) => { e.stopPropagation(); onRenameChat(chat.id); }}
-                    title="Переименовать"
-                  >
-                    ✏️
-                  </button>
-                  <button 
-                    className="action-icon delete" 
-                    onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
-                    title="Удалить"
-                  >
-                    🗑️
-                  </button>
-                </div>
+                <div className="icon">💭</div>
+
+                {/* Текстовая часть видна только если НЕ collapsed */}
+                {!collapsed && (
+                  <>
+                    <div className="history-text">
+                      <span className="chat-title">{chat.title}</span>
+                      <span className="chat-date">
+                        {new Date(chat.lastUpdate).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div className="history-actions">
+                      <button 
+                        className="action-icon rename" 
+                        onClick={(e) => { e.stopPropagation(); onRenameChat(chat.id); }}
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        className="action-icon delete" 
+                        onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))
           ) : (
-            <div className="history-empty">История пуста</div>
+            !collapsed && <div className="history-empty">История пуста</div>
           )}
         </div>
+      </div>
         {/* ---------------------------------- */}
         <div className="sidebar-bottom" ref={profileRef}>
           {isProfileMenuVisible && (
