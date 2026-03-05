@@ -12,8 +12,10 @@ const Sidebar = ({
   const [userPhoto, setUserPhoto] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isProfileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const profileRef = useRef(null);
+  const collapsed = isSidebarCollapsed;
 
   // Шаг 1: Создаем новую, стабильную функцию для обновления данных.
   // useCallback гарантирует, что эта функция не будет пересоздаваться при каждом рендере,
@@ -80,11 +82,24 @@ const Sidebar = ({
     }
   };
 
+  const toggleSidebar = () => {
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    
+    // Синхронизируем с твоим CSS, который завязан на класс body
+    if (newState) {
+      document.body.classList.add('sidebar-collapsed');
+    } else {
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  };
+
   return (
     // Шаг 3: Исправляем JSX, чтобы статус был под именем
-    <div id="sidebar" className="sidebar collapsed">
+    <div id="sidebar" className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-top">
-          <button id="toggle-menu" className="menu-btn">☰</button>
+          {/* Добавляем onClick для управления состоянием */}
+          <button id="toggle-menu" className="menu-btn" onClick={toggleSidebar}>☰</button>
           <div className="new-chat" onClick={handleNewChat}>
             <span className="icon">📝</span>
             <span className="text">Новый чат</span>
