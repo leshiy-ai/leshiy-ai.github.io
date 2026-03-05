@@ -219,6 +219,7 @@ function App() {
 
     const t = translations[language];
 
+    // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
@@ -281,6 +282,34 @@ function App() {
             if (mBtn) mBtn.removeEventListener('click', hMC);
         };
     }, []);
+
+    // Слушатель кнопки "Новый чат"
+    useEffect(() => {
+        // 1. Слушаем кнопку "Новый чат"
+        const onNewChatRequest = () => {
+            setCurrentChatId(null);
+            setMessages([]);
+            setFiles([]);
+            setInput('');
+            localStorage.removeItem('last_chat_id'); // Чтобы при F5 не открылся старый
+        };
+    
+        // 2. Логика "Последнего чата" при первой загрузке
+        const lastId = localStorage.getItem('last_chat_id');
+        if (lastId && !currentChatId) {
+            onSelectChat(lastId); // Функция, которую мы обсуждали (загрузка из S3)
+        }
+    
+        window.addEventListener('sidebar-new-chat', onNewChatRequest);
+        return () => window.removeEventListener('sidebar-new-chat', onNewChatRequest);
+    }, []);
+    
+    // Обновляем функцию выбора чата, чтобы она запоминала выбор
+    const onSelectChat = (chatId) => {
+        setCurrentChatId(chatId);
+        localStorage.setItem('last_chat_id', chatId); // Запоминаем для F5
+        loadChatFromHistory(chatId); // Твоя функция загрузки
+    };
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -825,13 +854,14 @@ function App() {
         };
   
       const handleNewChat = () => {
-          window.location.reload();
+        window.dispatchEvent(new CustomEvent('sidebar-new-chat'));
       };
   
       const handleLogout = () => {
           localStorage.removeItem('vk_user_id');
           localStorage.removeItem('vk_user_name');
           localStorage.removeItem('vk_user_photo');
+          localStorage.removeItem('last_chat_id');
           sessionStorage.clear();
           window.location.reload();
       };
