@@ -705,6 +705,24 @@ function App() {
     };
 
     useEffect(() => {
+        // Ждем, пока userId подгрузится из VK/localStorage
+        if (currentUserId && currentUserId !== "guest") {
+            const fetchChats = async () => {
+                try {
+                    const response = await axios.get(
+                        `${CONFIG.STORAGE_GATEWAY}/api/list-chats?userId=${currentUserId}`
+                    );
+                    // Записываем массив [{id, title, lastUpdate}, ...] в стейт
+                    setChatList(response.data || []);
+                } catch (err) {
+                    console.error("Не удалось получить список чатов:", err);
+                }
+            };
+            fetchChats();
+        }
+    }, [currentUserId]); // Массив зависимостей: сработает при изменении ID
+    
+    useEffect(() => {
       const modalContent = document.querySelector('.storage-content');
       if (isStorageVisible && modalContent) {
         const cleanupSwipe = makeSwipable(modalContent, () => setStorageVisible(false));
