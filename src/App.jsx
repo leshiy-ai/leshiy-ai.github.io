@@ -427,29 +427,35 @@ function App() {
     const loadChatFromHistory = async (chatId, isLoadMore = false) => {
         const limit = 10;
         const currentOffset = isLoadMore ? chatOffset : 0;
-
+    
         setIsLoading(true);
         try {
             const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
-                params: { userId: currentUserId, chatId: chatId }
+                params: { 
+                    userId: currentUserId, 
+                    chatId: chatId,
+                    offset: currentOffset // Передаем оффсет серверу!
+                }
             });
-
-            // ВАЖНО: Достаем сообщения из поля .messages, а не из всего data
+    
+            // Исправляем: достаем и сообщения, и флаг hasMore
             const historyMessages = res.data.messages || []; 
-
+            const serverHasMore = res.data.hasMore; // Берем из ответа воркера
+    
             const formattedMsgs = historyMessages.map(m => ({
                 id: m.id || Date.now() + Math.random(),
                 role: m.role,
-                text: m.content || m.text // Поддержка разных имен полей
+                text: m.content || m.text
             }));
-
+    
             if (isLoadMore) {
-                setMessages(prev => [...formattedMsgs, ...prev]); // Старые добавляем ВВЕРХ
+                setMessages(prev => [...formattedMsgs, ...prev]);
                 setChatOffset(prev => prev + limit);
+                setHasMore(serverHasMore);
             } else {
-                setMessages(formattedMsgs); // Свежая загрузка чата
+                setMessages(formattedMsgs);
                 setChatOffset(limit);
-                setHasMore(moreAvailable);
+                setHasMore(serverHasMore); // Теперь moreAvailable не undefined
                 setCurrentChatId(chatId);
             }
         } catch (e) {
