@@ -376,7 +376,7 @@ function App() {
     const generateSmartTitle = async (userText) => {
         try {
             // Просим ИИ кратко назвать чат
-            const prompt = `Проанализируй диалог и дай короткое название (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            const prompt = `Диалог:\n${contextText.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
             // Используем твой askLeshiy
             const aiResponse = await askLeshiy({ 
@@ -589,39 +589,51 @@ function App() {
     
     // Вспомогательная функция, чтобы не загромождать основной код
     const handleHistorySync = async (chatId, updatedMessages, firstText) => {
-        const currentChat = chatList.find(c => c.id === chatId);
-        
-        // По умолчанию заголовок либо старый, либо временный
-        let title = currentChat ? currentChat.title : "Новый чат...";
+        // ВАЖНО: ищем чат прямо внутри prev, чтобы избежать проблем с замыканием
+        setChatList(prev => {
+            const currentChat = prev.find(c => c.id === chatId);
+            let currentTitle = currentChat ? currentChat.title : "Новый чат...";
     
-        // ЖДЕМ 4-го СООБЩЕНИЯ (2-й ответ нейронки), чтобы понять ТЕМУ
+            // Если это 2-е сообщение и чата еще нет в списке — создаем плашку
+            if (updatedMessages.length === 2 && !currentChat) {
+                return [
+                    { 
+                        id: chatId, 
+                        title: "💭 Определяю тему...", 
+                        lastUpdate: new Date().toISOString() 
+                    }, 
+                    ...prev
+                ];
+            }
+            return prev;
+        });
+    
+        // Генерация заголовка на 4-м сообщении
         if (updatedMessages.length === 4) {
-            // Формируем контекст специально для генератора заголовка
             const contextForTitle = updatedMessages
-                .map(m => `${m.role}: ${m.text}`)
+                .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
                 .join('\n');
     
-            title = await Promise.race([
-                generateSmartTitle(contextForTitle), // Передаем все 4 сообщения для анализа темы
-                new Promise(res => setTimeout(() => res(firstText.substring(0, 30) + "..."), 3000))
+            const newTitle = await Promise.race([
+                generateSmartTitle(contextForTitle),
+                new Promise(res => setTimeout(() => res(firstText.substring(0, 30) + "..."), 4000))
             ]);
     
-            // Обновляем сайдбар
+            // Обновляем заголовок и дату
             setChatList(prev => prev.map(c => 
-                c.id === chatId ? { ...c, title: title } : c
+                c.id === chatId ? { ...c, title: newTitle, lastUpdate: new Date().toISOString() } : c
             ));
-        } 
-        // Если сообщений меньше 4, но чата еще нет в списке — добавляем его с временным именем
-        else if (updatedMessages.length === 2 && !currentChat) {
-            setChatList(prev => [
-                { id: chatId, title: "💭 Определяю тему...", lastUpdate: new Date().toISOString() },
-                ...prev
-            ]);
-        }
     
-        // Сохраняем всё в S3 (на каждом шаге)
-        if (typeof syncChatHistory === 'function') {
-            await syncChatHistory(chatId, updatedMessages, title);
+            // Вызываем сохранение в S3 уже с НОВЫМ заголовком
+            if (typeof syncChatHistory === 'function') {
+                await syncChatHistory(chatId, updatedMessages, newTitle);
+            }
+        } else {
+            // Обычное сохранение (на 1, 2, 3, 5+ сообщениях)
+            if (typeof syncChatHistory === 'function') {
+                const currentChat = chatList.find(c => c.id === chatId);
+                await syncChatHistory(chatId, updatedMessages, currentChat?.title || "Новый чат...");
+            }
         }
     };
 

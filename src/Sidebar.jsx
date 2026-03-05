@@ -144,7 +144,13 @@ const Sidebar = ({
                     <div className="history-text">
                       <span className="chat-title">{chat.title}</span>
                       <span className="chat-date">
-                        {new Date(chat.lastUpdate).toLocaleDateString()}
+                      {chat.lastUpdate ? new Date(chat.lastUpdate).toLocaleString('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }) : 'Недавно'}
                       </span>
                     </div>
 
@@ -167,7 +173,7 @@ const Sidebar = ({
               </div>
             ))
           ) : (
-            !collapsed && <div className="history-empty">История пуста</div>
+            !collapsed && <div className="history-empty"></div>
           )}
         </div>
       </div>
