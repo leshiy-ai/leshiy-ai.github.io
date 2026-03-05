@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
@@ -119,10 +120,8 @@ const makeSwipable = (panel, onRemove) => {
             panel.style.opacity = '0';
             
             setTimeout(() => {
-                // Единственное действие - вызываем коллбэк, который изменит состояние React
                 if (onRemove) onRemove();
                 
-                // Сбрасываем стили для следующего открытия
                 panel.style.transform = initialTransform;
                 panel.style.opacity = '1';
             }, 400);
@@ -176,7 +175,16 @@ function App() {
             uploading: '☁️ Загружаю',
             uploadSuccess: '✅ Файл успешно сохранен в экосистеме!',
             uploadError: '❌ Не удалось сохранить',
-            admin: '👑 Админка'
+            admin: '👑 Админка',
+            version: 'Версия',
+            author: 'Автор',
+            tooltip_add_file: "Добавить файл",
+            tooltip_record_voice: "Записать голос",
+            tooltip_send: "Отправить",
+            tooltip_toggle_lang: "Сменить язык",
+            tooltip_toggle_theme: "Сменить тему",
+            tooltip_reload: "Обновить чат",
+            tooltip_close: "Закрыть чат"
         },
         en: {
             title: 'Leshiy-AI',
@@ -188,7 +196,16 @@ function App() {
             uploading: '☁️ Uploading',
             uploadSuccess: '✅ File successfully saved in the ecosystem!',
             uploadError: '❌ Failed to save',
-            admin: '👑 Admin'
+            admin: '👑 Admin',
+            version: 'Version',
+            author: 'Author',
+            tooltip_add_file: "Add file",
+            tooltip_record_voice: "Record voice",
+            tooltip_send: "Send",
+            tooltip_toggle_lang: "Change language",
+            tooltip_toggle_theme: "Change theme",
+            tooltip_reload: "Reload chat",
+            tooltip_close: "Close chat"
         }
     };
 
@@ -435,7 +452,7 @@ function App() {
     const handlePaste = (e) => {
         if (e.clipboardData.files.length > 0) {
             e.preventDefault();
-            handleFileSelect(e.dataTransfer.files);
+            handleFileSelect(e.clipboardData.files);
         }
     };
 
@@ -633,7 +650,6 @@ function App() {
         <div 
             ref={appContainerRef}
             className={`app-container ${isDragging ? 'dragging' : ''}`}
-            onPaste={handlePaste}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -673,10 +689,10 @@ function App() {
                 <img src="/Gemini.png" alt="Gemini AI" className="logo" />
                 <h1>{t.title} <span>ECOSYSTEM</span></h1>
                 <div className="top-actions">
-                    <button className="action-btn" onClick={toggleLanguage}>{language === 'ru' ? '🇷🇺' : '🇺🇸'}</button>
-                    <button className="action-btn" onClick={toggleTheme}>{theme === 'light' ? '☀️' : '🌙'}</button>
-                    <button className="action-btn" onClick={softReload}>⟳</button>
-                    <button className="action-btn close-btn" onClick={closeApp}>✕</button>
+                    <button className="action-btn" title={t.tooltip_toggle_lang} onClick={toggleLanguage}>{language === 'ru' ? '🇷🇺' : '🇺🇸'}</button>
+                    <button className="action-btn" title={t.tooltip_toggle_theme} onClick={toggleTheme}>{theme === 'light' ? '☀️' : '🌙'}</button>
+                    <button className="action-btn" title={t.tooltip_reload} onClick={softReload}>⟳</button>
+                    <button className="action-btn close-btn" title={t.tooltip_close} onClick={closeApp}>✕</button>
                 </div>
             </header>
 
@@ -687,40 +703,64 @@ function App() {
                 {isLoading && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
             </div>
-            <div className="input-area">
-                {files.length > 0 && (
-                    <div className="file-preview-container">
-                    {files.map(file => {
-                        const type = file.file.type;
-                        const name = file.file.name;
+            
+            <div className="input-area-container" onPaste={handlePaste}>
+                <div className="input-area">
+                    {files.length > 0 && (
+                        <div className="file-preview-container">
+                        {files.map(file => {
+                            const type = file.file.type;
+                            const name = file.file.name;
 
-                        let icon = '📎';
-                        if (type.startsWith('video/')) icon = '🎬';
-                        else if (type.startsWith('audio/') || name.endsWith('.mp3')) icon = '🎵';
-                        else if (name.endsWith('.zip') || name.endsWith('.rar')) icon = '📦';
-                        else if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) icon = '📄';
-                
-                        return (
-                            <div key={file.id} className="file-preview-item">
-                                {file.preview ? (
-                                    <img src={file.preview} className="image-preview" />
-                                ) : (
-                                    <div className="file-preview-icon">{icon}</div>
-                                )}
-                                <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
-                                <span className="file-preview-name">{name}</span>
-                            </div>
-                        );
-                    })}
+                            let icon = '📎';
+                            if (type.startsWith('video/')) icon = '🎬';
+                            else if (type.startsWith('audio/') || name.endsWith('.mp3')) icon = '🎵';
+                            else if (name.endsWith('.zip') || name.endsWith('.rar')) icon = '📦';
+                            else if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) icon = '📄';
+                    
+                            return (
+                                <div key={file.id} className="file-preview-item">
+                                    {file.preview ? (
+                                        <img src={file.preview} className="image-preview" />
+                                    ) : (
+                                        <div className="file-preview-icon">{icon}</div>
+                                    )}
+                                    <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
+                                    <span className="file-preview-name">{name}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    )}
+                    <button className="tool-btn" title={t.tooltip_add_file} onClick={() => fileInputRef.current.click()}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>
+                    </button>
+                    <textarea 
+                        rows="1"
+                        value={input} 
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
+                        onInput={(e) => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = (e.target.scrollHeight) + 'px';
+                        }}
+                        placeholder={t.placeholder}
+                    />
+                     <button className="tool-btn" title={t.tooltip_record_voice}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>
+                    </button>
+                    <button className="send-btn" title={t.tooltip_send} onClick={() => handleSend()} disabled={isLoading || (!input.trim() && files.length === 0)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
                 </div>
-                )}
-                <input 
-                    value={input} 
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={t.placeholder}
-                />
-                <button className="send-btn" onClick={() => handleSend()} disabled={isLoading}>{t.send}</button>
+                <div className="input-footer">
+                Leshiy-AI {t.version} {process.env.APP_VERSION} &bull; {t.author}: {process.env.APP_AUTHOR}
+                </div>
             </div>
 
             <input 
@@ -731,9 +771,6 @@ function App() {
                 style={{ display: 'none' }} 
                 onChange={(e) => handleFileSelect(e.target.files)}
             />
-            <button className="upload-btn" onClick={() => fileInputRef.current.click()}>
-                {t.upload}
-            </button>
         </div>
     );
 }

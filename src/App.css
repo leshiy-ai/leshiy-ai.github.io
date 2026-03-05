@@ -1,3 +1,4 @@
+
 :root {
   --bg-color: #19191a;
   --panel-bg: #222222;
@@ -22,7 +23,7 @@ html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
 body { background: var(--bg-color); color: var(--text-color); font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; width: 100%; height: 100%; overscroll-behavior-y: contain; }
 
 .top { display: flex; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--border-color); width: 100%; margin-right: 2px; }
-.top h1 { margin-right: auto; /* Это свойство сдвинет кнопки вправо */ }
+.top h1 { margin-right: auto; }
 .top h1 { font-size: 1.3em; margin: 0; line-height: 1.2; min-width: 0; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .top h1 span { color: var(--accent-color); font-size: 1em; text-transform: lowercase; font-weight: normal; }
 .logo { height: 35px; flex-shrink: 0; margin-right: 7px; }
@@ -41,23 +42,185 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .message-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
 .menu-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.2s ease; backdrop-filter: blur(5px); }
 .menu-btn:hover { background: var(--accent-color); border-color: transparent; transform: translateY(-2px); }
-.input-area { position: relative; padding-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; flex-shrink: 0; align-items: center; width: 100%; }
-.input-area input { flex: 1; background: var(--panel-bg); border: 1px solid var(--border-color); padding: 15px; border-radius: 10px; color: var(--text-color); outline: none; min-width: 0; height: 50px; width: 100%; font-size: 16px; font-weight: 500; }
-.send-btn { background: var(--accent-color); border: none; padding: 0 20px; border-radius: 10px; color: white; cursor: pointer; font-weight: bold; height: 50px; flex-shrink: 0; min-width: 100px; margin-right: 7px;}
-.upload-btn { width: 100%; background: #3b82f6; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: bold; margin-top: 10px; color: white; flex-shrink: 0; }
-.file-preview-container { display: flex; flex-wrap: wrap; gap: 15px; padding: 15px 15px 25px; width: 100%; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 10px; }
-.file-preview-item { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-color); }
-.file-preview-item .clear-file-btn { position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; background: #ff3b30; color: white; border: 2px solid var(--bg-color); border-radius: 50%; font-size: 11px; font-weight: bold; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 0 1px 0; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: all 0.2s ease; min-width: auto; margin: 0; }
-.file-preview-item .clear-file-btn:hover { background: #ff1a1a; transform: scale(1.1); }
-.file-preview-icon { font-size: 24px; }
-.file-preview-name { position: absolute; bottom: -17px; left: 0; width: 100%; text-align: center; font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.input-area.drag-over { border: 2px dashed var(--accent-color) !important; background-color: var(--bubble-bg) !important; }
-.image-preview { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
-.file-info-preview { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); width: 60px; height: 60px; justify-content: center; background: var(--bg-color); border-radius: 8px; font-size: 24px; }
+
+/* --- UPDATED INPUT AREA STYLES --- */
+.input-area-container {
+    padding: 0 16px 8px 16px;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    flex-shrink: 0;
+}
+
+.input-area {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 28px;
+}
+
+.input-area textarea {
+    flex-grow: 1;
+    border: none;
+    outline: none;
+    background-color: transparent;
+    color: var(--text-color);
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 10px 4px;
+    resize: none;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: inherit;
+    min-width: 100px; /* Prevent it from getting too small */
+}
+
+.input-area textarea::placeholder {
+    color: var(--text-secondary);
+}
+
+.tool-btn, .send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background-color 0.2s;
+}
+
+.tool-btn {
+    background-color: transparent;
+    color: var(--text-secondary);
+}
+
+.tool-btn:hover {
+    background-color: var(--bubble-bg);
+    color: var(--text-color);
+}
+
+.tool-btn svg, .send-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.send-btn {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.send-btn svg {
+    transform: translateX(1px);
+}
+
+.send-btn:disabled {
+    background-color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+.input-footer {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 8px 0;
+    width: 100%;
+}
+
+.file-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px; /* Increased gap */
+    padding-bottom: 8px;
+    width: 100%;
+    order: -1; /* Renders before the textarea */
+}
+
+.file-preview-item {
+    position: relative;
+    width: 70px;
+    height: 85px; /* Increased height to make space for name */
+    border-radius: 10px;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-preview {
+    width: 100%;
+    height: 70px; /* Cover top part */
+    object-fit: cover;
+}
+
+.file-preview-icon {
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 70px;
+}
+
+.clear-file-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 20px;
+    height: 20px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.clear-file-btn:hover {
+    background: #ff3b30;
+    transform: scale(1.1);
+}
+
+.file-preview-name {
+   display: block;
+   font-size: 11px;
+   color: var(--text-secondary);
+   text-align: center;
+   width: 100%;
+   padding: 4px 2px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   position: absolute;
+   bottom: 0;
+   left: 0;
+   background: var(--panel-bg);
+}
+
+.upload-btn {
+    display: none;
+}
+
 #pull-to-refresh { position: absolute; top: -60px; left: 0; right: 0; height: 60px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 14px; gap: 10px; }
 #ptr-loader { border: 3px solid var(--border-color); border-top: 3px solid var(--accent-color); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-.image-previews-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .uploaded-image-preview { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; }
 .bubble.typing { font-style: italic; color: var(--text-secondary); }
 .admin-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
