@@ -397,9 +397,10 @@ function App() {
         return userText.substring(0, 30) + "...";
     };
 
-    const syncChatHistory = async (chatId, currentMessages) => {
+    const syncChatHistory = async (chatId, currentMessages, titleOverride = null) => {
         if (currentUserId === "guest") return; // Не сохраняем для гостей
-        const title = currentMessages.find(m => m.role === 'user')?.text?.substring(0, 35) + "..." || "Новый чат";
+        const title = titleOverride || 
+                  (currentMessages.find(m => m.role === 'user')?.text?.substring(0, 35) + "..." || "Новый чат");
         try {
             const response = await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
                 userId: String(currentUserId),
@@ -561,13 +562,29 @@ function App() {
     // Вспомогательная функция, чтобы не загромождать основной код
     const handleHistorySync = async (chatId, messages, firstText) => {
         let title = "Новый чат";
+        
+        // Если это начало диалога (юзер + бот)
         if (messages.length === 2) {
             title = await Promise.race([
                 generateSmartTitle(firstText),
                 new Promise(res => setTimeout(() => res(firstText.substring(0, 30) + "..."), 3000))
             ]);
+
+            // ОБНОВЛЯЕМ САЙДБАР ЛОКАЛЬНО
+            setChatList(prev => {
+                // Если чат уже есть в списке, не дублируем
+                if (prev.some(c => c.id === chatId)) return prev;
+                
+                const newEntry = {
+                    id: chatId,
+                    title: title,
+                    lastMessage: firstText,
+                    timestamp: Date.now()
+                };
+                return [newEntry, ...prev]; // Добавляем в начало списка
+            });
         }
-        // Вызываем сохранение
+
         if (typeof syncChatHistory === 'function') {
             await syncChatHistory(chatId, messages, title);
         }
@@ -835,9 +852,9 @@ function App() {
             <Sidebar
             chatList={chatList || []} 
             currentChatId={currentChatId}
-            onSelectChat={(id) => console.log("Загрузка чата:", id)} // Тут будет функция loadChat
-            onDeleteChat={(id) => console.log("Удаление:", id)}
-            onRenameChat={(id) => console.log("Переименование:", id)}
+            onSelectChat={loadChatFromHistory} 
+            onDeleteChat={handleDeleteChat}
+            onRenameChat={handleRenameChat}
             userName={userName}
             isLoggedIn={isLoggedIn}
             userPhoto={userPhoto}
