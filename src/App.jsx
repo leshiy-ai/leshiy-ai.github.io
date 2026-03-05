@@ -91,8 +91,7 @@ const Message = ({ message, onSwipe, onAction }) => {
     );
 };
 
-// --- ПРАВИЛЬНАЯ РЕАЛИЗАЦИЯ СВАЙПА (КАК В ХРАНИЛКЕ) ---
-const makeSwipable = (panel, onRemove) => {
+const makeSwipable = (panel, onRemove, useRotation = true) => {
     let startX = 0;
     let currentX = 0;
     const threshold = 100;
@@ -107,7 +106,8 @@ const makeSwipable = (panel, onRemove) => {
     const onTouchMove = (e) => {
         currentX = e.touches[0].clientX - startX;
         if (Math.abs(currentX) > 5) {
-            panel.style.transform = initialTransform + ` translateX(${currentX}px)`;
+            const rotation = useRotation ? ` rotate(${currentX / 20}deg)` : '';
+            panel.style.transform = initialTransform + ` translateX(${currentX}px)` + rotation;
             panel.style.opacity = 1 - (Math.abs(currentX) / 350);
         }
     };
@@ -538,6 +538,16 @@ function App() {
     }, [isStorageVisible]);
 
     useEffect(() => {
+        const adminModal = document.querySelector('.admin-modal');
+        if (showAdminPanel && adminModal) {
+          const cleanupSwipe = makeSwipable(adminModal, () => setShowAdminPanel(false), true); 
+          return () => {
+            cleanupSwipe();
+          };
+        }
+      }, [showAdminPanel]);
+
+    useEffect(() => {
       const handleOpenStorage = () => {
           const userId = localStorage.getItem('vk_user_id');
           if (!userId || userId === 'null') {
@@ -732,7 +742,7 @@ function App() {
                         })}
                     </div>
                     )}
-                    <button className="tool-btn" title={t.tooltip_add_file} onClick={() => fileInputRef.current.click()}>
+                    <button id="input-add-btn" className="tool-btn" title={t.tooltip_add_file} onClick={() => fileInputRef.current.click()}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>
                     </button>
                     <textarea 
@@ -751,7 +761,7 @@ function App() {
                         }}
                         placeholder={t.placeholder}
                     />
-                     <button className="tool-btn" title={t.tooltip_record_voice}>
+                     <button id="input-mic-btn" className="tool-btn" title={t.tooltip_record_voice}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>
                     </button>
                     <button className="send-btn" title={t.tooltip_send} onClick={() => handleSend()} disabled={isLoading || (!input.trim() && files.length === 0)}>
@@ -759,7 +769,7 @@ function App() {
                     </button>
                 </div>
                 <div className="input-footer">
-                Leshiy-AI {t.version} {process.env.APP_VERSION} &bull; {t.author}: {process.env.APP_AUTHOR}
+                    {t.version} {process.env.APP_VERSION} &bull; {t.author}: {process.env.APP_AUTHOR}
                 </div>
             </div>
 
