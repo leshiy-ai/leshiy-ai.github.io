@@ -94,6 +94,8 @@ const Sidebar = ({
     }
   };
 
+  const sortedChats = [...chatList].sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
+
   return (
     // Шаг 3: Исправляем JSX, чтобы статус был под именем
     <div id="sidebar" className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
@@ -128,8 +130,8 @@ const Sidebar = ({
         )}
 
         <div className="sidebar-history">
-          {chatList && chatList.length > 0 ? (
-            chatList.map((chat) => (
+          {sortedChats && sortedChats.length > 0 ? (
+            sortedChats.map((chat) => (
               <div 
                 key={chat.id} 
                 className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}

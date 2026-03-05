@@ -283,32 +283,42 @@ function App() {
         };
     }, []);
 
-    // Слушатель кнопки "Новый чат"
     useEffect(() => {
-        // 1. Слушаем кнопку "Новый чат"
+        // 1. Слушатель для кнопки "Новый чат"
         const onNewChatRequest = () => {
             setCurrentChatId(null);
             setMessages([]);
             setFiles([]);
             setInput('');
-            localStorage.removeItem('last_chat_id'); // Чтобы при F5 не открылся старый
+            localStorage.removeItem('last_chat_id'); 
         };
     
-        // 2. Логика "Последнего чата" при первой загрузке
+        window.addEventListener('sidebar-new-chat', onNewChatRequest);
+    
+        // 2. Логика восстановления сессии (Auto-load)
         const lastId = localStorage.getItem('last_chat_id');
+        
+        // Если есть сохраненный ID и мы еще ничего не загрузили
         if (lastId && !currentChatId) {
-            onSelectChat(lastId); // Функция, которую мы обсуждали (загрузка из S3)
+            // Делаем небольшую задержку или проверку, чтобы убедиться, что userId подтянулся
+            onSelectChat(lastId);
         }
     
-        window.addEventListener('sidebar-new-chat', onNewChatRequest);
-        return () => window.removeEventListener('sidebar-new-chat', onNewChatRequest);
-    }, []);
+        return () => {
+            window.removeEventListener('sidebar-new-chat', onNewChatRequest);
+        };
+    }, [currentUserId]); // Добавляем в зависимости, чтобы сработало после логина
     
     // Обновляем функцию выбора чата, чтобы она запоминала выбор
     const onSelectChat = (chatId) => {
+        if (!chatId) return;
+        
+        // Сохраняем в браузер, чтобы F5 вернул нас сюда же
+        localStorage.setItem('last_chat_id', chatId);
         setCurrentChatId(chatId);
-        localStorage.setItem('last_chat_id', chatId); // Запоминаем для F5
-        loadChatFromHistory(chatId); // Твоя функция загрузки
+        
+        // Вызываем твою функцию загрузки из S3
+        loadChatFromHistory(chatId);
     };
 
     useEffect(() => {
@@ -616,53 +626,47 @@ function App() {
         }
     };
     
-    // Вспомогательная функция, чтобы не загромождать основной код
     const handleHistorySync = async (chatId, updatedMessages, firstText) => {
-        // ВАЖНО: ищем чат прямо внутри prev, чтобы избежать проблем с замыканием
-        setChatList(prev => {
-            const currentChat = prev.find(c => c.id === chatId);
-            let currentTitle = currentChat ? currentChat.title : "Новый чат...";
+        // 1. Находим текущий заголовок, чтобы не затереть его при синхронизации
+        // Используем поиск в текущем стейте (или дефолт)
+        let currentTitle = "Новый чат...";
     
-            // Если это 2-е сообщение и чата еще нет в списке — создаем плашку
-            if (updatedMessages.length === 2 && !currentChat) {
-                return [
-                    { 
-                        id: chatId, 
-                        title: "💭 Определяю тему...", 
-                        lastUpdate: new Date().toISOString() 
-                    }, 
-                    ...prev
-                ];
+        setChatList(prev => {
+            const existingChat = prev.find(c => c.id === chatId);
+            if (existingChat) currentTitle = existingChat.title;
+    
+            const chatExists = !!existingChat;
+            
+            // Создаем временную плашку на 2-м сообщении
+            if (updatedMessages.length === 2 && !chatExists) {
+                currentTitle = "💭 Определяю тему...";
+                return [{
+                    id: chatId,
+                    title: currentTitle,
+                    lastUpdate: new Date().toISOString()
+                }, ...prev];
             }
             return prev;
         });
     
-        // Генерация заголовка на 4-м сообщении
+        // 2. Логика "Умного заголовка" на 4-м сообщении
         if (updatedMessages.length === 4) {
-            const contextForTitle = updatedMessages
-                .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
+            const context = updatedMessages
+                .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text}`)
                 .join('\n');
     
-            const newTitle = await Promise.race([
-                generateSmartTitle(contextForTitle),
-                new Promise(res => setTimeout(() => res(firstText.substring(0, 30) + "..."), 4000))
-            ]);
+            const smartTitle = await generateSmartTitle(context);
+            currentTitle = smartTitle; // Обновляем локальную переменную для S3
     
-            // Обновляем заголовок и дату
             setChatList(prev => prev.map(c => 
-                c.id === chatId ? { ...c, title: newTitle, lastUpdate: new Date().toISOString() } : c
+                c.id === chatId ? { ...c, title: smartTitle, lastUpdate: new Date().toISOString() } : c
             ));
+        }
     
-            // Вызываем сохранение в S3 уже с НОВЫМ заголовком
-            if (typeof syncChatHistory === 'function') {
-                await syncChatHistory(chatId, updatedMessages, newTitle);
-            }
-        } else {
-            // Обычное сохранение (на 1, 2, 3, 5+ сообщениях)
-            if (typeof syncChatHistory === 'function') {
-                const currentChat = chatList.find(c => c.id === chatId);
-                await syncChatHistory(chatId, updatedMessages, currentChat?.title || "Новый чат...");
-            }
+        // 3. ВАЖНО: Синхронизируем с S3 на КАЖДОМ шаге
+        // Передаем currentTitle, чтобы в базе всегда было актуальное имя
+        if (typeof syncChatHistory === 'function') {
+            await syncChatHistory(chatId, updatedMessages, currentTitle);
         }
     };
 
