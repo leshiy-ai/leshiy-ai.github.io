@@ -219,7 +219,6 @@ function App() {
 
     const t = translations[language];
     
-    // ✅ FIX: Выносим функцию в useCallback, чтобы она не пересоздавалась и ее можно было передать в пропсы
     const onNewChatRequest = useCallback(() => {
         setCurrentChatId(null);
         setFiles([]);
@@ -229,7 +228,7 @@ function App() {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
-    }, [language]); // Зависимость от языка, чтобы приветствие было на правильном языке
+    }, [language]);
 
     // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
@@ -296,10 +295,8 @@ function App() {
     }, []);
 
     useEffect(() => {
-        // 1. Слушатель для кнопки "Новый чат" (оставляем для обратной совместимости, если где-то вызывается)
         window.addEventListener('sidebar-new-chat', onNewChatRequest);
     
-        // 2. Логика восстановления сессии (Auto-load)
         const lastId = localStorage.getItem('last_chat_id');
         
         if (lastId && !currentChatId) {
@@ -309,9 +306,8 @@ function App() {
         return () => {
             window.removeEventListener('sidebar-new-chat', onNewChatRequest);
         };
-    }, [currentUserId, onNewChatRequest]); // Добавляем onNewChatRequest в зависимости
+    }, [currentUserId, onNewChatRequest]);
     
-    // Обновляем функцию выбора чата, чтобы она запоминала выбор
     const onSelectChat = (chatId) => {
         if (!chatId) return;
         
@@ -412,7 +408,7 @@ function App() {
         setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
 
-    const generateSmartTitle = async (context, userText) => { // Добавили context
+    const generateSmartTitle = async (context, userText) => {
         try {
             const prompt = `Диалог:\n${context.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
@@ -586,10 +582,13 @@ function App() {
                 text: aiResponse.text,
                 buttons: aiResponse.buttons 
             };
-    
+            
             setMessages(prev => {
                 const updated = [...prev, assistantMsg];
-                handleHistorySync(chatId, updated, userMessageText);
+                // ✅ FIX: Только текстовые ответы (а не меню или ошибки) триггерят сохранение и именование
+                if (aiResponse.type === 'text') {
+                    handleHistorySync(chatId, updated, userMessageText);
+                }
                 return updated;
             });
     
@@ -605,34 +604,40 @@ function App() {
         }
     };
     
-    const handleHistorySync = async (chatId, updatedMessages, firstText) => {
-        let finalTitle = "Новый чат...";
-    
+    const handleHistorySync = async (chatId, updatedMessages, userText) => {
         const existingChat = chatList.find(c => c.id === chatId);
-        if (existingChat) finalTitle = existingChat.title;
+        let titleToSync = existingChat?.title; // По умолчанию используем существующий заголовок
     
-        // ✅ FIX: Считаем сообщения правильно, игнорируя приветствие
-        const realMessagesCount = updatedMessages.filter(m => m.id !== welcomeMessageIdRef.current).length;
-
-        // Условие для временного заголовка: 1-й вопрос и 1-й ответ (2 сообщения)
-        if (realMessagesCount === 2 && !existingChat) {
-            finalTitle = "💭 Определяю тему...";
-            setChatList(prev => [{ id: chatId, title: finalTitle, lastUpdate: new Date().toISOString() }, ...prev]);
-        // Условие для умного заголовка: 2-й вопрос и 2-й ответ (4 сообщения)
-        } else if (realMessagesCount === 4) {
-            const context = updatedMessages
-                .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text}`)
-                .join('\n');
-            
-            finalTitle = await generateSmartTitle(context, firstText);
-            
-            setChatList(prev => prev.map(c => 
-                c.id === chatId ? { ...c, title: finalTitle, lastUpdate: new Date().toISOString() } : c
-            ));
+        // Логика именования запускается только если чат новый или имеет временное название
+        const isNewOrTemp = !existingChat || (existingChat && existingChat.title === "💭 Определяю тему...");
+    
+        if (isNewOrTemp) {
+            const realMessagesCount = updatedMessages.filter(m => m.id !== welcomeMessageIdRef.current).length;
+    
+            if (realMessagesCount === 2) {
+                titleToSync = "💭 Определяю тему...";
+                // Добавляем новый чат в список, если его там еще нет
+                if (!existingChat) {
+                    const newChat = { id: chatId, title: titleToSync, lastUpdate: new Date().toISOString() };
+                    setChatList(prev => [newChat, ...prev]);
+                }
+            } else if (realMessagesCount >= 4) { // Используем >= 4 для надежности
+                const context = updatedMessages
+                    .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text || ''}`)
+                    .join('\n');
+                
+                titleToSync = await generateSmartTitle(context, userText);
+                
+                // Обновляем заголовок в списке
+                setChatList(prev => prev.map(c => 
+                    c.id === chatId ? { ...c, title: titleToSync } : c
+                ));
+            }
         }
-    
-        if (typeof syncChatHistory === 'function') {
-            await syncChatHistory(chatId, updatedMessages, finalTitle);
+        
+        // Вызываем сохранение, только если есть что сохранять (название определено)
+        if (titleToSync) {
+            await syncChatHistory(chatId, updatedMessages, titleToSync);
         }
     };
 
@@ -921,7 +926,7 @@ function App() {
             isLoggedIn={isLoggedIn}
             userPhoto={userPhoto}
             isAdmin={isAdmin}
-            handleNewChat={onNewChatRequest} // ✅ FIX: Передаем единую правильную функцию
+            handleNewChat={onNewChatRequest}
             handleStorage={() => setStorageVisible(true)}
             handleAdminPanel={() => setShowAdminPanel(true)}
             handleLogout={() => { localStorage.clear(); window.location.reload(); }}

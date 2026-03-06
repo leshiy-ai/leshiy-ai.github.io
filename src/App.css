@@ -281,3 +281,21 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
         grid-area: mic-send; 
     }
 }
+
+/* Custom Scrollbar for Sidebar Chat List */
+.chat-history::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chat-history::-webkit-scrollbar-track {
+  background: transparent; /* Makes the track invisible */
+}
+
+.chat-history::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2); /* Semi-transparent thumb */
+  border-radius: 10px;
+}
+
+.chat-history:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.4); /* Slightly more visible on hover */
+}
