@@ -17,6 +17,8 @@ export const CONFIG = {
     // --- Прокси ---
     //PROXY_URL: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',
     PROXY_URL: 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/ai-proxy',
+    FALLBACK_PROXY: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',
+    GEMINI_PROXY: 'https://gemini-proxy.leshiyalex.workers.dev',
     // Твоя Хранилка (Яндекс)
     STORAGE_GATEWAY: "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net",
     // Твой медиа-бот (Cloudflare)

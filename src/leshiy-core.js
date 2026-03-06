@@ -625,6 +625,26 @@ export const askLeshiy = async ({ text, files = [] }) => {
             body: isBinary ? body : JSON.stringify(body)
         });
 
+        // 2. Логика Fallback именно для Gemini через специализированный воркер
+        if (!response.ok && config.SERVICE === 'GEMINI') {
+            console.warn("Основной прокси (Яндекс) недоступен. Пробую прямой прокси Gemini...");
+
+            // Пересобираем URL: меняем домен гугла на домен твоего воркера
+            const fallbackUrl = url.replace('generativelanguage.googleapis.com', 'gemini-proxy.leshiyalex.workers.dev');
+
+            const fallbackHeaders = {
+                'Content-Type': 'application/json',
+                'X-Proxy-Secret': 'GEMINI_PROXY_KEY' // Тот самый ключ из кода воркера
+            };
+
+            response = await fetch(fallbackUrl, {
+                method: 'POST',
+                mode: 'cors',
+                headers: fallbackHeaders,
+                body: JSON.stringify(body) // Gemini прокси всегда ждет JSON
+            });
+        }
+
         if (!response.ok) {
             // Если прилетит 401 — значит, прокси пропустил, но Cloudflare API не принял токен
             // Если прилетит 400 — значит, Cloudflare не понравился формат JSON/Content-Type

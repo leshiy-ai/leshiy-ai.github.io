@@ -287,10 +287,14 @@ function App() {
         // 1. Слушатель для кнопки "Новый чат"
         const onNewChatRequest = () => {
             setCurrentChatId(null);
-            setMessages([]);
             setFiles([]);
             setInput('');
-            localStorage.removeItem('last_chat_id'); 
+            localStorage.removeItem('last_chat_id');
+            
+            // Возвращаем приветствие Лешего
+            const welcomeId = Date.now();
+            welcomeMessageIdRef.current = welcomeId;
+            setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
         };
     
         window.addEventListener('sidebar-new-chat', onNewChatRequest);
@@ -412,26 +416,28 @@ function App() {
         setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
 
-    const generateSmartTitle = async (userText) => {
+    const generateSmartTitle = async (context, userText) => { // Добавили context
         try {
             // Просим ИИ кратко назвать чат
-            const prompt = `Диалог:\n${contextText.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            // Исправили contextText на context
+            const prompt = `Диалог:\n${context.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
-            // Используем твой askLeshiy
             const aiResponse = await askLeshiy({ 
                 text: prompt, 
                 userId: currentUserId,
-                isSystemTask: true // Флаг, если захочешь в core фильтровать такие запросы
+                // Передаем пустую историю, чтобы ИИ не запутался в контексте самого задания
+                history: [], 
+                isSystemTask: true 
             });
     
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
-                return aiResponse.text.replace(/["'«»]/g, '').trim();
+                // Убираем лишние символы, которые ИИ любит добавлять вопреки инструкции
+                return aiResponse.text.replace(/["'«»*.]/g, '').trim();
             }
         } catch (e) {
             console.warn("AI Title Generation failed, using fallback:", e);
         }
         
-        // Fallback: если 429, 403 или таймаут — просто режем текст
         return userText.substring(0, 30) + "...";
     };
 
@@ -513,12 +519,11 @@ function App() {
             });
             
             // Обновляем список локально, чтобы он сразу исчез из меню
-            setChatList(prev => prev.filter(c => c.id !== chatId));
-            
-            // Если удалили тот чат, в котором сидим — очищаем экран
+            setChatList(prev => [...prev.filter(c => c.id !== chatId)]);
+        
             if (currentChatId === chatId) {
-                setMessages([]);
-                setCurrentChatId(null);
+                // Вместо пустых скобок вызываем нашу логику очистки с приветствием
+                onNewChatRequest(); 
             }
         } catch (e) {
             console.error("Ошибка удаления:", e);
@@ -531,16 +536,12 @@ function App() {
         const newTitle = window.prompt("Новое название чата:", oldChat?.title);
         
         if (newTitle && newTitle !== oldChat?.title) {
-            // Тут мы просто вызываем твой существующий syncChatHistory, 
-            // но передаем новый заголовок и текущие сообщения
-            const currentMessages = (currentChatId === chatId) ? messages : []; 
-            // (Если чат не открыт, сообщения подтянутся из S3 на воркере, 
-            // но для простоты лучше переименовывать через отдельный мелкий метод в API)
-            
-            await syncChatHistory(chatId, currentMessages, newTitle);
-            
-            // Обновляем заголовок в списке
+            // Сначала обновляем визуал в сайдбаре мгновенно
             setChatList(prev => prev.map(c => c.id === chatId ? {...c, title: newTitle} : c));
+    
+            const currentMessages = (currentChatId === chatId) ? messages : []; 
+            // Отправляем в S3
+            await syncChatHistory(chatId, currentMessages, newTitle);
         }
     };
 
@@ -561,6 +562,7 @@ function App() {
         if (!chatId) {
             chatId = `chat_${Date.now()}`;
             setCurrentChatId(chatId);
+            localStorage.setItem('last_chat_id', chatId); // Сразу в память
         }
     
         // 2. Подготовка сообщения пользователя
@@ -607,10 +609,8 @@ function App() {
             // Обновляем сообщения в интерфейсе
             setMessages(prev => {
                 const updated = [...prev, assistantMsg];
-                
-                // 5. Логика заголовка и сохранения (делаем внутри, чтобы иметь доступ к актуальному списку)
+                // ПЕРЕДАЕМ chatId из локальной переменной, а не из стейта!
                 handleHistorySync(chatId, updated, userMessageText);
-                
                 return updated;
             });
     
@@ -627,46 +627,31 @@ function App() {
     };
     
     const handleHistorySync = async (chatId, updatedMessages, firstText) => {
-        // 1. Находим текущий заголовок, чтобы не затереть его при синхронизации
-        // Используем поиск в текущем стейте (или дефолт)
-        let currentTitle = "Новый чат...";
+        let finalTitle = "Новый чат...";
     
-        setChatList(prev => {
-            const existingChat = prev.find(c => c.id === chatId);
-            if (existingChat) currentTitle = existingChat.title;
+        const existingChat = chatList.find(c => c.id === chatId);
+        if (existingChat) finalTitle = existingChat.title;
     
-            const chatExists = !!existingChat;
-            
-            // Создаем временную плашку на 2-м сообщении
-            if (updatedMessages.length === 2 && !chatExists) {
-                currentTitle = "💭 Определяю тему...";
-                return [{
-                    id: chatId,
-                    title: currentTitle,
-                    lastUpdate: new Date().toISOString()
-                }, ...prev];
-            }
-            return prev;
-        });
-    
-        // 2. Логика "Умного заголовка" на 4-м сообщении
-        if (updatedMessages.length === 4) {
+        if (updatedMessages.length === 2 && !existingChat) {
+            finalTitle = "💭 Определяю тему...";
+            setChatList(prev => [{ id: chatId, title: finalTitle, lastUpdate: new Date().toISOString() }, ...prev]);
+        } else if (updatedMessages.length === 4) {
             const context = updatedMessages
                 .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text}`)
                 .join('\n');
-    
-            const smartTitle = await generateSmartTitle(context);
-            currentTitle = smartTitle; // Обновляем локальную переменную для S3
-    
+            
+            // Ждем ИИ
+            finalTitle = await generateSmartTitle(context, firstText);
+            
+            // Обновляем список чатов
             setChatList(prev => prev.map(c => 
-                c.id === chatId ? { ...c, title: smartTitle, lastUpdate: new Date().toISOString() } : c
+                c.id === chatId ? { ...c, title: finalTitle, lastUpdate: new Date().toISOString() } : c
             ));
         }
     
-        // 3. ВАЖНО: Синхронизируем с S3 на КАЖДОМ шаге
-        // Передаем currentTitle, чтобы в базе всегда было актуальное имя
+        // Теперь отправляем в S3. finalTitle здесь уже будет содержать либо "💭 Определяю...", либо ответ от ИИ
         if (typeof syncChatHistory === 'function') {
-            await syncChatHistory(chatId, updatedMessages, currentTitle);
+            await syncChatHistory(chatId, updatedMessages, finalTitle);
         }
     };
 
