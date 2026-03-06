@@ -172,11 +172,12 @@ function App() {
     const startY = useRef(0);
     const isPulled = useRef(false);
     const welcomeMessageIdRef = useRef(null);
+    const textareaRef = useRef(null);
 
     const translations = {
         ru: {
             title: 'Leshiy-AI',
-            placeholder: files.length > 0 ? "Теперь добавь текстовый запрос к файлам..." : "Спроси меня о чем-нибудь...",
+            placeholder: files.length > 0 ? "Добавь текст к файлам..." : "Спроси меня о чем-нибудь...",
             send: 'Отправить',
             upload: '📎 Выбрать файл',
             welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, подключи Хранилку и вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
@@ -243,6 +244,12 @@ function App() {
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
     }, [language, translations]);
+
+    useEffect(() => {
+        if (input === '' && textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+        }
+    }, [input]);
 
     // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
@@ -545,12 +552,21 @@ function App() {
             const trimmedTitle = newTitle.trim();
             
             try {
+                // 1. Загружаем текущую историю, чтобы не затереть её
+                const historyRes = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
+                    params: { userId: currentUserId, chatId: chatId }
+                });
+                const currentMessages = historyRes.data.messages || [];
+
+                // 2. Отправляем все данные, включая сообщения
                 await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
                     userId: String(currentUserId),
                     chatId: chatId,
-                    chatTitle: trimmedTitle
+                    chatTitle: trimmedTitle,
+                    messages: currentMessages
                 });
     
+                // 3. Обновляем список чатов с сервера
                 fetchChats();
     
             } catch (e) {
@@ -1036,6 +1052,7 @@ function App() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>
                     </button>
                     <textarea 
+                        ref={textareaRef}
                         rows="1"
                         value={input} 
                         onChange={(e) => setInput(e.target.value)}

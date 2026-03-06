@@ -43,7 +43,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .menu-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.2s ease; backdrop-filter: blur(5px); }
 .menu-btn:hover { background: var(--accent-color); border-color: transparent; transform: translateY(-2px); }
 
-/* --- UPDATED INPUT AREA STYLES --- */
+/* --- DESKTOP INPUT AREA STYLES --- */
 .input-area-container {
     padding: 0 16px 8px 16px;
     width: 100%;
@@ -54,8 +54,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 
 .input-area {
     display: flex;
-    flex-wrap: wrap; /* Changed to wrap */
-    align-items: center; /* Align items vertically */
+    align-items: flex-end; /* Align items to the bottom */
     gap: 8px;
     padding: 8px;
     background-color: var(--panel-bg);
@@ -76,16 +75,11 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     max-height: 200px;
     overflow-y: auto;
     font-family: inherit;
-    min-width: 0; /* Allow textarea to shrink */
-    width: 100%; /* Take full width */
-    order: -1; /* Move to the top */
+    min-width: 100px; /* Prevent it from getting too small */
 }
 
 .input-area textarea::placeholder {
     color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .tool-btn, .send-btn {
@@ -145,7 +139,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     gap: 12px; 
     padding-bottom: 8px;
     width: 100%;
-    order: -2; /* Show previews above textarea */
+    order: -1; 
 }
 
 .file-preview-item {
@@ -243,7 +237,11 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .admin-footer-btn.save { background: var(--accent-color); color: white; }
 .admin-footer-btn.cancel { background: var(--bubble-bg); color: var(--text-color); border: 1px solid var(--border-color); }
 
-#storage-modal { z-index: 2000; position: fixed; }
+#storage-modal { z-index: 2000; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; }
+#storage-modal.active { display: flex; }
+.storage-content { background: var(--panel-bg); width: 95%; height: 90%; max-width: 1200px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); }
+.storage-header { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); font-weight: bold; }
+#storage-frame { flex-grow: 1; border: none; }
 
 @media (min-width: 600px) { .app-header h1 { font-size: 1.5em; } }
 .chat-window::-webkit-scrollbar { width: 8px; }
@@ -262,27 +260,45 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .file-badge.video { border-color: #ff5722; } .file-badge.audio { border-color: #2196f3; } .file-badge.archive { border-color: #ffc107; } .file-badge.doc { border-color: #4caf50; }
 .media-msg-label { font-style: italic; opacity: 0.6; font-size: 0.9em; margin: 4px 0; }
 
+/* --- MOBILE INPUT AREA STYLES --- */
 @media (max-width: 600px) {
     .input-area {
-        flex-wrap: wrap;
-        padding: 6px;
+        flex-wrap: wrap; /* Allow items to wrap */
+        padding: 8px;
+        border-radius: 20px;
     }
+
     .input-area textarea {
-        order: 1; /* Move textarea below buttons */
-        flex-basis: 100%;
-        margin-top: 8px;
+        order: 1; /* Textarea on top */
+        flex-basis: 100%; /* Full width */
+        margin-bottom: 8px; /* Space between textarea and buttons */
+        min-height: 44px;
+        padding: 10px 15px;
     }
+
+    /* Prevent placeholder text from wrapping and causing overflow */
     .input-area textarea::placeholder {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    /* Container for the bottom row of buttons */
+    .input-area > #input-add-btn,
+    .input-area > #input-mic-btn,
+    .input-area > .send-btn {
+        order: 2; /* All buttons on the bottom row */
+    }
+
+    #input-add-btn {
+        margin-right: auto; /* Pushes other buttons to the right */
     }
     .sidebar-history {
         padding-right: 0;
     }
 }
 
-/* --- Стили для истории чатов --- */
+/* --- SIDEBAR AND HISTORY STYLES --- */
 .sidebar-history-container {
   display: flex;
   flex-direction: column;
@@ -325,8 +341,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 }
 
 .sidebar.collapsed .history-item.active {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+    border-radius: 8px; /* Ensure rounded corners in collapsed view */
 }
 
 .history-item.active .chat-date {
@@ -411,7 +426,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Стилизация скроллбара в истории */
+/* SCROLLBAR STYLES */
 .sidebar-history::-webkit-scrollbar {
   width: 6px;
 }
