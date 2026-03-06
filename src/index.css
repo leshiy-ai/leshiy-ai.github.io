@@ -430,3 +430,27 @@ body.sidebar-collapsed .history-item {
   width: 44px;
   margin: 4px auto;
 }
+/* Состояние, когда сайдбар свёрнут */
+.sidebar.collapsed .chat-item-link {
+  border-radius: 50% !important; /* Делаем идеальный круг */
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px auto; /* Центрируем по горизонтали */
+  transition: all 0.3s ease;
+}
+
+/* Если есть активный класс у выбранного чата */
+.sidebar.collapsed .chat-item-link.active {
+  background-color: var(--active-color); /* Твой цвет выделения */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Скрываем текст и другие элементы, оставляя только иконку/пузырек */
+.sidebar.collapsed .chat-item-link .chat-title-text,
+.sidebar.collapsed .chat-item-link .chat-date {
+  display: none !important;
+}

@@ -589,51 +589,32 @@ function App() {
     };
     
     const handleHistorySync = async (chatId, updatedMessages, userText) => {
+        // 1. Находим чат в локальном стейте
         const existingChat = chatList.find(c => c.id === chatId);
-        let titleToSync = existingChat ? existingChat.title : null;
+        let currentTitle = existingChat ? existingChat.title : "Новый чат";
     
-        const isSystemCommand = userText && userText.startsWith('/');
-        
-        // 1. Проверяем, является ли текущий заголовок дефолтным (дата или "Новый чат")
-        // Используем .includes, чтобы не зависеть от формата даты в начале строки
-        const isDefaultTitle = !titleToSync || 
-                               titleToSync.includes('Чат от') || 
-                               titleToSync === "Новый чат";
-    
-        // 2. Фильтруем сообщения для контекста (минимум 4 содержательных реплики)
-        const contextMessages = updatedMessages.filter(m => 
-            m.id !== welcomeMessageIdRef.current && 
-            m.role !== 'ai error' && 
-            !m.buttons &&
-            (m.text?.trim() || m.content?.trim())
-        );
-    
-        // 3. Если заголовок еще не меняли И набралось >= 4 сообщений
-        if (isDefaultTitle && contextMessages.length >= 4 && !isSystemCommand) {
+        // 2. Если сообщений стало 4 (или больше) и имя еще дефолтное
+        if (updatedMessages.length >= 4 && (currentTitle.includes("Чат от") || currentTitle === "Новый чат")) {
             
-            const context = contextMessages
-                .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text || m.content || ''}`)
+            // Собираем контекст из последних сообщений
+            const context = updatedMessages.slice(-4)
+                .map(m => `${m.role}: ${m.text || m.content || ''}`)
                 .join('\n');
+    
+            const smartTitle = await generateSmartTitle(context, userText);
             
-            try {
-                const smartTitle = await generateSmartTitle(context, userText);
-                
-                if (smartTitle) {
-                    titleToSync = smartTitle;
-                    
-                    // Обновляем локальный список, чтобы имя сразу закрепилось и условие (isDefaultTitle) стало false
-                    setChatList(prev => prev.map(c => 
-                        c.id === chatId ? { ...c, title: smartTitle } : c
-                    ));
-                }
-            } catch (e) {
-                console.error("Smart Title Error:", e);
+            if (smartTitle) {
+                currentTitle = smartTitle;
+                // Сразу меняем в боковой панели
+                setChatList(prev => prev.map(c => 
+                    c.id === chatId ? { ...c, title: smartTitle } : c
+                ));
             }
         }
-        
-        // 4. Всегда синкаем в S3. Если smartTitle сработал — улетит новое имя.
-        // Если нет — улетит текущее (titleToSync), что не даст затереть его дефолтом.
-        await syncChatHistory(chatId, updatedMessages, titleToSync);
+    
+        // 3. Просто сохраняем всё в S3. Если имя обновилось — оно запишется.
+        // Если нет — запишется старое. Никаких проверок S3 не нужно.
+        await syncChatHistory(chatId, updatedMessages, currentTitle);
     };
 
     const handleSend = async (commandOverride) => {
