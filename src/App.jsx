@@ -447,8 +447,12 @@ function App() {
             
     
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
-                // Убираем лишний мусор из ответа ИИ
-                return aiResponse.text.replace(/["'«»*.]/g, '').trim();
+                const cleanedTitle = aiResponse.text.replace(/["'«»*.]/g, '').trim();
+                console.log("💎 ИИ ВЕРНУЛ ТЕКСТ:", cleanedTitle);
+                return cleanedTitle;
+            } else {
+                console.warn("⚠️ ИИ вернул странный ответ:", aiResponse);
+                return null;
             }
         } catch (e) {
             console.warn("AI Title Generation failed, using fallback:", e);
