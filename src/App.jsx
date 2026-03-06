@@ -442,7 +442,7 @@ function App() {
                 userId: currentUserId,
                 history: [],
                 isSystemTask: true,
-                service: 'CLOUDFLARE'
+                service: 'TEXT_TO_TEXT'
             });
             
     
