@@ -54,8 +54,8 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 
 .input-area {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
+    flex-wrap: wrap; /* Changed to wrap */
+    align-items: center; /* Align items vertically */
     gap: 8px;
     padding: 8px;
     background-color: var(--panel-bg);
@@ -76,11 +76,16 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     max-height: 200px;
     overflow-y: auto;
     font-family: inherit;
-    min-width: 100px; /* Prevent it from getting too small */
+    min-width: 0; /* Allow textarea to shrink */
+    width: 100%; /* Take full width */
+    order: -1; /* Move to the top */
 }
 
 .input-area textarea::placeholder {
     color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tool-btn, .send-btn {
@@ -137,16 +142,16 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .file-preview-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px; /* Increased gap */
+    gap: 12px; 
     padding-bottom: 8px;
     width: 100%;
-    order: -1; /* Renders before the textarea */
+    order: -2; /* Show previews above textarea */
 }
 
 .file-preview-item {
     position: relative;
     width: 70px;
-    height: 85px; /* Increased height to make space for name */
+    height: 85px;
     border-radius: 10px;
     background: var(--bg-color);
     border: 1px solid var(--border-color);
@@ -159,7 +164,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 
 .image-preview {
     width: 100%;
-    height: 70px; /* Cover top part */
+    height: 70px;
     object-fit: cover;
 }
 
@@ -222,6 +227,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 #ptr-loader { border: 3px solid var(--border-color); border-top: 3px solid var(--accent-color); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: none; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 .uploaded-image-preview { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; }
+
 .bubble.typing { font-style: italic; color: var(--text-secondary); }
 .admin-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .admin-modal { background: var(--panel-bg); padding: 20px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color); display: flex; flex-direction: column; }
@@ -236,6 +242,9 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .admin-footer-btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
 .admin-footer-btn.save { background: var(--accent-color); color: white; }
 .admin-footer-btn.cancel { background: var(--bubble-bg); color: var(--text-color); border: 1px solid var(--border-color); }
+
+#storage-modal { z-index: 2000; position: fixed; }
+
 @media (min-width: 600px) { .app-header h1 { font-size: 1.5em; } }
 .chat-window::-webkit-scrollbar { width: 8px; }
 .chat-window::-webkit-scrollbar-track { background: transparent; }
@@ -255,42 +264,22 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 
 @media (max-width: 600px) {
     .input-area {
-        grid-template-columns: 1fr auto auto;
-        grid-template-rows: auto auto;
-        grid-template-areas:
-            "textarea textarea textarea"
-            "add-btn mic-send mic-send";
-        display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
+        flex-wrap: wrap;
+        padding: 6px;
     }
-
     .input-area textarea {
-        grid-area: textarea;
-        margin-bottom: 8px; 
-        flex-grow: 1;
-        margin-bottom: 0;
+        order: 1; /* Move textarea below buttons */
+        flex-basis: 100%;
+        margin-top: 8px;
     }
-
     .input-area textarea::placeholder {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-
-    #input-add-btn {
-        grid-area: add-btn;
-        justify-self: start; 
+    .sidebar-history {
+        padding-right: 0;
     }
-    
-    #input-mic-btn {
-        grid-area: mic-send; 
-        margin-left: auto; 
-    }
-
-    .send-btn {
-        grid-area: mic-send; 
-      }
 }
 
 /* --- Стили для истории чатов --- */
@@ -298,7 +287,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 0 10px; /* Добавлен отступ */
+  padding: 0 10px;
 }
 
 .history-section-header {
@@ -306,19 +295,12 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   font-size: 0.9em;
   font-weight: 500;
   color: var(--text-secondary);
-  text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .sidebar-history {
   flex-grow: 1;
   overflow-y: auto;
-  padding-right: 5px; /* Отступ для скроллбара */
-}
-
-.sidebar.collapsed .history-item.active {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
 }
 
 .history-item {
@@ -330,16 +312,21 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   margin-bottom: 4px;
   transition: background-color 0.2s;
   position: relative;
+  overflow: hidden;
 }
 
 .history-item:hover {
   background-color: var(--bubble-bg);
 }
 
-/* --- FIX: Более заметное выделение активного чата --- */
 .history-item.active {
   background-color: var(--accent-color);
   color: white;
+}
+
+.sidebar.collapsed .history-item.active {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .history-item.active .chat-date {
@@ -419,6 +406,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .history-item.active .action-icon {
  color: white;
 }
+
 .history-item.active .action-icon:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }

@@ -67,11 +67,11 @@ const Message = ({ message, onSwipe, onAction }) => {
 
         if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" />;
         
-        let icon = '📎'; let label = 'FILE';
-        if (isVid) { icon = '🎬'; label = 'VIDEO'; }
-        else if (isAud) { icon = '🎵'; label = 'AUDIO'; }
-        else if (isZip) { icon = '📦'; label = 'ARCHIVE'; }
-        else if (isDoc) { icon = '📄'; label = 'DOC'; }
+        let icon = '📎'; let label = 'ФАЙЛ';
+        if (isVid) { icon = '🎬'; label = 'ВИДЕО'; }
+        else if (isAud) { icon = '🎵'; label = 'АУДИО'; }
+        else if (isZip) { icon = '📦'; label = 'АРХИВ'; }
+        else if (isDoc) { icon = '📄'; label = 'ДОК'; }
 
         return (
             <div key={i} className={`file-badge ${label.toLowerCase()}`}>
@@ -163,7 +163,7 @@ function App() {
 
     const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('vk_user_id') || "guest");
     const [currentChatId, setCurrentChatId] = useState(null);
-    const [chatList, setChatList] = useState([]); // Для хранения списка из KV
+    const [chatList, setChatList] = useState([]);
 
     const chatEndRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -176,7 +176,7 @@ function App() {
     const translations = {
         ru: {
             title: 'Leshiy-AI',
-            placeholder: files.length > 0 ? "Теперь добавь текстовый запрос к файлам..." : "Спроси меня о чем-нибудь... или вставь файл (Ctrl+V)...",
+            placeholder: files.length > 0 ? "Теперь добавь текстовый запрос к файлам..." : "Спроси меня о чем-нибудь...",
             send: 'Отправить',
             upload: '📎 Выбрать файл',
             welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, подключи Хранилку и вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
@@ -197,7 +197,7 @@ function App() {
         },
         en: {
             title: 'Leshiy-AI',
-            placeholder: files.length > 0 ? "Now add a text query to the files..." : "Ask something or paste a file (Ctrl+V)...",
+            placeholder: files.length > 0 ? "Now add a text query to the files..." : "Ask something...",
             send: 'Send',
             upload: '📎 Select file',
             welcome: 'Hi! I am Leshiy-AI. Ask me anything, connect Storage and insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
@@ -219,17 +219,6 @@ function App() {
     };
 
     const t = translations[language];
-    
-    const onNewChatRequest = useCallback(() => {
-        setCurrentChatId(null);
-        setFiles([]);
-        setInput('');
-        localStorage.removeItem('last_chat_id');
-        
-        const welcomeId = Date.now();
-        welcomeMessageIdRef.current = welcomeId;
-        setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
-    }, [language, translations]);
 
     const fetchChats = useCallback(async () => {
         if (currentUserId && currentUserId !== "guest") {
@@ -243,6 +232,17 @@ function App() {
             }
         }
     }, [currentUserId]);
+    
+    const onNewChatRequest = useCallback(() => {
+        setCurrentChatId(null);
+        setFiles([]);
+        setInput('');
+        localStorage.removeItem('last_chat_id');
+        
+        const welcomeId = Date.now();
+        welcomeMessageIdRef.current = welcomeId;
+        setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
+    }, [language, translations]);
 
     // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
@@ -424,10 +424,7 @@ function App() {
 
     const generateSmartTitle = async (context, userText) => {
         try {
-            const prompt = `Диалог:
-${context.substring(0, 500)}
-
-Проанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            const prompt = `Диалог:\n${context.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
             const aiResponse = await askLeshiy({
                 text: prompt,
@@ -466,11 +463,8 @@ ${context.substring(0, 500)}
         }
 
         try {
-            const response = await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, payload);
-            
-            if (response.data.chatList) {
-                setChatList(response.data.chatList);
-            }
+            await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, payload);
+            fetchChats();
         } catch (err) {
             console.error("Ошибка сохранения истории:", err);
         }
@@ -521,39 +515,23 @@ ${context.substring(0, 500)}
     };
 
     const handleDeleteChat = async (chatId) => {
-        // Спрашиваем подтверждение у пользователя
         if (!window.confirm("Вы уверены, что хотите удалить этот чат навсегда?")) return;
-        
-        // Сохраняем текущий список чатов для возможного отката
-        const originalChatList = [...chatList];
-        
-        // Оптимистичное удаление из UI для мгновенного отклика
-        setChatList(prev => prev.filter(c => c.id !== chatId));
-        
-        // Если удаляемый чат был активным, переключаемся на создание нового чата
-        if (currentChatId === chatId) {
-            onNewChatRequest(); 
-        }
     
         try {
-            // Отправляем запрос на удаление на сервер
-            const response = await axios.delete(`${CONFIG.STORAGE_GATEWAY}/api/history`, { 
+            await axios.delete(`${CONFIG.STORAGE_GATEWAY}/api/history`, { 
                 params: { userId: currentUserId, chatId: chatId }
             });
 
-            // После успешного удаления, обновляем список чатов с сервера, чтобы обеспечить консистентность
-            if (response.data && response.data.chatList) {
-                setChatList(response.data.chatList);
-            } else {
-                // Если сервер не вернул обновленный список, запросим его вручную
-                fetchChats();
+            if (currentChatId === chatId) {
+                onNewChatRequest(); 
             }
+            
+            fetchChats();
 
         } catch (e) {
             console.error("Ошибка удаления чата:", e);
             alert('Не удалось удалить чат. Попробуйте снова.');
-            // В случае ошибки, восстанавливаем предыдущее состояние списка чатов
-            setChatList(originalChatList);
+            fetchChats();
         }
     };
     
@@ -561,41 +539,24 @@ ${context.substring(0, 500)}
         const chatToRename = chatList.find(c => c.id === chatId);
         if (!chatToRename) return;
     
-        // Запрашиваем новое имя у пользователя
         const newTitle = window.prompt("Введите новое название чата:", chatToRename.title);
     
-        // Проверяем, что пользователь ввел новое имя
         if (newTitle && newTitle.trim() && newTitle.trim() !== chatToRename.title) {
             const trimmedTitle = newTitle.trim();
-            const originalChatList = [...chatList]; // Сохраняем для отката
-    
-            // Оптимистичное обновление UI
-            setChatList(prevList => prevList.map(c => 
-                c.id === chatId ? { ...c, title: trimmedTitle } : c
-            ));
-    
+            
             try {
-                // Отправляем запрос на сервер для переименования
-                const response = await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
+                await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
                     userId: String(currentUserId),
                     chatId: chatId,
-                    chatTitle: trimmedTitle,
-                    messages: [] // Отправляем пустой массив, чтобы не перезаписывать историю
+                    chatTitle: trimmedTitle
                 });
     
-                // Обновляем список чатов из ответа сервера для синхронизации
-                if (response.data && response.data.chatList) {
-                    setChatList(response.data.chatList);
-                } else {
-                    // Если ответ не содержит списка, запрашиваем его отдельно
-                    fetchChats();
-                }
+                fetchChats();
     
             } catch (e) {
                 console.error("Ошибка переименования чата:", e);
                 alert(`Не удалось переименовать чат. ${e.message}`);
-                // В случае ошибки, откатываем изменения в UI
-                setChatList(originalChatList);
+                fetchChats();
             }
         }
     };
@@ -606,7 +567,7 @@ ${context.substring(0, 500)}
 
         const isSystemCommand = userText && userText.startsWith('/');
 
-        if (existingChat && existingChat.title.startsWith('Чат от') && userText && !isSystemCommand) {
+        if ((!currentChatId || (existingChat && existingChat.title.startsWith('Чат от'))) && userText && !isSystemCommand) {
             
             const contextMessages = updatedMessages.filter(m => 
                 m.id !== welcomeMessageIdRef.current && 
@@ -620,13 +581,7 @@ ${context.substring(0, 500)}
                     .join('\n');
                 
                 const smartTitle = await generateSmartTitle(context, userText);
-                
-                if (smartTitle) {
-                    titleToSync = smartTitle;
-                    setChatList(prev => prev.map(c => 
-                        c.id === chatId ? { ...c, title: titleToSync, lastUpdate: new Date().toISOString() } : c
-                    ));
-                }
+                titleToSync = smartTitle;
             }
         }
         
@@ -652,13 +607,6 @@ ${context.substring(0, 500)}
             chatId = `chat_${Date.now()}`;
             setCurrentChatId(chatId);
             localStorage.setItem('last_chat_id', chatId);
-
-            const newChat = {
-                id: chatId,
-                title: `Чат от ${new Date().toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
-                lastUpdate: new Date().toISOString()
-            };
-            setChatList(prev => [newChat, ...prev]);
         }
     
         const currentFiles = [...files];
@@ -673,13 +621,17 @@ ${context.substring(0, 500)}
             })) 
         };
     
-        const newMessages = [...messages, userMsg];
+        const initialMessages = messages[0]?.id === welcomeMessageIdRef.current 
+            ? [] 
+            : messages;
+
+        const newMessages = [...initialMessages, userMsg];
         setMessages(newMessages);
         setIsLoading(true);
         setFiles([]);
         setInput('');
     
-        const historyForAi = messages.slice(-10).map(m => ({
+        const historyForAi = newMessages.slice(-10).map(m => ({
             role: m.role === 'user' ? 'user' : 'model',
             parts: [{ text: m.text || m.content }]
         }));
@@ -688,7 +640,10 @@ ${context.substring(0, 500)}
             const aiResponse = await askLeshiy({ 
                 text: userMessageText, 
                 history: historyForAi, 
-                userId: currentUserId 
+                userId: currentUserId, 
+                files: currentFiles.filter(f => f.base64).map(f => ({ 
+                    inlineData: { data: f.base64, mimeType: f.mimeType }
+                })) 
             });
     
             const assistantMsg = { 
@@ -701,8 +656,7 @@ ${context.substring(0, 500)}
             const updatedMessages = [...newMessages, assistantMsg];
             setMessages(updatedMessages);
 
-            const isFirstMeaningfulRequest = isNewChat || (chatList.find(c => c.id === chatId)?.title.startsWith('Чат от'));
-            handleHistorySync(chatId, updatedMessages, isFirstMeaningfulRequest ? userMessageText : null);
+            handleHistorySync(chatId, updatedMessages, isNewChat ? userMessageText : null);
     
         } catch (err) {
             console.error("Ошибка связи с Лешим:", err);
@@ -763,6 +717,11 @@ ${context.substring(0, 500)}
         setInput('');
         setFiles([]);
         setIsLoading(false);
+        if (currentChatId) {
+            loadChatFromHistory(currentChatId);
+        } else {
+            onNewChatRequest();
+        }
     };
     
     const handleTouchStart = (e) => {
@@ -831,20 +790,8 @@ ${context.substring(0, 500)}
     };
 
     useEffect(() => {
-        if (currentUserId && currentUserId !== "guest") {
-            const fetchChats = async () => {
-                try {
-                    const response = await axios.get(
-                        `${CONFIG.STORAGE_GATEWAY}/api/list-chats?userId=${currentUserId}`
-                    );
-                    setChatList(response.data || []);
-                } catch (err) {
-                    console.error("Не удалось получить список чатов:", err);
-                }
-            };
-            fetchChats();
-        }
-    }, [currentUserId]);
+        fetchChats();
+    }, [fetchChats]);
 
     useEffect(() => {
       const modalContent = document.querySelector('.storage-content');
@@ -949,6 +896,7 @@ ${context.substring(0, 500)}
                 }
             }
             onClose();
+            alert('Настройки моделей обновлены!');
         };
 
         return (
@@ -1013,8 +961,7 @@ ${context.substring(0, 500)}
             
             <div 
                 id="storage-modal" 
-                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}
-            >
+                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>
                 <div className="storage-content" onClick={(e) => e.stopPropagation()}>
                     <div className="storage-header">
                         <span>🗄️ Приложение "Хранилка" by Leshiy</span>
