@@ -122,10 +122,10 @@ const Sidebar = ({
         </div>
         {/* --- НОВЫЙ БЛОК: ИСТОРИЯ ЧАТОВ --- */}
         <div className="sidebar-history-container">
-        {/* Заголовок "Чаты" с эмодзи 💬 */}
+        {/* Заголовок "💬 Чаты:" */}
         {!collapsed && (
           <div className="history-section-header">
-            <span className="text">💬 Чаты</span>
+            <span className="text">Чаты:</span>
           </div>
         )}
 
@@ -136,7 +136,7 @@ const Sidebar = ({
                 key={chat.id} 
                 className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
                 onClick={() => onSelectChat(chat.id)}
-                title={collapsed ? chat.title : ""} 
+                title={chat.title} 
               >
                 <div className="icon">💭</div>
 

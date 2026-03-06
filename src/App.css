@@ -260,11 +260,22 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
         grid-template-areas:
             "textarea textarea textarea"
             "add-btn mic-send mic-send";
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
     }
 
     .input-area textarea {
         grid-area: textarea;
         margin-bottom: 8px; 
+        flex-grow: 1;
+        margin-bottom: 0;
+    }
+
+    .input-area textarea::placeholder {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     #input-add-btn {
@@ -279,7 +290,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 
     .send-btn {
         grid-area: mic-send; 
-    }
+      }
 }
 
 /* --- Стили для истории чатов --- */
@@ -303,6 +314,11 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   flex-grow: 1;
   overflow-y: auto;
   padding-right: 5px; /* Отступ для скроллбара */
+}
+
+.sidebar.collapsed .history-item.active {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .history-item {
@@ -403,7 +419,6 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .history-item.active .action-icon {
  color: white;
 }
-
 .history-item.active .action-icon:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }

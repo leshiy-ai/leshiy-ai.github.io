@@ -231,6 +231,19 @@ function App() {
         setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
     }, [language, translations]);
 
+    const fetchChats = useCallback(async () => {
+        if (currentUserId && currentUserId !== "guest") {
+            try {
+                const response = await axios.get(
+                    `${CONFIG.STORAGE_GATEWAY}/api/list-chats?userId=${currentUserId}`
+                );
+                setChatList(response.data || []);
+            } catch (err) {
+                console.error("Не удалось получить список чатов:", err);
+            }
+        }
+    }, [currentUserId]);
+
     // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
         const welcomeId = Date.now();
@@ -411,7 +424,10 @@ function App() {
 
     const generateSmartTitle = async (context, userText) => {
         try {
-            const prompt = `Диалог:\n${context.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            const prompt = `Диалог:
+${context.substring(0, 500)}
+
+Проанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
             const aiResponse = await askLeshiy({
                 text: prompt,
@@ -505,23 +521,38 @@ function App() {
     };
 
     const handleDeleteChat = async (chatId) => {
-        if (!window.confirm("Удалить этот чат безвозвратно?")) return;
+        // Спрашиваем подтверждение у пользователя
+        if (!window.confirm("Вы уверены, что хотите удалить этот чат навсегда?")) return;
         
+        // Сохраняем текущий список чатов для возможного отката
         const originalChatList = [...chatList];
         
+        // Оптимистичное удаление из UI для мгновенного отклика
         setChatList(prev => prev.filter(c => c.id !== chatId));
         
+        // Если удаляемый чат был активным, переключаемся на создание нового чата
         if (currentChatId === chatId) {
             onNewChatRequest(); 
         }
     
         try {
-            await axios.delete(`${CONFIG.STORAGE_GATEWAY}/api/history`, { 
+            // Отправляем запрос на удаление на сервер
+            const response = await axios.delete(`${CONFIG.STORAGE_GATEWAY}/api/history`, { 
                 params: { userId: currentUserId, chatId: chatId }
             });
+
+            // После успешного удаления, обновляем список чатов с сервера, чтобы обеспечить консистентность
+            if (response.data && response.data.chatList) {
+                setChatList(response.data.chatList);
+            } else {
+                // Если сервер не вернул обновленный список, запросим его вручную
+                fetchChats();
+            }
+
         } catch (e) {
-            console.error("Ошибка удаления:", e);
+            console.error("Ошибка удаления чата:", e);
             alert('Не удалось удалить чат. Попробуйте снова.');
+            // В случае ошибки, восстанавливаем предыдущее состояние списка чатов
             setChatList(originalChatList);
         }
     };
@@ -530,11 +561,13 @@ function App() {
         const chatToRename = chatList.find(c => c.id === chatId);
         if (!chatToRename) return;
     
-        const newTitle = window.prompt("Новое название чата:", chatToRename.title);
+        // Запрашиваем новое имя у пользователя
+        const newTitle = window.prompt("Введите новое название чата:", chatToRename.title);
     
+        // Проверяем, что пользователь ввел новое имя
         if (newTitle && newTitle.trim() && newTitle.trim() !== chatToRename.title) {
             const trimmedTitle = newTitle.trim();
-            const originalTitle = chatToRename.title;
+            const originalChatList = [...chatList]; // Сохраняем для отката
     
             // Оптимистичное обновление UI
             setChatList(prevList => prevList.map(c => 
@@ -542,40 +575,27 @@ function App() {
             ));
     
             try {
-                // 1. Получаем ПОЛНУЮ историю чата, чтобы не затереть ее
-                const historyRes = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, { 
-                    params: { 
-                        userId: currentUserId, 
-                        chatId: chatId
-                    }
-                });
-
-                let existingMessages;
-                if (historyRes.data && Array.isArray(historyRes.data.messages)) {
-                    // Ожидаемый ответ: { title: ..., messages: [...] }
-                    existingMessages = historyRes.data.messages;
-                } else if (Array.isArray(historyRes.data)) {
-                    // Ответ для нового или поврежденного чата: []
-                    existingMessages = [];
-                } else {
-                    throw new Error("Получен некорректный формат данных истории чата.");
-                }
-
-                // 2. Отправляем запрос с новым заголовком и ПОЛНОЙ, нетронутой историей
-                await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
+                // Отправляем запрос на сервер для переименования
+                const response = await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
                     userId: String(currentUserId),
                     chatId: chatId,
                     chatTitle: trimmedTitle,
-                    messages: existingMessages // Отправляем обратно в том же формате, что и получили
+                    messages: [] // Отправляем пустой массив, чтобы не перезаписывать историю
                 });
     
+                // Обновляем список чатов из ответа сервера для синхронизации
+                if (response.data && response.data.chatList) {
+                    setChatList(response.data.chatList);
+                } else {
+                    // Если ответ не содержит списка, запрашиваем его отдельно
+                    fetchChats();
+                }
+    
             } catch (e) {
-                console.error("Ошибка переименования:", e);
+                console.error("Ошибка переименования чата:", e);
                 alert(`Не удалось переименовать чат. ${e.message}`);
-                // Откат UI в случае ошибки
-                setChatList(prevList => prevList.map(c => 
-                    c.id === chatId ? { ...c, title: originalTitle } : c
-                ));
+                // В случае ошибки, откатываем изменения в UI
+                setChatList(originalChatList);
             }
         }
     };
@@ -934,7 +954,7 @@ function App() {
         return (
             <div className="admin-modal-overlay" onClick={onClose}>
                 <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
-                    <h2>AI Model Configuration</h2>
+                    <h2>Настройка AI Моделей</h2>
                     {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
                         <div key={serviceType} className="admin-service-section">
                             <h3>{serviceConfig.name}</h3>
@@ -993,7 +1013,8 @@ function App() {
             
             <div 
                 id="storage-modal" 
-                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>
+                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}
+            >
                 <div className="storage-content" onClick={(e) => e.stopPropagation()}>
                     <div className="storage-header">
                         <span>🗄️ Приложение "Хранилка" by Leshiy</span>
