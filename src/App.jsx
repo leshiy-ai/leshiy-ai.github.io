@@ -524,9 +524,15 @@ function App() {
     const handleDeleteChat = async (chatId) => {
         if (!window.confirm("Вы уверены, что хотите удалить этот чат навсегда?")) return;
     
+        // Оптимистично убираем из списка
+        setChatList(prev => prev.filter(c => c.id !== chatId));
+
         try {
-            await axios.delete(`${CONFIG.STORAGE_GATEWAY}/api/history`, { 
-                params: { userId: currentUserId, chatId: chatId }
+            await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
+                userId: String(currentUserId),
+                chatId: chatId,
+                isDeleted: true, // Флаг для воркера
+                messages: []     // Чтобы не ругался валидатор
             });
 
             if (currentChatId === chatId) {
@@ -579,28 +585,44 @@ function App() {
     
     const handleHistorySync = async (chatId, updatedMessages, userText) => {
         const existingChat = chatList.find(c => c.id === chatId);
-        let titleToSync = null;
-
+        
+        // Берем текущее название как базу, чтобы не затереть его в S3
+        let titleToSync = existingChat ? existingChat.title : null;
+    
         const isSystemCommand = userText && userText.startsWith('/');
-
+    
+        // Пытаемся родить "умное" имя только если чат еще дефолтный ("Чат от...")
         if ((!currentChatId || (existingChat && existingChat.title.startsWith('Чат от'))) && userText && !isSystemCommand) {
             
+            // Фильтруем мусор: приветствия, ошибки и кнопки
             const contextMessages = updatedMessages.filter(m => 
                 m.id !== welcomeMessageIdRef.current && 
                 m.role !== 'ai error' && 
-                !m.buttons
+                !m.buttons &&
+                (m.text || m.content) // Проверяем наличие текста
             );
-
-            if (contextMessages.length >= 2) { 
+    
+            // Ждем минимум 4 сообщения (2 вопроса + 2 ответа)
+            if (contextMessages.length >= 4) { 
                 const context = contextMessages
-                    .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text || ''}`)
+                    .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text || m.content || ''}`)
                     .join('\n');
                 
+                // Генерируем название на основе накопленного мяса
                 const smartTitle = await generateSmartTitle(context, userText);
-                titleToSync = smartTitle;
+                
+                if (smartTitle) {
+                    titleToSync = smartTitle;
+                    
+                    // Обновляем в интерфейсе сразу
+                    setChatList(prev => prev.map(c => 
+                        c.id === chatId ? { ...c, title: smartTitle } : c
+                    ));
+                }
             }
         }
         
+        // Синкаем в S3: либо с новым умным именем, либо со старым существующим
         await syncChatHistory(chatId, updatedMessages, titleToSync);
     };
 
