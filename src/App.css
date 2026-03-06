@@ -282,20 +282,143 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     }
 }
 
-/* Custom Scrollbar for Sidebar Chat List */
-.chat-history::-webkit-scrollbar {
-  width: 5px;
+/* --- Стили для истории чатов --- */
+.sidebar-history-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 10px; /* Добавлен отступ */
 }
 
-.chat-history::-webkit-scrollbar-track {
-  background: transparent; /* Makes the track invisible */
+.history-section-header {
+  padding: 10px 5px;
+  font-size: 0.9em;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.chat-history::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2); /* Semi-transparent thumb */
-  border-radius: 10px;
+.sidebar-history {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-right: 5px; /* Отступ для скроллбара */
 }
 
-.chat-history:hover::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.4); /* Slightly more visible on hover */
+.history-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.history-item:hover {
+  background-color: var(--bubble-bg);
+}
+
+/* --- FIX: Более заметное выделение активного чата --- */
+.history-item.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.history-item.active .chat-date {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.history-item .icon {
+  margin-right: 12px;
+  font-size: 1.1em;
+}
+
+.history-text {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.chat-title {
+  font-weight: 500;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.chat-date {
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.9);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  background: var(--bubble-bg);
+  border-radius: 16px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.history-item:hover .history-actions,
+.history-item.active .history-actions {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+
+.history-item.active .history-actions {
+  background: rgba(255,255,255,0.15);
+}
+
+.action-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.action-icon:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.history-item.active .action-icon {
+ color: white;
+}
+
+.history-item.active .action-icon:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Стилизация скроллбара в истории */
+.sidebar-history::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-history::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
+}
+.sidebar-history:hover::-webkit-scrollbar-thumb {
+  background-color: var(--text-secondary);
 }

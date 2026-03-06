@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
@@ -228,7 +229,7 @@ function App() {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
-    }, [language]);
+    }, [language, translations]);
 
     // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
@@ -428,24 +429,28 @@ function App() {
             console.warn("AI Title Generation failed, using fallback:", e);
         }
         
-        return userText.substring(0, 30) + "...";
+        return null; // Возвращаем null если не удалось сгенерировать
     };
 
     const syncChatHistory = async (chatId, currentMessages, titleOverride = null) => {
         if (currentUserId === "guest") return;
-        const title = titleOverride || 
-                  (currentMessages.find(m => m.role === 'user')?.text?.substring(0, 35) + "..." || "Новый чат");
+        
+        const payload = {
+            userId: String(currentUserId),
+            chatId: chatId,
+            messages: currentMessages.map(m => ({
+                role: m.role,
+                content: m.text,
+                id: m.id
+            }))
+        };
+
+        if (titleOverride) {
+            payload.chatTitle = titleOverride;
+        }
+
         try {
-            const response = await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
-                userId: String(currentUserId),
-                chatId: chatId,
-                chatTitle: title,
-                messages: currentMessages.map(m => ({
-                    role: m.role,
-                    content: m.text,
-                    id: m.id
-                }))
-            });
+            const response = await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, payload);
             
             if (response.data.chatList) {
                 setChatList(response.data.chatList);
@@ -459,7 +464,7 @@ function App() {
     const [hasMore, setHasMore] = useState(true);
 
     const loadChatFromHistory = async (chatId, isLoadMore = false) => {
-        const limit = 10;
+        const limit = 20; // Загружаем порциями по 20 сообщений
         const currentOffset = isLoadMore ? chatOffset : 0;
     
         setIsLoading(true);
@@ -468,7 +473,8 @@ function App() {
                 params: { 
                     userId: currentUserId, 
                     chatId: chatId,
-                    offset: currentOffset
+                    offset: currentOffset,
+                    limit: limit
                 }
             });
     
@@ -501,31 +507,110 @@ function App() {
     const handleDeleteChat = async (chatId) => {
         if (!window.confirm("Удалить этот чат безвозвратно?")) return;
         
-        try {
-            await fetch(`${CONFIG.STORAGE_GATEWAY}/api/history?userId=${currentUserId}&chatId=${chatId}`, {
-                method: 'DELETE'
-            });
-            
-            setChatList(prev => [...prev.filter(c => c.id !== chatId)]);
+        const originalChatList = [...chatList];
         
-            if (currentChatId === chatId) {
-                onNewChatRequest(); 
-            }
+        setChatList(prev => prev.filter(c => c.id !== chatId));
+        
+        if (currentChatId === chatId) {
+            onNewChatRequest(); 
+        }
+    
+        try {
+            await axios.delete(`${CONFIG.STORAGE_GATEWAY}/api/history`, { 
+                params: { userId: currentUserId, chatId: chatId }
+            });
         } catch (e) {
             console.error("Ошибка удаления:", e);
+            alert('Не удалось удалить чат. Попробуйте снова.');
+            setChatList(originalChatList);
         }
     };
-
-    const handleRenameChat = async (chatId) => {
-        const oldChat = chatList.find(c => c.id === chatId);
-        const newTitle = window.prompt("Новое название чата:", oldChat?.title);
-        
-        if (newTitle && newTitle !== oldChat?.title) {
-            setChatList(prev => prev.map(c => c.id === chatId ? {...c, title: newTitle} : c));
     
-            const currentMessages = (currentChatId === chatId) ? messages : []; 
-            await syncChatHistory(chatId, currentMessages, newTitle);
+    const handleRenameChat = async (chatId) => {
+        const chatToRename = chatList.find(c => c.id === chatId);
+        if (!chatToRename) return;
+    
+        const newTitle = window.prompt("Новое название чата:", chatToRename.title);
+    
+        if (newTitle && newTitle.trim() && newTitle.trim() !== chatToRename.title) {
+            const trimmedTitle = newTitle.trim();
+            const originalTitle = chatToRename.title;
+    
+            // Оптимистичное обновление UI
+            setChatList(prevList => prevList.map(c => 
+                c.id === chatId ? { ...c, title: trimmedTitle } : c
+            ));
+    
+            try {
+                // 1. Получаем ПОЛНУЮ историю чата, чтобы не затереть ее
+                const historyRes = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, { 
+                    params: { 
+                        userId: currentUserId, 
+                        chatId: chatId
+                    }
+                });
+
+                let existingMessages;
+                if (historyRes.data && Array.isArray(historyRes.data.messages)) {
+                    // Ожидаемый ответ: { title: ..., messages: [...] }
+                    existingMessages = historyRes.data.messages;
+                } else if (Array.isArray(historyRes.data)) {
+                    // Ответ для нового или поврежденного чата: []
+                    existingMessages = [];
+                } else {
+                    throw new Error("Получен некорректный формат данных истории чата.");
+                }
+
+                // 2. Отправляем запрос с новым заголовком и ПОЛНОЙ, нетронутой историей
+                await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
+                    userId: String(currentUserId),
+                    chatId: chatId,
+                    chatTitle: trimmedTitle,
+                    messages: existingMessages // Отправляем обратно в том же формате, что и получили
+                });
+    
+            } catch (e) {
+                console.error("Ошибка переименования:", e);
+                alert(`Не удалось переименовать чат. ${e.message}`);
+                // Откат UI в случае ошибки
+                setChatList(prevList => prevList.map(c => 
+                    c.id === chatId ? { ...c, title: originalTitle } : c
+                ));
+            }
         }
+    };
+    
+    const handleHistorySync = async (chatId, updatedMessages, userText) => {
+        const existingChat = chatList.find(c => c.id === chatId);
+        let titleToSync = null;
+
+        const isSystemCommand = userText && userText.startsWith('/');
+
+        if (existingChat && existingChat.title.startsWith('Чат от') && userText && !isSystemCommand) {
+            
+            const contextMessages = updatedMessages.filter(m => 
+                m.id !== welcomeMessageIdRef.current && 
+                m.role !== 'ai error' && 
+                !m.buttons
+            );
+
+            if (contextMessages.length >= 2) { 
+                const context = contextMessages
+                    .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text || ''}`)
+                    .join('\n');
+                
+                const smartTitle = await generateSmartTitle(context, userText);
+                
+                if (smartTitle) {
+                    titleToSync = smartTitle;
+                    setChatList(prev => prev.map(c => 
+                        c.id === chatId ? { ...c, title: titleToSync, lastUpdate: new Date().toISOString() } : c
+                    ));
+                }
+            }
+        }
+        
+        await syncChatHistory(chatId, updatedMessages, titleToSync);
     };
 
     const handleSend = async (commandOverride) => {
@@ -541,10 +626,19 @@ function App() {
         if (!userMessageText && files.length === 0) return;
     
         let chatId = currentChatId;
+        let isNewChat = false;
         if (!chatId) {
+            isNewChat = true;
             chatId = `chat_${Date.now()}`;
             setCurrentChatId(chatId);
             localStorage.setItem('last_chat_id', chatId);
+
+            const newChat = {
+                id: chatId,
+                title: `Чат от ${new Date().toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+                lastUpdate: new Date().toISOString()
+            };
+            setChatList(prev => [newChat, ...prev]);
         }
     
         const currentFiles = [...files];
@@ -559,7 +653,8 @@ function App() {
             })) 
         };
     
-        setMessages(prev => [...prev, userMsg]);
+        const newMessages = [...messages, userMsg];
+        setMessages(newMessages);
         setIsLoading(true);
         setFiles([]);
         setInput('');
@@ -583,14 +678,11 @@ function App() {
                 buttons: aiResponse.buttons 
             };
             
-            setMessages(prev => {
-                const updated = [...prev, assistantMsg];
-                // ✅ FIX: Только текстовые ответы (а не меню или ошибки) триггерят сохранение и именование
-                if (aiResponse.type === 'text') {
-                    handleHistorySync(chatId, updated, userMessageText);
-                }
-                return updated;
-            });
+            const updatedMessages = [...newMessages, assistantMsg];
+            setMessages(updatedMessages);
+
+            const isFirstMeaningfulRequest = isNewChat || (chatList.find(c => c.id === chatId)?.title.startsWith('Чат от'));
+            handleHistorySync(chatId, updatedMessages, isFirstMeaningfulRequest ? userMessageText : null);
     
         } catch (err) {
             console.error("Ошибка связи с Лешим:", err);
@@ -601,43 +693,6 @@ function App() {
             }]);
         } finally { 
             setIsLoading(false); 
-        }
-    };
-    
-    const handleHistorySync = async (chatId, updatedMessages, userText) => {
-        const existingChat = chatList.find(c => c.id === chatId);
-        let titleToSync = existingChat?.title; // По умолчанию используем существующий заголовок
-    
-        // Логика именования запускается только если чат новый или имеет временное название
-        const isNewOrTemp = !existingChat || (existingChat && existingChat.title === "💭 Определяю тему...");
-    
-        if (isNewOrTemp) {
-            const realMessagesCount = updatedMessages.filter(m => m.id !== welcomeMessageIdRef.current).length;
-    
-            if (realMessagesCount === 2) {
-                titleToSync = "💭 Определяю тему...";
-                // Добавляем новый чат в список, если его там еще нет
-                if (!existingChat) {
-                    const newChat = { id: chatId, title: titleToSync, lastUpdate: new Date().toISOString() };
-                    setChatList(prev => [newChat, ...prev]);
-                }
-            } else if (realMessagesCount >= 4) { // Используем >= 4 для надежности
-                const context = updatedMessages
-                    .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text || ''}`)
-                    .join('\n');
-                
-                titleToSync = await generateSmartTitle(context, userText);
-                
-                // Обновляем заголовок в списке
-                setChatList(prev => prev.map(c => 
-                    c.id === chatId ? { ...c, title: titleToSync } : c
-                ));
-            }
-        }
-        
-        // Вызываем сохранение, только если есть что сохранять (название определено)
-        if (titleToSync) {
-            await syncChatHistory(chatId, updatedMessages, titleToSync);
         }
     };
 
@@ -804,55 +859,49 @@ function App() {
     }, []);
     
     useEffect(() => {
-      const handleOpenStorage = () => {
-          const userId = localStorage.getItem('vk_user_id');
-          if (!userId || userId === 'null') {
-              alert("Сначала авторизуйтесь!");
-              return;
-          }
-          setStorageVisible(true);
-      };
-  
-      const handleVkAuth = () => {
-          const userId = localStorage.getItem('vk_user_id');
-          if (!userId || userId === 'null') {
-              const overlay = document.getElementById('vk_auth_overlay');
-              if (overlay) overlay.style.display = 'flex';
-              handleSend('/auth_init_vk');
-          }
-      };
-
-      const handleAdminPanel = () => {
-        setShowAdminPanel(true);
+        const handleOpenStorage = () => {
+            const userId = localStorage.getItem('vk_user_id');
+            if (!userId || userId === 'null') {
+                alert("Сначала авторизуйтесь!");
+                return;
+            }
+            setStorageVisible(true);
+        };
+    
+        const handleVkAuth = () => {
+            const userId = localStorage.getItem('vk_user_id');
+            if (!userId || userId === 'null') {
+                const overlay = document.getElementById('vk_auth_overlay');
+                if (overlay) overlay.style.display = 'flex';
+                handleSend('/auth_init_vk');
+            }
         };
   
-      const handleNewChat = () => {
-        window.dispatchEvent(new CustomEvent('sidebar-new-chat'));
-      };
-  
-      const handleLogout = () => {
-          localStorage.removeItem('vk_user_id');
-          localStorage.removeItem('vk_user_name');
-          localStorage.removeItem('vk_user_photo');
-          localStorage.removeItem('last_chat_id');
-          sessionStorage.clear();
-          window.location.reload();
-      };
-  
-      window.addEventListener('sidebar-storage', handleOpenStorage);
-      window.addEventListener('sidebar-vk-auth', handleVkAuth);
-      window.addEventListener('sidebar-new-chat', handleNewChat);
-      window.addEventListener('sidebar-logout', handleLogout);
-      window.addEventListener('sidebar-admin-panel', handleAdminPanel);
-  
-      return () => {
-          window.removeEventListener('sidebar-storage', handleOpenStorage);
-          window.removeEventListener('sidebar-vk-auth', handleVkAuth);
-          window.removeEventListener('sidebar-new-chat', handleNewChat);
-          window.removeEventListener('sidebar-logout', handleLogout);
-          window.removeEventListener('sidebar-admin-panel', handleAdminPanel);
-      };
-  }, []);
+        const handleAdminPanel = () => {
+          setShowAdminPanel(true);
+          };
+    
+        const handleLogout = () => {
+            localStorage.removeItem('vk_user_id');
+            localStorage.removeItem('vk_user_name');
+            localStorage.removeItem('vk_user_photo');
+            localStorage.removeItem('last_chat_id');
+            sessionStorage.clear();
+            window.location.reload();
+        };
+    
+        window.addEventListener('sidebar-storage', handleOpenStorage);
+        window.addEventListener('sidebar-vk-auth', handleVkAuth);
+        window.addEventListener('sidebar-logout', handleLogout);
+        window.addEventListener('sidebar-admin-panel', handleAdminPanel);
+    
+        return () => {
+            window.removeEventListener('sidebar-storage', handleOpenStorage);
+            window.removeEventListener('sidebar-vk-auth', handleVkAuth);
+            window.removeEventListener('sidebar-logout', handleLogout);
+            window.removeEventListener('sidebar-admin-panel', handleAdminPanel);
+        };
+    }, []);
 
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
@@ -919,17 +968,13 @@ function App() {
             <Sidebar
             chatList={chatList || []} 
             currentChatId={currentChatId}
-            onSelectChat={loadChatFromHistory} 
+            onSelectChat={onSelectChat} 
             onDeleteChat={handleDeleteChat}
             onRenameChat={handleRenameChat}
             userName={userName}
             isLoggedIn={isLoggedIn}
             userPhoto={userPhoto}
             isAdmin={isAdmin}
-            handleNewChat={onNewChatRequest}
-            handleStorage={() => setStorageVisible(true)}
-            handleAdminPanel={() => setShowAdminPanel(true)}
-            handleLogout={() => { localStorage.clear(); window.location.reload(); }}
             />,
             document.getElementById('sidebar')
           )}
