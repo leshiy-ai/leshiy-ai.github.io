@@ -589,31 +589,42 @@ function App() {
     };
     
     const handleHistorySync = async (chatId, updatedMessages, userText) => {
-        // 1. Находим чат в локальном стейте
+        // 1. Сверяем по списку, который у нас уже есть в стейте
         const existingChat = chatList.find(c => c.id === chatId);
         let currentTitle = existingChat ? existingChat.title : "Новый чат";
     
-        // 2. Если сообщений стало 4 (или больше) и имя еще дефолтное
-        if (updatedMessages.length >= 4 && (currentTitle.includes("Чат от") || currentTitle === "Новый чат")) {
-            
-            // Собираем контекст из последних сообщений
-            const context = updatedMessages.slice(-4)
-                .map(m => `${m.role}: ${m.text || m.content || ''}`)
+        // 2. Считаем "чистые" сообщения (без ошибок и кнопок)
+        const validMessages = updatedMessages.filter(m => m.text || m.content);
+    
+        // 3. Условие: если сообщений 4 или больше И имя всё еще дефолтное
+        const isDefault = currentTitle === "Новый чат" || currentTitle.includes("Чат от");
+    
+        if (validMessages.length >= 4 && isDefault) {
+            console.log("🎯 Условие выполнено, запрашиваю имя у ИИ...");
+    
+            // Сначала готовим контекст (берем первые 4 сообщения)
+            const context = validMessages.slice(0, 4)
+                .map(m => `${m.role === 'user' ? 'Юзер' : 'ИИ'}: ${m.text || m.content || ''}`)
                 .join('\n');
     
-            const smartTitle = await generateSmartTitle(context, userText);
-            
-            if (smartTitle) {
-                currentTitle = smartTitle;
-                // Сразу меняем в боковой панели
-                setChatList(prev => prev.map(c => 
-                    c.id === chatId ? { ...c, title: smartTitle } : c
-                ));
+            try {
+                const smartTitle = await generateSmartTitle(context, userText);
+                
+                if (smartTitle) {
+                    console.log("✅ Новое имя получено:", smartTitle);
+                    currentTitle = smartTitle;
+                    
+                    // Обновляем список в интерфейсе
+                    setChatList(prev => prev.map(c => 
+                        c.id === chatId ? { ...c, title: smartTitle } : c
+                    ));
+                }
+            } catch (e) {
+                console.error("Ошибка при генерации заголовка:", e);
             }
         }
     
-        // 3. Просто сохраняем всё в S3. Если имя обновилось — оно запишется.
-        // Если нет — запишется старое. Никаких проверок S3 не нужно.
+        // 4. В любом случае сохраняем историю в S3 с актуальным заголовком
         await syncChatHistory(chatId, updatedMessages, currentTitle);
     };
 
