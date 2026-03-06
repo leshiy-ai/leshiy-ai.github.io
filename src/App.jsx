@@ -422,13 +422,14 @@ function App() {
             // Исправили contextText на context
             const prompt = `Диалог:\n${context.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
-            const aiResponse = await askLeshiy({ 
-                text: prompt, 
+            const aiResponse = await askLeshiy({
+                text: prompt,
                 userId: currentUserId,
-                // Передаем пустую историю, чтобы ИИ не запутался в контексте самого задания
-                history: [], 
-                isSystemTask: true 
+                history: [],
+                isSystemTask: true,
+                service: 'TEXT_TO_TEXT_CLOUDFLARE' // Явное указание сервиса
             });
+            
     
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
                 // Убираем лишние символы, которые ИИ любит добавлять вопреки инструкции

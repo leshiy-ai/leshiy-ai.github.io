@@ -6,7 +6,7 @@ const SYSTEM_PROMPT = `Ты — многофункциональный AI-асс
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 Ответы должны быть информативными и доброжелательными со смайликами.`;
 
-export const askLeshiy = async ({ text, files = [] }) => {
+export const askLeshiy = async ({ text, files = [], isSystemTask = false, service = null }) => {
     let userQuery = text?.trim() || "";
     let lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
@@ -519,12 +519,18 @@ export const askLeshiy = async ({ text, files = [] }) => {
     // 2. ОПРЕДЕЛЕНИЕ ТИПА СЕРВИСА И ЗАГРУЗКА МОДЕЛИ
     // ==========================================================
     let serviceType = 'TEXT_TO_TEXT';
-    const firstFileObj = hasFiles ? files[0].file : null;
-
-    if (firstFileObj) {
-        if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
-        else if (firstFileObj.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
-        else if (firstFileObj.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
+    
+    // Если сервис передан принудительно, используем его
+    if (service) {
+        serviceType = service;
+    } else {
+        // Иначе, определяем по файлам
+        const firstFileObj = hasFiles ? files[0].file : null;
+        if (firstFileObj) {
+            if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
+            else if (firstFileObj.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
+            else if (firstFileObj.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
+        }
     }
 
     const config = loadActiveModelConfig(serviceType);
@@ -598,70 +604,138 @@ export const askLeshiy = async ({ text, files = [] }) => {
     }
 
     // ==========================================================
-    // 4. ОТПРАВКА ЧЕРЕЗ ТВОЙ ПРОКСИ
+    // 4. ОТПРАВКА ЧЕРЕЗ ПРОКСИ С FALLBACK
     // ==========================================================
     try {
-        // Сначала четко определяем, что мы шлем
         const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array);
+        let response;
 
-        const proxyHeaders = {
+        const commonProxyHeaders = {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
             'Content-Type': isBinary ? 'application/octet-stream' : 'application/json'
-            //'Content-Type': isRawBody ? 'application/octet-stream' : 'application/json'
         };
+        if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
 
-        if (authHeader) proxyHeaders['X-Proxy-Authorization'] = authHeader;
-
-        const response = await fetch(CONFIG.PROXY_URL, {
-            method: 'POST',
-            // mode: 'cors' — ОБЯЗАТЕЛЬНО. Без него мобилки шлют "Failed to fetch"
-            mode: 'cors', 
-            // credentials: 'omit' — чтобы браузер не пытался слать куки гитхаба в воркер
-            headers: proxyHeaders,
-            // Тело запроса: для Cloudflare AI крайне важен чистый JSON
-            //body: isRawBody ? body : JSON.stringify(body),
-            // Если не бинарник, принудительно превращаем в строку
-            body: isBinary ? body : JSON.stringify(body)
-        });
-
-        // 2. Логика Fallback именно для Gemini через специализированный воркер
-        if (!response.ok && config.SERVICE === 'GEMINI') {
-            console.warn("Основной прокси (Яндекс) недоступен. Пробую прямой прокси Gemini...");
-
-            // Пересобираем URL: меняем домен гугла на домен твоего воркера
-            const fallbackUrl = url.replace('generativelanguage.googleapis.com', 'gemini-proxy.leshiyalex.workers.dev');
-
-            const fallbackHeaders = {
-                'Content-Type': 'application/json',
-                'X-Proxy-Secret': 'GEMINI_PROXY_KEY' // Тот самый ключ из кода воркера
-            };
-
-            response = await fetch(fallbackUrl, {
+        // --- Попытка 1: Основной прокси (Яндекс) ---
+        try {
+            console.log("Attempt 1: Main Proxy (Yandex)");
+            response = await fetch(CONFIG.PROXY_URL, {
                 method: 'POST',
                 mode: 'cors',
-                headers: fallbackHeaders,
-                body: JSON.stringify(body) // Gemini прокси всегда ждет JSON
+                headers: commonProxyHeaders,
+                body: isBinary ? body : JSON.stringify(body)
             });
+            if (!response.ok) throw response; // Проваливаемся в catch для анализа ошибки
+
+        } catch (error1) {
+            const status1 = error1.status;
+            const errorText1 = status1 ? await error1.text() : error1.message;
+            const isGeoBlocked1 = status1 === 400 && errorText1.includes('User location is not supported');
+            const isNetworkError1 = !status1;
+
+            if (isGeoBlocked1 || isNetworkError1) {
+                console.log("Activating Fallback Proxy due to geo-block/network error...");
+                // --- Попытка 2: Резервный общий прокси (Cloudflare) ---
+                try {
+                    response = await fetch(CONFIG.FALLBACK_PROXY, {
+                        method: 'POST',
+                        mode: 'cors',
+                        headers: commonProxyHeaders,
+                        body: isBinary ? body : JSON.stringify(body)
+                    });
+                    if (!response.ok) throw response; // Проваливаемся во внутренний catch
+
+                } catch (error2) {
+                    const status2 = error2.status;
+                    const errorText2 = status2 ? await error2.text() : error2.message;
+                    const isGeoBlocked2 = status2 === 400 && errorText2.includes('User location is not supported');
+                    const isNetworkError2 = !status2;
+
+                    // --- Попытка 3: Специализированный прокси для Gemini (финальный резерв) ---
+                    if (config.SERVICE === 'GEMINI' && (isGeoBlocked2 || isNetworkError2)) {
+                        console.log("Activating Gemini-specific Proxy as a last resort...");
+                        try {
+                            const geminiProxyRequestUrl = url.replace('generativelanguage.googleapis.com', new URL(CONFIG.GEMINI_PROXY).host);
+                            response = await fetch(geminiProxyRequestUrl, {
+                                method: 'POST',
+                                mode: 'cors',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-Proxy-Secret': CONFIG.GEMINI_PROXY_KEY
+                                },
+                                body: JSON.stringify(body)
+                            });
+                            if (!response.ok) throw response;
+                        } catch (error3) {
+                            const status3 = error3.status;
+                            const errorText3 = status3 ? await error3.text() : error3.message;
+                            throw new Error(`Все прокси вернули ошибку. Последняя (Gemini): Status ${status3 || ''}: ${errorText3}`);
+                        }
+                    } else {
+                        // Ошибка из второго прокси была финальной (не геоблок)
+                        throw new Error(`Резервный прокси также вернул ошибку. Status ${status2 || ''}: ${errorText2}`);
+                    }
+                }
+            } else {
+                // Ошибка из первого прокси была финальной (например, 429)
+                throw new Error(`Прокси ответил, но API вернуло ошибку. Status ${status1}: ${errorText1}`);
+            }
         }
 
-        if (!response.ok) {
-            // Если прилетит 401 — значит, прокси пропустил, но Cloudflare API не принял токен
-            // Если прилетит 400 — значит, Cloudflare не понравился формат JSON/Content-Type
-            const errorDetail = await response.text();
-            throw new Error(`Status ${response.status}: ${errorDetail}`);
-        }
-    
+        // --- ОБРАБОТКА ФИНАЛЬНОГО РЕЗУЛЬТАТА ---
         const data = await response.json();
         let resultText = "Не удалось разобрать ответ.";
 
         if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
         else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') resultText = data.result?.response || data.result?.text;
-        
+
         return { type: 'text', text: resultText || "Получен пустой ответ от AI." };
 
     } catch (error) {
-        return { type: 'error', text: `❌ Ошибка сети: ${error.message}` };
+        console.error("AI request failed:", error);
+
+        let friendlyMessage = "Произошла неизвестная ошибка.";
+        const originalMessage = error.message || "";
+
+        // 1. Проверяем на самые частые и понятные ошибки
+        if (originalMessage.includes('quota') || originalMessage.includes('429')) {
+            friendlyMessage = 'Исчерпан лимит запросов к этой модели. Попробуйте снова позже или выберите другую модель в настройках.';
+        } else if (originalMessage.includes('Insufficient Balance') || originalMessage.includes('402')) {
+            friendlyMessage = 'Закончились средства на балансе этой AI-модели. Пожалуйста, пополните баланс в личном кабинете провайдера.';
+        } else if (originalMessage.includes('User location is not supported')) {
+            friendlyMessage = 'Доступ к этой модели ограничен в вашем регионе. Резервный прокси не смог помочь.';
+        } else if (originalMessage.includes('API key')) {
+            friendlyMessage = 'Ключ API недействителен или отсутствует. Проверьте настройки.';
+        } else if (originalMessage.includes('Failed to fetch')) {
+            friendlyMessage = 'Сетевая ошибка. Проверьте подключение к интернету.';
+        } else {
+            // 2. Если не нашли, пытаемся вытащить сообщение из JSON
+            const jsonMatch = originalMessage.match(/(\{.*\})/s);
+            if (jsonMatch && jsonMatch[1]) {
+                try {
+                    const errorJson = JSON.parse(jsonMatch[1]);
+                    const message = errorJson.error?.message || errorJson.message;
+                    if (message && typeof message === 'string') {
+                        // Берем только первую, самую информативную часть сообщения
+                        friendlyMessage = message.split(/[\.|\n]/)[0];
+                    } else {
+                        // Если не смогли найти, оставляем как есть, но без JSON
+                        friendlyMessage = originalMessage.substring(0, originalMessage.indexOf('{')).trim();
+                    }
+                } catch (e) {
+                    // Если парсинг не удался, берем часть до JSON
+                    const prefix = originalMessage.substring(0, originalMessage.indexOf('{')).trim();
+                    friendlyMessage = prefix || originalMessage;
+                }
+            } else {
+                // 3. Если ничего не подошло, выводим как есть
+                friendlyMessage = originalMessage;
+            }
+        }
+
+        return { type: 'error', text: `❌ Ошибка: ${friendlyMessage}` };
     }
+
 };
