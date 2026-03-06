@@ -218,6 +218,18 @@ function App() {
     };
 
     const t = translations[language];
+    
+    // ✅ FIX: Выносим функцию в useCallback, чтобы она не пересоздавалась и ее можно было передать в пропсы
+    const onNewChatRequest = useCallback(() => {
+        setCurrentChatId(null);
+        setFiles([]);
+        setInput('');
+        localStorage.removeItem('last_chat_id');
+        
+        const welcomeId = Date.now();
+        welcomeMessageIdRef.current = welcomeId;
+        setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
+    }, [language]); // Зависимость от языка, чтобы приветствие было на правильном языке
 
     // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
@@ -284,44 +296,28 @@ function App() {
     }, []);
 
     useEffect(() => {
-        // 1. Слушатель для кнопки "Новый чат"
-        const onNewChatRequest = () => {
-            setCurrentChatId(null);
-            setFiles([]);
-            setInput('');
-            localStorage.removeItem('last_chat_id');
-            
-            // Возвращаем приветствие Лешего
-            const welcomeId = Date.now();
-            welcomeMessageIdRef.current = welcomeId;
-            setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
-        };
-    
+        // 1. Слушатель для кнопки "Новый чат" (оставляем для обратной совместимости, если где-то вызывается)
         window.addEventListener('sidebar-new-chat', onNewChatRequest);
     
         // 2. Логика восстановления сессии (Auto-load)
         const lastId = localStorage.getItem('last_chat_id');
         
-        // Если есть сохраненный ID и мы еще ничего не загрузили
         if (lastId && !currentChatId) {
-            // Делаем небольшую задержку или проверку, чтобы убедиться, что userId подтянулся
             onSelectChat(lastId);
         }
     
         return () => {
             window.removeEventListener('sidebar-new-chat', onNewChatRequest);
         };
-    }, [currentUserId]); // Добавляем в зависимости, чтобы сработало после логина
+    }, [currentUserId, onNewChatRequest]); // Добавляем onNewChatRequest в зависимости
     
     // Обновляем функцию выбора чата, чтобы она запоминала выбор
     const onSelectChat = (chatId) => {
         if (!chatId) return;
         
-        // Сохраняем в браузер, чтобы F5 вернул нас сюда же
         localStorage.setItem('last_chat_id', chatId);
         setCurrentChatId(chatId);
         
-        // Вызываем твою функцию загрузки из S3
         loadChatFromHistory(chatId);
     };
 
@@ -418,8 +414,6 @@ function App() {
 
     const generateSmartTitle = async (context, userText) => { // Добавили context
         try {
-            // Просим ИИ кратко назвать чат
-            // Исправили contextText на context
             const prompt = `Диалог:\n${context.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${userText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
             const aiResponse = await askLeshiy({
@@ -427,12 +421,11 @@ function App() {
                 userId: currentUserId,
                 history: [],
                 isSystemTask: true,
-                service: 'TEXT_TO_TEXT_CLOUDFLARE' // Явное указание сервиса
+                service: 'TEXT_TO_TEXT_CLOUDFLARE'
             });
             
     
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
-                // Убираем лишние символы, которые ИИ любит добавлять вопреки инструкции
                 return aiResponse.text.replace(/["'«»*.]/g, '').trim();
             }
         } catch (e) {
@@ -443,7 +436,7 @@ function App() {
     };
 
     const syncChatHistory = async (chatId, currentMessages, titleOverride = null) => {
-        if (currentUserId === "guest") return; // Не сохраняем для гостей
+        if (currentUserId === "guest") return;
         const title = titleOverride || 
                   (currentMessages.find(m => m.role === 'user')?.text?.substring(0, 35) + "..." || "Новый чат");
         try {
@@ -453,7 +446,7 @@ function App() {
                 chatTitle: title,
                 messages: currentMessages.map(m => ({
                     role: m.role,
-                    content: m.text, // Воркер ждет content
+                    content: m.text,
                     id: m.id
                 }))
             });
@@ -466,7 +459,7 @@ function App() {
         }
     };
 
-    const [chatOffset, setChatOffset] = useState(0); // Храним, сколько уже загрузили
+    const [chatOffset, setChatOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
 
     const loadChatFromHistory = async (chatId, isLoadMore = false) => {
@@ -479,13 +472,12 @@ function App() {
                 params: { 
                     userId: currentUserId, 
                     chatId: chatId,
-                    offset: currentOffset // Передаем оффсет серверу!
+                    offset: currentOffset
                 }
             });
     
-            // Исправляем: достаем и сообщения, и флаг hasMore
             const historyMessages = res.data.messages || []; 
-            const serverHasMore = res.data.hasMore; // Берем из ответа воркера
+            const serverHasMore = res.data.hasMore;
     
             const formattedMsgs = historyMessages.map(m => ({
                 id: m.id || Date.now() + Math.random(),
@@ -500,7 +492,7 @@ function App() {
             } else {
                 setMessages(formattedMsgs);
                 setChatOffset(limit);
-                setHasMore(serverHasMore); // Теперь moreAvailable не undefined
+                setHasMore(serverHasMore);
                 setCurrentChatId(chatId);
             }
         } catch (e) {
@@ -510,7 +502,6 @@ function App() {
         }
     };
 
-    // Удаление чата
     const handleDeleteChat = async (chatId) => {
         if (!window.confirm("Удалить этот чат безвозвратно?")) return;
         
@@ -519,11 +510,9 @@ function App() {
                 method: 'DELETE'
             });
             
-            // Обновляем список локально, чтобы он сразу исчез из меню
             setChatList(prev => [...prev.filter(c => c.id !== chatId)]);
         
             if (currentChatId === chatId) {
-                // Вместо пустых скобок вызываем нашу логику очистки с приветствием
                 onNewChatRequest(); 
             }
         } catch (e) {
@@ -531,17 +520,14 @@ function App() {
         }
     };
 
-    // Переименование чата
     const handleRenameChat = async (chatId) => {
         const oldChat = chatList.find(c => c.id === chatId);
         const newTitle = window.prompt("Новое название чата:", oldChat?.title);
         
         if (newTitle && newTitle !== oldChat?.title) {
-            // Сначала обновляем визуал в сайдбаре мгновенно
             setChatList(prev => prev.map(c => c.id === chatId ? {...c, title: newTitle} : c));
     
             const currentMessages = (currentChatId === chatId) ? messages : []; 
-            // Отправляем в S3
             await syncChatHistory(chatId, currentMessages, newTitle);
         }
     };
@@ -558,15 +544,13 @@ function App() {
     
         if (!userMessageText && files.length === 0) return;
     
-        // 1. Идентификация чата
         let chatId = currentChatId;
         if (!chatId) {
             chatId = `chat_${Date.now()}`;
             setCurrentChatId(chatId);
-            localStorage.setItem('last_chat_id', chatId); // Сразу в память
+            localStorage.setItem('last_chat_id', chatId);
         }
     
-        // 2. Подготовка сообщения пользователя
         const currentFiles = [...files];
         const userMsg = { 
             id: Date.now(), 
@@ -579,27 +563,23 @@ function App() {
             })) 
         };
     
-        // Очищаем ввод сразу
         setMessages(prev => [...prev, userMsg]);
         setIsLoading(true);
         setFiles([]);
         setInput('');
     
-        // Берем только последние 10 сообщений для ИИ
         const historyForAi = messages.slice(-10).map(m => ({
             role: m.role === 'user' ? 'user' : 'model',
             parts: [{ text: m.text || m.content }]
         }));
 
         try {
-            // 3. Запрос к API
             const aiResponse = await askLeshiy({ 
                 text: userMessageText, 
-                history: historyForAi, // Только 10 последних
+                history: historyForAi, 
                 userId: currentUserId 
             });
     
-            // 4. Подготовка ответа нейронки
             const assistantMsg = { 
                 id: Date.now() + 1, 
                 role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
@@ -607,10 +587,8 @@ function App() {
                 buttons: aiResponse.buttons 
             };
     
-            // Обновляем сообщения в интерфейсе
             setMessages(prev => {
                 const updated = [...prev, assistantMsg];
-                // ПЕРЕДАЕМ chatId из локальной переменной, а не из стейта!
                 handleHistorySync(chatId, updated, userMessageText);
                 return updated;
             });
@@ -633,24 +611,26 @@ function App() {
         const existingChat = chatList.find(c => c.id === chatId);
         if (existingChat) finalTitle = existingChat.title;
     
-        if (updatedMessages.length === 2 && !existingChat) {
+        // ✅ FIX: Считаем сообщения правильно, игнорируя приветствие
+        const realMessagesCount = updatedMessages.filter(m => m.id !== welcomeMessageIdRef.current).length;
+
+        // Условие для временного заголовка: 1-й вопрос и 1-й ответ (2 сообщения)
+        if (realMessagesCount === 2 && !existingChat) {
             finalTitle = "💭 Определяю тему...";
             setChatList(prev => [{ id: chatId, title: finalTitle, lastUpdate: new Date().toISOString() }, ...prev]);
-        } else if (updatedMessages.length === 4) {
+        // Условие для умного заголовка: 2-й вопрос и 2-й ответ (4 сообщения)
+        } else if (realMessagesCount === 4) {
             const context = updatedMessages
                 .map(m => `${m.role === 'user' ? 'Вопрос' : 'Ответ'}: ${m.text}`)
                 .join('\n');
             
-            // Ждем ИИ
             finalTitle = await generateSmartTitle(context, firstText);
             
-            // Обновляем список чатов
             setChatList(prev => prev.map(c => 
                 c.id === chatId ? { ...c, title: finalTitle, lastUpdate: new Date().toISOString() } : c
             ));
         }
     
-        // Теперь отправляем в S3. finalTitle здесь уже будет содержать либо "💭 Определяю...", либо ответ от ИИ
         if (typeof syncChatHistory === 'function') {
             await syncChatHistory(chatId, updatedMessages, finalTitle);
         }
@@ -771,14 +751,12 @@ function App() {
     };
 
     useEffect(() => {
-        // Ждем, пока userId подгрузится из VK/localStorage
         if (currentUserId && currentUserId !== "guest") {
             const fetchChats = async () => {
                 try {
                     const response = await axios.get(
                         `${CONFIG.STORAGE_GATEWAY}/api/list-chats?userId=${currentUserId}`
                     );
-                    // Записываем массив [{id, title, lastUpdate}, ...] в стейт
                     setChatList(response.data || []);
                 } catch (err) {
                     console.error("Не удалось получить список чатов:", err);
@@ -786,7 +764,7 @@ function App() {
             };
             fetchChats();
         }
-    }, [currentUserId]); // Массив зависимостей: сработает при изменении ID
+    }, [currentUserId]);
 
     useEffect(() => {
       const modalContent = document.querySelector('.storage-content');
@@ -932,7 +910,6 @@ function App() {
 
     return (
         <div className="app-wrapper">
-            {/* ПОРТАЛ: теперь он просто часть общего дерева */}
             {document.getElementById('sidebar') && createPortal(
             <Sidebar
             chatList={chatList || []} 
@@ -944,7 +921,7 @@ function App() {
             isLoggedIn={isLoggedIn}
             userPhoto={userPhoto}
             isAdmin={isAdmin}
-            handleNewChat={() => { setMessages([]); setCurrentChatId(null); }}
+            handleNewChat={onNewChatRequest} // ✅ FIX: Передаем единую правильную функцию
             handleStorage={() => setStorageVisible(true)}
             handleAdminPanel={() => setShowAdminPanel(true)}
             handleLogout={() => { localStorage.clear(); window.location.reload(); }}
@@ -952,7 +929,6 @@ function App() {
             document.getElementById('sidebar')
           )}
 
-        /* ОСНОВНОЙ КОНТЕЙНЕР App (остается как был) */
         <div 
             ref={appContainerRef}
             className={`app-container ${isDragging ? 'dragging' : ''}`}

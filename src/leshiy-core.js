@@ -6,7 +6,7 @@ const SYSTEM_PROMPT = `Ты — многофункциональный AI-асс
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 Ответы должны быть информативными и доброжелательными со смайликами.`;
 
-export const askLeshiy = async ({ text, files = [], isSystemTask = false, service = null }) => {
+export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false, service = null }) => {
     let userQuery = text?.trim() || "";
     let lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
@@ -520,11 +520,9 @@ export const askLeshiy = async ({ text, files = [], isSystemTask = false, servic
     // ==========================================================
     let serviceType = 'TEXT_TO_TEXT';
     
-    // Если сервис передан принудительно, используем его
     if (service) {
         serviceType = service;
     } else {
-        // Иначе, определяем по файлам
         const firstFileObj = hasFiles ? files[0].file : null;
         if (firstFileObj) {
             if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
@@ -546,12 +544,20 @@ export const askLeshiy = async ({ text, files = [], isSystemTask = false, servic
         case 'GEMINI':
             url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
             const prompt = text || (hasFiles ? "Проанализируй эти файлы" : "Привет");
-            const parts = [{ text: `${SYSTEM_PROMPT}\n\nЗапрос: ${prompt}` }];
+            
+            // ✅ FIX: Не добавляем системный промт для системных задач
+            const geminiPrompt = isSystemTask ? prompt : `${SYSTEM_PROMPT}\n\nЗапрос: ${prompt}`;
+            const parts = [{ text: geminiPrompt }];
 
             files.forEach(f => {
                 if (f.base64) parts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 } });
             });
-            body = { contents: [{ parts }] };
+
+            const contents = [{ parts }];
+            // Пока не используем history, но в будущем можно добавить
+            // if (history.length > 0) { ... }
+            
+            body = { contents };
             break;
 
         case 'CLOUDFLARE':
@@ -569,10 +575,14 @@ export const askLeshiy = async ({ text, files = [], isSystemTask = false, servic
                 for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
                 body = { image: Array.from(byteArray), prompt: text || "Опиши изображение" };
             } else {
-                body = {
-                    messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: text }],
-                    stream: false
-                };
+                // ✅ FIX: Не добавляем системный промт для системных задач
+                const messages = [];
+                if (!isSystemTask) {
+                    messages.push({ role: 'system', content: SYSTEM_PROMPT });
+                }
+                // TODO: Преобразовывать и добавлять history, если она есть
+                messages.push({ role: 'user', content: text });
+                body = { messages, stream: false };
             }
             break;
 
