@@ -323,7 +323,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 4px;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, width 0.2s, height 0.2s;
   position: relative;
   overflow: hidden;
 }
@@ -337,8 +337,8 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   color: white;
 }
 
-.sidebar-collapsed .history-item.active {
-    border-radius: 50%;
+body.sidebar-collapsed .history-item.active {
+    border-radius: 8px;
     width: 44px;
     height: 44px;
     padding: 0;
@@ -427,6 +427,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+/* SCROLLBAR STYLES */
 .sidebar-history::-webkit-scrollbar {
   width: 6px;
 }
