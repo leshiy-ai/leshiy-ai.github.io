@@ -222,6 +222,7 @@ function App() {
     const [showAdminPanel, setShowAdminPanel] = useState(false);
     const [isStorageVisible, setStorageVisible] = useState(false);
     const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
     
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
@@ -241,6 +242,8 @@ function App() {
     const welcomeMessageIdRef = useRef(null);
     const textareaRef = useRef(null);
     const modelSelectorRef = useRef(null);
+    const recognitionRef = useRef(null);
+    const baseTextRef = useRef('');
     
     const t = useMemo(() => TRANSLATIONS[language], [language]);
 
@@ -1033,6 +1036,63 @@ function App() {
         };
     }, []);
 
+    // --- Speech Recognition --- //
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            console.warn("Speech Recognition API is not supported in this browser.");
+            return;
+        }
+
+        recognitionRef.current = new SpeechRecognition();
+        const recognition = recognitionRef.current;
+        recognition.lang = language === 'ru' ? 'ru-RU' : 'en-US';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onresult = (event) => {
+            let interim_transcript = '';
+            let final_transcript = '';
+            for (let i = 0; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    final_transcript += event.results[i][0].transcript;
+                } else {
+                    interim_transcript += event.results[i][0].transcript;
+                }
+            }
+            setInput(baseTextRef.current + final_transcript + interim_transcript);
+        };
+
+        recognition.onend = () => {
+            setIsRecording(false);
+        };
+        
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error", event.error);
+            setIsRecording(false);
+        };
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+        };
+    }, [language]);
+
+    const handleMicClick = () => {
+        const recognition = recognitionRef.current;
+        if (!recognition) return;
+
+        if (isRecording) {
+            recognition.stop();
+        } else {
+            baseTextRef.current = input;
+            recognition.start();
+        }
+        setIsRecording(!isRecording);
+    };
+    // ------------------------ //
+
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
 
@@ -1241,7 +1301,7 @@ function App() {
                             </div>
                         )}
                     </div>
-                     <button id="input-mic-btn" className="tool-btn" title={t.tooltip_record_voice}>
+                     <button id="input-mic-btn" className={`tool-btn ${isRecording ? 'recording' : ''}`} title={t.tooltip_record_voice} onClick={handleMicClick}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>
                     </button>
                     <button className="send-btn" title={t.tooltip_send} onClick={() => handleSend()} disabled={isLoading || (!input.trim() && files.length === 0)}>
