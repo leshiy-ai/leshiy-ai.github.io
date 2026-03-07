@@ -558,7 +558,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             else if (firstFileObj.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
         }
 
-        const config = loadActiveModelConfig(serviceType);
+        config = loadActiveModelConfig(serviceType);
         if (!config) return { type: 'error', text: `Модель для ${serviceType} не настроена` };
 
         // ==========================================================
