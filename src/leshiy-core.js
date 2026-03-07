@@ -520,13 +520,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     // ==========================================================
     let url, body, authHeader;
     let isRawBody = false;
-    let cf_config;
+    let config;
 
     if (isSystemTask) {
         // 🔥 ПРЯМОЙ ДОСТУП К БЛОКУ КЛАУДФЛАРЫ В ОБХОД АКТИВНОЙ МОДЕЛИ
-        cf_config = AI_MODELS['TEXT_TO_TEXT_CLOUDFLARE']; 
+        config = AI_MODELS['TEXT_TO_TEXT_CLOUDFLARE']; 
         
-        if (!cf_config) {
+        if (!config) {
             console.error("❌ Ошибка: Блок TEXT_TO_TEXT_CLOUDFLARE не найден в AI_MODELS");
             return { type: 'error', text: 'Системная модель не настроена' };
         }
@@ -534,8 +534,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         console.log("🛠 Системный форс Клаудфлары из ai-config...");
         
         // Сборка параметров (как в твоем switch, но принудительно)
-        url = `${cf_config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${cf_config.MODEL}`;
-        authHeader = `Bearer ${CONFIG[cf_config.API_KEY]}`;
+        url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
+        authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
         
         const systemInstruction = "Ты — помощник, который придумывает краткие и емкие названия для чатов (максимум 5-6 слов) на основе контекста. Отвечай ТОЛЬКО названием, без кавычек и лишних слов.";
         
