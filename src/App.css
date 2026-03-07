@@ -282,6 +282,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     }
 
     .input-area > #input-add-btn,
+    .input-area > #input-model-selector,
     .input-area > #input-mic-btn,
     .input-area > .send-btn {
         order: 2; 
@@ -337,12 +338,24 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   color: white;
 }
 
+body.sidebar-collapsed .history-item {
+    justify-content: center;
+}
+
 body.sidebar-collapsed .history-item.active {
     border-radius: 8px;
     width: 44px;
     height: 44px;
     padding: 0;
-    justify-content: center;
+}
+
+body.sidebar-collapsed .history-item .history-text,
+body.sidebar-collapsed .history-item .history-actions {
+    display: none;
+}
+
+body.sidebar-collapsed .history-item .icon {
+    margin-right: 0;
 }
 
 .history-item.active .chat-date {
@@ -425,6 +438,84 @@ body.sidebar-collapsed .history-item.active {
 
 .history-item.active .action-icon:hover {
   background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* --- MODEL SELECTOR STYLES --- */
+.model-selector-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.model-selector-btn .model-icon {
+    width: 28px;
+    height: 28px;
+}
+
+.model-selector-dropdown {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 8px;
+    width: 300px;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.model-service-group h4 {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+    margin: 4px 8px 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.model-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.model-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.2s;
+}
+
+.model-option:hover {
+    background-color: var(--bubble-bg);
+}
+
+.model-option.active {
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: 500;
+}
+
+.model-option-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.model-option-name {
+    flex-grow: 1;
+    font-size: 0.9em;
 }
 
 /* SCROLLBAR STYLES */
