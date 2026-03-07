@@ -243,6 +243,8 @@ function App() {
     const textareaRef = useRef(null);
     const modelSelectorRef = useRef(null);
     const recognitionRef = useRef(null);
+    const shouldSendOnEndRef = useRef(false);
+    const transcriptBaseRef = useRef('');
     const baseTextRef = useRef('');
     const finalTranscriptRef = useRef('');
     const textToSendOnEnd = useRef(null);
@@ -691,6 +693,9 @@ function App() {
         }
     }, [files, currentChatId, messages, currentUserId, handleHistorySync]);
 
+    const handleSendRef = useRef(handleSend);
+    useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
+
     const [chatOffset, setChatOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -1038,100 +1043,126 @@ function App() {
         };
     }, []);
 
-    // --- Speech Recognition --- //
+            // --- Speech Recognition --- //
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            console.warn("Speech Recognition API is not supported in this browser.");
+            console.warn("Speech Recognition API is not supported.");
             return;
         }
 
         const recognition = new SpeechRecognition();
         recognitionRef.current = recognition;
-
         recognition.lang = language === 'ru' ? 'ru-RU' : 'en-US';
         recognition.interimResults = true;
         recognition.continuous = true;
 
         recognition.onstart = () => {
+            finalTranscriptRef.current = '';
+            shouldSendOnEndRef.current = false;
             setIsRecording(true);
         };
 
         recognition.onresult = (event) => {
-            let interim_transcript = '';
+            let interimTranscript = '';
+            let finalTranscriptPiece = '';
 
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                let transcriptPiece = event.results[i][0].transcript;
-
+                const transcriptPart = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go', 'enter'];
-                    const newLineCommands = language === 'ru' ? ['с новой строки', 'новая строка', 'энтер'] : ['new line'];
-                    const lowerTrimmedPiece = transcriptPiece.toLowerCase().trim();
-
-                    for (const cmd of sendCommands) {
-                        if (lowerTrimmedPiece.endsWith(cmd)) {
-                            const textPortion = transcriptPiece.substring(0, transcriptPiece.toLowerCase().lastIndexOf(cmd));
-                            finalTranscriptRef.current += textPortion;
-                            textToSendOnEnd.current = (baseTextRef.current + finalTranscriptRef.current).trim();
-                            recognition.stop();
-                            return; 
-                        }
-                    }
-                    
-                    newLineCommands.forEach(cmd => {
-                        const regex = new RegExp(`\\s*${cmd}\\s*`, 'gi');
-                        transcriptPiece = transcriptPiece.replace(regex, '\n');
-                    });
-                    
-                    finalTranscriptRef.current += transcriptPiece;
-
+                    finalTranscriptPiece += transcriptPart;
                 } else {
-                    interim_transcript += transcriptPiece;
+                    interimTranscript += transcriptPart;
                 }
             }
-            setInput(baseTextRef.current + finalTranscriptRef.current + interim_transcript);
-        };
 
+            if (finalTranscriptPiece) {
+                const lowerFinalPiece = finalTranscriptPiece.toLowerCase().trim();
+                const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
+                const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
+                const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
+                const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
+
+                let commandProcessed = false;
+
+                const sendCmd = sendCommands.find(cmd => lowerFinalPiece.endsWith(cmd));
+                if (sendCmd) {
+                    const textToAdd = finalTranscriptPiece.substring(0, finalTranscriptPiece.toLowerCase().lastIndexOf(sendCmd));
+                    finalTranscriptRef.current += textToAdd;
+                    shouldSendOnEndRef.current = true;
+                    recognition.stop();
+                    commandProcessed = true;
+                }
+
+                if (!commandProcessed) {
+                    const clearCmd = clearCommands.find(cmd => lowerFinalPiece.endsWith(cmd));
+                    if (clearCmd) {
+                        finalTranscriptRef.current = '';
+                        interimTranscript = '';
+                        commandProcessed = true;
+                    }
+                }
+                
+                if (!commandProcessed) {
+                    const undoCmd = undoCommands.find(cmd => lowerFinalPiece.endsWith(cmd));
+                    if (undoCmd) {
+                        // Сначала добавляем любой текст, который мог прийти вместе с командой
+                        const textBeforeCommand = finalTranscriptPiece.substring(0, finalTranscriptPiece.toLowerCase().lastIndexOf(undoCmd));
+                        finalTranscriptRef.current += textBeforeCommand;
+
+                        // Используем regex для безопасного удаления последнего слова, сохраняя переносы строк
+                        finalTranscriptRef.current = finalTranscriptRef.current.replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
+                        
+                        interimTranscript = '';
+                        commandProcessed = true;
+                    }
+                }
+
+                if (!commandProcessed) {
+                    let processedPiece = finalTranscriptPiece;
+                    newLineCommands.forEach(cmd => {
+                        const regex = new RegExp(` *${cmd} *`, 'gi');
+                        processedPiece = processedPiece.replace(regex, '\n');
+                    });
+                    finalTranscriptRef.current += processedPiece;
+                }
+            }
+
+            setInput(transcriptBaseRef.current + finalTranscriptRef.current + interimTranscript);
+        };
 
         recognition.onend = () => {
             setIsRecording(false);
-            if (textToSendOnEnd.current !== null) {
-                handleSend(textToSendOnEnd.current);
-                textToSendOnEnd.current = null;
+            if (shouldSendOnEndRef.current) {
+                handleSendRef.current(transcriptBaseRef.current + finalTranscriptRef.current);
             }
         };
 
         recognition.onerror = (event) => {
-            console.error("Speech recognition error", event.error);
-            if(event.error !== 'no-speech') {
+            console.error("Speech recognition error:", event.error);
+            if (event.error !== 'no-speech') {
                 setIsRecording(false);
             }
         };
 
         return () => {
             if (recognitionRef.current) {
-                recognitionRef.current.onresult = null;
-                recognitionRef.current.onend = null;
-                recognitionRef.current.onerror = null;
                 recognitionRef.current.stop();
             }
         };
-    }, [language, handleSend]);
+    }, [language]);
 
     const handleMicClick = () => {
-        const recognition = recognitionRef.current;
-        if (!recognition) return;
-
+        if (!recognitionRef.current) return;
         if (isRecording) {
-            recognition.stop();
+            recognitionRef.current.stop();
         } else {
-            baseTextRef.current = input;
-            finalTranscriptRef.current = '';
-            textToSendOnEnd.current = null;
-            recognition.start();
+            // Устанавливаем базовый текст здесь, где `input` всегда свежий
+            transcriptBaseRef.current = input; 
+            recognitionRef.current.start();
         }
-    };
-    // ------------------------ //
+    };     
+    // ------------------------ //   
 
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
