@@ -92,7 +92,7 @@ const Sidebar = ({
         <div className="sidebar-top">
           <button id="toggle-menu" className="menu-btn" onClick={toggleSidebar}>☰</button>
           <div className="new-chat" onClick={handleNewChat}>
-            <span className="icon">📝</span>
+            <span className="icon">➕</span>
             <span className="text">Новый чат</span>
           </div>
         </div>

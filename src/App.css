@@ -1,3 +1,4 @@
+/* src/App.css */
 :root {
   --bg-color: #19191a;
   --panel-bg: #222222;
@@ -343,15 +344,17 @@ body.sidebar-collapsed .history-item {
 }
 
 body.sidebar-collapsed .history-item.active {
-    border-radius: 8px;
-    width: 44px;
-    height: 44px;
+    border-radius: 12px;
+    width: 40px;
+    height: 40px;
     padding: 0;
 }
 
 body.sidebar-collapsed .history-item .history-text,
-body.sidebar-collapsed .history-item .history-actions {
+body.sidebar-collapsed .history-item .history-actions,
+body.sidebar-collapsed .history-item .chat-date {
     display: none;
+    visibility: hidden;
 }
 
 body.sidebar-collapsed .history-item .icon {
@@ -450,6 +453,7 @@ body.sidebar-collapsed .history-item .icon {
 .model-selector-btn .model-icon {
     width: 28px;
     height: 28px;
+    border-radius: 50%;
 }
 
 .model-selector-dropdown {
@@ -461,23 +465,9 @@ body.sidebar-collapsed .history-item .icon {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 8px;
-    width: 300px;
+    width: 280px;
     z-index: 100;
     box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.model-service-group h4 {
-    font-size: 0.8em;
-    color: var(--text-secondary);
-    margin: 4px 8px 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.model-list {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -495,6 +485,7 @@ body.sidebar-collapsed .history-item .icon {
     cursor: pointer;
     text-align: left;
     transition: background-color 0.2s;
+    width: 100%;
 }
 
 .model-option:hover {
@@ -507,15 +498,21 @@ body.sidebar-collapsed .history-item .icon {
     font-weight: 500;
 }
 
+.model-option.active:hover {
+    background-color: #45a049; /* Slightly darker green on hover */
+}
+
+
 .model-option-icon {
     width: 24px;
     height: 24px;
     flex-shrink: 0;
+    border-radius: 50%;
 }
 
 .model-option-name {
     flex-grow: 1;
-    font-size: 0.9em;
+    font-size: 0.95em;
 }
 
 /* SCROLLBAR STYLES */
