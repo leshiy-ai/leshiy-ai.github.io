@@ -411,6 +411,8 @@ body.sidebar-collapsed .history-item .icon {
 .history-item:hover .history-actions,
 .history-item.active .history-actions {
   opacity: 1;
+  width: 36px;
+  height: 36px;
   visibility: visible;
   transform: translateY(-50%) scale(1);
 }
