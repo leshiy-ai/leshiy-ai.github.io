@@ -4,9 +4,63 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { CONFIG } from './config';
 import { askLeshiy } from './leshiy-core';
-import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey } from './ai-config';
+import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
+
+// --- КОНСТАНТЫ ---
+const TEXT_TO_TEXT_MODELS_SELECTOR = [
+    { key: 'TEXT_TO_TEXT_CLOUDFLARE', name: 'Базовая модель', icon: '✳️' },
+    { key: 'TEXT_TO_TEXT_GEMINI', name: 'Умная модель', icon: '✨' },
+    { key: 'TEXT_TO_TEXT_BOTHUB', name: 'Запасная модель', icon: '✴️' }
+];
+
+const TRANSLATIONS = {
+    ru: {
+        title: 'Leshiy-AI',
+        placeholder: (files) => files.length > 0 ? "Добавь текст к файлам..." : "Спроси меня о чем-нибудь...",
+        send: 'Отправить',
+        upload: '📎 Выбрать файл',
+        welcome: 'Привет! Я Gemini-AI. Спроси меня о чём угодно, подключи Хранилку и вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
+        thinking: '⏳ Gemini-AI думает...',
+        uploading: '☁️ Загружаю',
+        uploadSuccess: '✅ Файл успешно сохранен в экосистеме!',
+        uploadError: '❌ Не удалось сохранить',
+        admin: '👑 Админка',
+        version: 'Версия',
+        author: 'Автор',
+        tooltip_add_file: "Добавить файл",
+        tooltip_record_voice: "Записать голос",
+        tooltip_send: "Отправить",
+        tooltip_toggle_lang: "Сменить язык",
+        tooltip_toggle_theme: "Сменить тему",
+        tooltip_reload: "Обновить чат",
+        tooltip_close: "Закрыть чат",
+        tooltip_select_model: "Выбрать модель"
+    },
+    en: {
+        title: 'Leshiy-AI',
+        placeholder: (files) => files.length > 0 ? "Now add a text query to the files..." : "Ask something...",
+        send: 'Send',
+        upload: '📎 Select file',
+        welcome: 'Hi! I am Gemini-AI. Ask me anything, connect Storage and insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
+        thinking: '⏳ Gemini-AI is thinking...',
+        uploading: '☁️ Uploading',
+        uploadSuccess: '✅ File successfully saved in the ecosystem!',
+        uploadError: '❌ Failed to save',
+        admin: '👑 Admin',
+        version: 'Version',
+        author: 'Author',
+        tooltip_add_file: "Add file",
+        tooltip_record_voice: "Record voice",
+        tooltip_send: "Send",
+        tooltip_toggle_lang: "Change language",
+        tooltip_toggle_theme: "Change theme",
+        tooltip_reload: "Reload chat",
+        tooltip_close: "Close chat",
+        tooltip_select_model: "Select model"
+    }
+};
 
 const fileToDataURL = (file) => {
     return new Promise((resolve, reject) => {
@@ -96,6 +150,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     let startX = 0;
     let currentX = 0;
     const threshold = 100;
+    if (!panel) return () => {};
     const style = window.getComputedStyle(panel);
     const initialTransform = style.transform !== 'none' ? style.transform : '';
 
@@ -154,6 +209,7 @@ function App() {
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
     const [isStorageVisible, setStorageVisible] = useState(false);
+    const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
     
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
@@ -172,52 +228,9 @@ function App() {
     const isPulled = useRef(false);
     const welcomeMessageIdRef = useRef(null);
     const textareaRef = useRef(null);
-
-    const translations = {
-        ru: {
-            title: 'Leshiy-AI',
-            placeholder: files.length > 0 ? "Добавь текст к файлам..." : "Спроси меня о чем-нибудь...",
-            send: 'Отправить',
-            upload: '📎 Выбрать файл',
-            welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, подключи Хранилку и вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
-            thinking: '⏳ Gemini-AI думает...',
-            uploading: '☁️ Загружаю',
-            uploadSuccess: '✅ Файл успешно сохранен в экосистеме!',
-            uploadError: '❌ Не удалось сохранить',
-            admin: '👑 Админка',
-            version: 'Версия',
-            author: 'Автор',
-            tooltip_add_file: "Добавить файл",
-            tooltip_record_voice: "Записать голос",
-            tooltip_send: "Отправить",
-            tooltip_toggle_lang: "Сменить язык",
-            tooltip_toggle_theme: "Сменить тему",
-            tooltip_reload: "Обновить чат",
-            tooltip_close: "Закрыть чат"
-        },
-        en: {
-            title: 'Leshiy-AI',
-            placeholder: files.length > 0 ? "Now add a text query to the files..." : "Ask something...",
-            send: 'Send',
-            upload: '📎 Select file',
-            welcome: 'Hi! I am Leshiy-AI. Ask me anything, connect Storage and insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
-            thinking: '⏳ Gemini-AI is thinking...',
-            uploading: '☁️ Uploading',
-            uploadSuccess: '✅ File successfully saved in the ecosystem!',
-            uploadError: '❌ Failed to save',
-            admin: '👑 Admin',
-            version: 'Version',
-            author: 'Author',
-            tooltip_add_file: "Add file",
-            tooltip_record_voice: "Record voice",
-            tooltip_send: "Send",
-            tooltip_toggle_lang: "Change language",
-            tooltip_toggle_theme: "Change theme",
-            tooltip_reload: "Reload chat",
-            tooltip_close: "Close chat"
-        }
-    };
-    const t = translations[language];
+    const modelSelectorRef = useRef(null);
+    
+    const t = TRANSLATIONS[language];
 
     const [activeModels, setActiveModels] = useState({
         TEXT_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_TEXT') || 'TEXT_TO_TEXT_CLOUDFLARE',
@@ -226,11 +239,31 @@ function App() {
         VIDEO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_VIDEO_TO_TEXT') || 'VIDEO_TO_TEXT_CLOUDFLARE',
     });
 
+    const activeTttModelKey = activeModels.TEXT_TO_TEXT;
+    const activeTttModel = TEXT_TO_TEXT_MODELS_SELECTOR.find(m => m.key === activeTttModelKey) || TEXT_TO_TEXT_MODELS_SELECTOR[0];
+
     const updateModel = (type, modelKey) => {
         setActiveModels(prev => ({ ...prev, [type]: modelKey }));
         const kvKey = `ACTIVE_MODEL_${type}`;
         localStorage.setItem(kvKey, modelKey);
     };
+
+    const handleModelSelect = (modelKey) => {
+        updateModel('TEXT_TO_TEXT', modelKey);
+        setIsModelSelectorOpen(false);
+    };
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
+                setIsModelSelectorOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []); // Убрана зависимость, т.к. ref стабилен
 
     const fetchChats = useCallback(async () => {
         if (currentUserId && currentUserId !== "guest") {
@@ -253,8 +286,8 @@ function App() {
         
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
-        setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
-    }, [language, translations]);
+        setMessages([{ id: welcomeId, role: 'ai', text: TRANSLATIONS[language].welcome }]);
+    }, [language]);
    
     useEffect(() => {
         Object.keys(activeModels).forEach(type => {
@@ -262,11 +295,10 @@ function App() {
             if (config && config.kvKey) {
                 if (!localStorage.getItem(config.kvKey)) {
                     localStorage.setItem(config.kvKey, activeModels[type]);
-                    console.log(`✅ Записали дефолт для ${type}: ${activeModels[type]}`);
                 }
             }
         });
-    }, []); 
+    }, []); // Этот хук должен выполняться один раз
     
     useEffect(() => {
         if (input === '' && textareaRef.current) {
@@ -374,7 +406,7 @@ function App() {
 
     useEffect(() => {
         localStorage.setItem('language', language);
-        const welcomeMessage = translations[language].welcome;
+        const welcomeMessage = TRANSLATIONS[language].welcome;
         setMessages(prevMessages => 
             prevMessages.map(msg => 
                 msg.id === welcomeMessageIdRef.current 
@@ -483,14 +515,13 @@ function App() {
     
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
                 const cleanedTitle = aiResponse.text.replace(/["'«»*.]/g, '').trim();
-                console.log("💎 ИИ ВЕРНУЛ ТЕКСТ:", cleanedTitle);
                 return cleanedTitle;
             } else {
-                console.warn("⚠️ ИИ вернул странный ответ:", aiResponse);
+                console.warn("AI Title Generation failed with response:", aiResponse);
                 return null;
             }
         } catch (e) {
-            console.warn("AI Title Generation failed, using fallback:", e);
+            console.warn("AI Title Generation failed with error:", e);
         }
         
         return null; 
@@ -553,7 +584,6 @@ function App() {
             const historyMessages = res.data.messages || [];
             
             if (!isLoadMore && historyMessages.length === 0) {
-                console.warn(`История чата ${chatId} пуста или не найдена. Начинаем новый чат.`);
                 onNewChatRequest();
                 return;
             }
@@ -662,7 +692,6 @@ function App() {
             new URLSearchParams(window.location.search).get('user_id');
 
         if (!activeUserId || activeUserId === 'undefined') {
-        console.warn("💾 Сохранение отменено: user_id не найден");
         return;
         }
 
@@ -674,7 +703,6 @@ function App() {
         const isDefault = currentTitle === "Новый чат" || currentTitle.includes("Чат от");
     
         if (validMessages.length >= 4 && isDefault) {
-            console.log("🎯 Условие выполнено, запрашиваю имя у ИИ...");
     
             const context = validMessages.slice(0, 4)
                 .map(m => `${m.role === 'user' ? 'Юзер' : 'ИИ'}: ${m.text || m.content || ''}`)
@@ -684,7 +712,6 @@ function App() {
                 const smartTitle = await generateSmartTitle(context, userText);
                 
                 if (smartTitle) {
-                    console.log("✅ Новое имя получено:", smartTitle);
                     currentTitle = smartTitle;
                     
                     setChatList(prev => prev.map(c => 
@@ -909,7 +936,7 @@ function App() {
     const closeApp = () => {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
-        setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
+        setMessages([{ id: welcomeId, role: 'ai', text: TRANSLATIONS[language].welcome }]);
         softReload();
     };
 
@@ -1000,7 +1027,7 @@ function App() {
         useEffect(() => {
             const initialSelections = {};
             for (const serviceType in SERVICE_TYPE_MAP) {
-                const activeKey = getActiveModelKey(serviceType);
+                const activeKey = getActiveModelKeyGeneric(serviceType);
                 if (activeKey) {
                     initialSelections[serviceType] = activeKey;
                 }
@@ -1026,6 +1053,7 @@ function App() {
         return (
             <div className="admin-modal-overlay" onClick={onClose}>
                 <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={onClose} className="action-btn close-btn">&times;</button>
                     <h2>Настройка AI Моделей</h2>
                     {Object.entries(AI_MODEL_MENU_CONFIG).map(([serviceType, serviceConfig]) => (
                         <div key={serviceType} className="admin-service-section">
@@ -1179,8 +1207,27 @@ function App() {
                             e.target.style.height = 'auto';
                             e.target.style.height = (e.target.scrollHeight) + 'px';
                         }}
-                        placeholder={t.placeholder}
+                        placeholder={t.placeholder(files)}
                     />
+                    <div className="model-selector-container" ref={modelSelectorRef}>
+                        <button id="input-model-selector" className="tool-btn model-selector-btn" title={t.tooltip_select_model} onClick={() => setIsModelSelectorOpen(prev => !prev)}>
+                           {activeTttModel.icon}
+                        </button>
+                        {isModelSelectorOpen && (
+                            <div className="model-selector-dropdown">
+                                {TEXT_TO_TEXT_MODELS_SELECTOR.map(model => (
+                                    <button
+                                        key={model.key}
+                                        className={`model-option ${activeTttModelKey === model.key ? 'active' : ''}`}
+                                        onClick={() => handleModelSelect(model.key)}
+                                    >
+                                        <span className="model-option-icon">{model.icon}</span>
+                                        <span className="model-option-name">{model.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                      <button id="input-mic-btn" className="tool-btn" title={t.tooltip_record_voice}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>
                     </button>

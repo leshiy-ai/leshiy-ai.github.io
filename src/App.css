@@ -223,9 +223,12 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .uploaded-image-preview { width: 80px; height: 80px; object-fit: cover; border-radius: 10px; }
 
 .bubble.typing { font-style: italic; color: var(--text-secondary); }
+
+/* --- ADMIN MODAL --- */
 .admin-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.admin-modal { background: var(--panel-bg); padding: 20px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color); display: flex; flex-direction: column; }
-.admin-modal h2 { margin-top: 0; text-align: center; }
+.admin-modal { position: relative; background: var(--panel-bg); padding: 20px; border-radius: 12px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color); display: flex; flex-direction: column; }
+.admin-modal .close-btn { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; font-size: 16px; }
+.admin-modal h2 { margin-top: 0; margin-bottom: 20px; text-align: center; padding-right: 30px; }
 .admin-service-section { margin-bottom: 20px; }
 .admin-service-section h3 { margin: 0 0 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; color: var(--accent-color); }
 .admin-buttons-container { display: flex; flex-direction: column; gap: 8px; }
@@ -236,6 +239,11 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .admin-footer-btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
 .admin-footer-btn.save { background: var(--accent-color); color: white; }
 .admin-footer-btn.cancel { background: var(--bubble-bg); color: var(--text-color); border: 1px solid var(--border-color); }
+.admin-modal::-webkit-scrollbar { width: 8px; }
+.admin-modal::-webkit-scrollbar-track { background: transparent; }
+.admin-modal::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+.admin-modal::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
 
 #storage-modal { z-index: 2000; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; }
 #storage-modal.active { display: flex; }
@@ -283,7 +291,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     }
 
     .input-area > #input-add-btn,
-    .input-area > #input-model-selector,
+    .input-area > .model-selector-container,
     .input-area > #input-mic-btn,
     .input-area > .send-btn {
         order: 2; 
@@ -341,14 +349,22 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 
 body.sidebar-collapsed .history-item {
     justify-content: center;
+    width: 36px;
+    height: 36px;
 }
 
 body.sidebar-collapsed .history-item.active {
-    border-radius: 12px;
+    border-radius: 8px;
     width: 36px;
     height: 36px;
     padding: 0;
 }
+
+body.sidebar-collapsed .history-item:hover {
+    width: 36px;
+    height: 36px;
+}
+
 
 body.sidebar-collapsed .history-item .history-text,
 body.sidebar-collapsed .history-item .history-actions,
@@ -411,8 +427,6 @@ body.sidebar-collapsed .history-item .icon {
 .history-item:hover .history-actions,
 .history-item.active .history-actions {
   opacity: 1;
-  width: 36px;
-  height: 36px;
   visibility: visible;
   transform: translateY(-50%) scale(1);
 }
@@ -452,10 +466,9 @@ body.sidebar-collapsed .history-item .icon {
     align-items: center;
 }
 
-.model-selector-btn .model-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
+.model-selector-btn {
+    font-size: 22px;
+    line-height: 1;
 }
 
 .model-selector-dropdown {
@@ -501,15 +514,15 @@ body.sidebar-collapsed .history-item .icon {
 }
 
 .model-option.active:hover {
-    background-color: #45a049; /* Slightly darker green on hover */
+    background-color: #45a049;
 }
 
 
 .model-option-icon {
-    width: 24px;
-    height: 24px;
+    font-size: 20px;
     flex-shrink: 0;
-    border-radius: 50%;
+    width: 24px;
+    text-align: center;
 }
 
 .model-option-name {
