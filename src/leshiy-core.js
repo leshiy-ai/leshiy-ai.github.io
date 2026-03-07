@@ -1,12 +1,12 @@
 import { CONFIG } from './config';
-import { loadActiveModelConfig } from './ai-config';
+import { AI_MODELS, loadActiveModelConfig } from './ai-config';
 import axios from 'axios'; // Добавляем axios для работы со шлюзом хранилища
 
 const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент Gemini AI от Leshiy, отвечающий на русском языке.
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 Ответы должны быть информативными и доброжелательными со смайликами.`;
 
-export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false, service = null }) => {
+export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false }) => {
     let userQuery = text?.trim() || "";
     let lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
@@ -518,99 +518,120 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     // ==========================================================
     // 2. ОПРЕДЕЛЕНИЕ ТИПА СЕРВИСА И ЗАГРУЗКА МОДЕЛИ
     // ==========================================================
-    let serviceType = 'TEXT_TO_TEXT';
-    
-    if (service) {
-        serviceType = service;
+    let url, body, authHeader;
+    let isRawBody = false;
+    let cf_config;
+
+    if (isSystemTask) {
+        // 🔥 ПРЯМОЙ ДОСТУП К БЛОКУ КЛАУДФЛАРЫ В ОБХОД АКТИВНОЙ МОДЕЛИ
+        cf_config = AI_MODELS['TEXT_TO_TEXT_CLOUDFLARE']; 
+        
+        if (!cf_config) {
+            console.error("❌ Ошибка: Блок TEXT_TO_TEXT_CLOUDFLARE не найден в AI_MODELS");
+            return { type: 'error', text: 'Системная модель не настроена' };
+        }
+
+        console.log("🛠 Системный форс Клаудфлары из ai-config...");
+        
+        // Сборка параметров (как в твоем switch, но принудительно)
+        url = `${cf_config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${cf_config.MODEL}`;
+        authHeader = `Bearer ${CONFIG[cf_config.API_KEY]}`;
+        
+        const systemInstruction = "Ты — помощник, который придумывает краткие и емкие названия для чатов (максимум 5-6 слов) на основе контекста. Отвечай ТОЛЬКО названием, без кавычек и лишних слов.";
+        
+        body = { 
+            messages: [
+                { role: 'system', content: systemInstruction },
+                { role: 'user', content: `Придумай название для чата на основе этого сообщения: "${text}"` }
+            ], 
+            stream: false 
+        };
+        
+        // Мы НЕ идем в else, значит ниже ничего не перезапишется
     } else {
+        let serviceType = 'TEXT_TO_TEXT';
+
         const firstFileObj = hasFiles ? files[0].file : null;
         if (firstFileObj) {
             if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
             else if (firstFileObj.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
             else if (firstFileObj.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
         }
-    }
 
-    const config = loadActiveModelConfig(serviceType);
-    if (!config) return { type: 'error', text: `Модель для ${serviceType} не настроена` };
+        const config = loadActiveModelConfig(serviceType);
+        if (!config) return { type: 'error', text: `Модель для ${serviceType} не настроена` };
 
-    let url, body, authHeader;
-    let isRawBody = false;
-
-    // ==========================================================
-    // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА
-    // ==========================================================
-    switch (config.SERVICE) {
-        case 'GEMINI':
-            url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
-            const prompt = text || (hasFiles ? "Проанализируй эти файлы" : "Привет");
-            
-            // ✅ FIX: Не добавляем системный промт для системных задач
-            const geminiPrompt = isSystemTask ? prompt : `${SYSTEM_PROMPT}\n\nЗапрос: ${prompt}`;
-            const parts = [{ text: geminiPrompt }];
-
-            files.forEach(f => {
-                if (f.base64) parts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 } });
-            });
-
-            const contents = [{ parts }];
-            // Пока не используем history, но в будущем можно добавить
-            // if (history.length > 0) { ... }
-            
-            body = { contents };
-            break;
-
-        case 'CLOUDFLARE':
-        case 'WORKERS_AI':
-            url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
-            authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-            const firstFileData = files[0];
-
-            if (serviceType.includes('AUDIO') || serviceType.includes('VIDEO')) {
-                body = await firstFileData.file.arrayBuffer();
-                isRawBody = true;
-            } else if (serviceType.includes('IMAGE')) {
-                const byteString = atob(firstFileData.base64);
-                const byteArray = new Uint8Array(byteString.length);
-                for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
-                body = { image: Array.from(byteArray), prompt: text || "Опиши изображение" };
-            } else {
+        // ==========================================================
+        // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА
+        // ==========================================================
+        switch (config.SERVICE) {
+            case 'GEMINI':
+                url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
+                const prompt = text || (hasFiles ? "Проанализируй эти файлы" : "Привет");
+                
                 // ✅ FIX: Не добавляем системный промт для системных задач
-                const messages = [];
-                if (!isSystemTask) {
-                    messages.push({ role: 'system', content: SYSTEM_PROMPT });
-                }
-                // TODO: Преобразовывать и добавлять history, если она есть
-                messages.push({ role: 'user', content: text });
-                body = { messages, stream: false };
-            }
-            break;
+                const geminiPrompt = `${SYSTEM_PROMPT}\n\nЗапрос: ${prompt}`;
+                const parts = [{ text: geminiPrompt }];
 
-        case 'BOTHUB':
+                files.forEach(f => {
+                    if (f.base64) parts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 } });
+                });
+
+                const contents = [{ parts }];
+                // Пока не используем history, но в будущем можно добавить
+                // if (history.length > 0) { ... }
+                
+                body = { contents };
+                break;
+
+            case 'CLOUDFLARE':
+            case 'WORKERS_AI':
+                url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                const firstFileData = files[0];
+
+                if (serviceType.includes('AUDIO') || serviceType.includes('VIDEO')) {
+                    body = await firstFileData.file.arrayBuffer();
+                    isRawBody = true;
+                } else if (serviceType.includes('IMAGE')) {
+                    const byteString = atob(firstFileData.base64);
+                    const byteArray = new Uint8Array(byteString.length);
+                    for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
+                    body = { image: Array.from(byteArray), prompt: text || "Опиши изображение" };
+                } else {
+                    const messages = [];
+                    // TODO: Преобразовывать и добавлять history, если она есть
+                    messages.push({ role: 'user', content: text });
+                    body = { messages, stream: false };
+                }
+                break;
+
+            case 'BOTHUB':
+                url = `${config.BASE_URL}/chat/completions`;
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                const userContent = [{ type: 'text', text: text || "Опиши это" }];
+                files.forEach(f => {
+                    if (f.base64) userContent.push({ type: 'image_url', image_url: { url: `data:${f.mimeType};base64,${f.base64}` } });
+                });
+                body = { model: config.MODEL, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent }] };
+                break;
+
+            case 'DEEPSEEK':
+            // URL для DeepSeek API
             url = `${config.BASE_URL}/chat/completions`;
             authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-            const userContent = [{ type: 'text', text: text || "Опиши это" }];
-            files.forEach(f => {
-                if (f.base64) userContent.push({ type: 'image_url', image_url: { url: `data:${f.mimeType};base64,${f.base64}` } });
-            });
-            body = { model: config.MODEL, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent }] };
+            
+            // Формируем стандартный OpenAI-совместимый body
+            body = {
+                model: config.MODEL, // например, 'deepseek-chat'
+                messages: [
+                    { role: 'system', content: SYSTEM_PROMPT },
+                    { role: 'user', content: text || "Привет" }
+                ],
+                stream: false
+            };
             break;
-
-        case 'DEEPSEEK':
-        // URL для DeepSeek API
-        url = `${config.BASE_URL}/chat/completions`;
-        authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-        
-        // Формируем стандартный OpenAI-совместимый body
-        body = {
-            model: config.MODEL, // например, 'deepseek-chat'
-            messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
-                { role: 'user', content: text || "Привет" }
-            ],
-            stream: false
-        };
-        break;
+        }
     }
 
     // ==========================================================

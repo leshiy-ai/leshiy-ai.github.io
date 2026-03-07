@@ -441,8 +441,7 @@ function App() {
                 text: prompt,
                 userId: currentUserId,
                 history: [],
-                isSystemTask: true,
-                service: 'TEXT_TO_TEXT'
+                isSystemTask: true
             });
             
     
@@ -593,6 +592,16 @@ function App() {
     };
     
     const handleHistorySync = async (chatId, updatedMessages, userText) => {
+        // 1. Проверяем ID прямо перед сохранением (не доверяем старым переменным)
+        const activeUserId = localStorage.getItem('vk_user_id') || 
+            new URLSearchParams(window.location.search).get('user_id');
+
+        // 2. Если ID всё еще нет — СТОП. Не гадим в папку undefined
+        if (!activeUserId || activeUserId === 'undefined') {
+        console.warn("💾 Сохранение отменено: user_id не найден");
+        return;
+        }
+
         // 1. Сверяем по списку, который у нас уже есть в стейте
         const existingChat = chatList.find(c => c.id === chatId);
         let currentTitle = existingChat ? existingChat.title : "Новый чат";
