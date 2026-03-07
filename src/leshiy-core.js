@@ -52,7 +52,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         if (!currentUserId) {
             return {
                 type: 'menu',
-                text: '🔐 **Вход в Хранилку**\n\nДля доступа к вашим файлам необходимо авторизоваться через VK ID.',
+                text: '🔐 **Вход в Хранилку**\\n\\nДля доступа к вашим файлам необходимо авторизоваться через VK ID.',
                 buttons: [
                     { text: '🆔 Войти через VK ID', action: '/auth_init_vk' }
                 ]
@@ -67,7 +67,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             if (!status.isConnected) {
                 return {
                     type: 'menu',
-                    text: `🗄 **Хранилка не подключена**\n\nВыберите облако для хранения ваших файлов:`,
+                    text: `🗄 **Хранилка не подключена**\\n\\nВыберите облако для хранения ваших файлов:`,
                     buttons: [
                         { text: '🔗 Подключить Диск', action: '/storage_auth' },
                         { text: '🤝 Хранилка друга', action: '/storage_friends' },
@@ -82,7 +82,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             
             return {
                 type: 'menu',
-                text: `🗄 **Главное меню Хранилки**\n\n✅ Подключено: ${status.providerName}\n📂 Папка: \`${status.currentFolder || 'Root'}\`\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
+                text: `🗄 **Главное меню Хранилки**\\n\\n✅ Подключено: ${status.providerName}\\n📂 Папка: \`${status.currentFolder || 'Root'}\`\\n📊 Место: ${formatSize(used)} из ${formatSize(total)}`,
                 buttons: [
                     { text: '🔗 Подключить Диск', action: '/storage_auth' },
                     { text: '📁 Мои Папки', action: '/storage_list' },
@@ -142,7 +142,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     if (lowerQuery === '/storage_auth') {
         return {
             type: 'menu',
-            text: '🔗 **Подключение облака**\nВыберите провайдера для авторизации:',
+            text: '🔗 **Подключение облака**\\nВыберите провайдера для авторизации:',
             buttons: [
                 { text: '☁️ Yandex Disk', action: 'auth_yandex' },
                 { text: '☁️ Google Drive', action: 'auth_google' },
@@ -165,7 +165,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
             return {
                 type: 'text',
-                text: `🤝 **Твоя реферальная ссылка**\n\nОтправь её другу, чтобы он мог сохранять файлы в твою папку:\n\n🔗 ${inviteLink}`,
+                text: `🤝 **Твоя реферальная ссылка**\\n\\nОтправь её другу, чтобы он мог сохранять файлы в твою папку:\\n\\n🔗 ${inviteLink}`,
                 buttons: [{ text: '🔙 Назад', action: '/storage' }]
             };
         } catch (e) {
@@ -184,7 +184,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 }));
                 return {
                     type: 'menu',
-                    text: '📁 **Ваши папки в облаке:**\n\nВыберите папку для сохранения файлов:',
+                    text: '📁 **Ваши папки в облаке:**\\n\\nВыберите папку для сохранения файлов:',
                     buttons: [...folderButtons.slice(0, 20), 
                         { text: '➕ Создать папку', action: '/storage_folder_prompt' },
                         { text: '🔙 Назад', action: '/storage' }]
@@ -227,7 +227,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         sessionStorage.setItem('pending_action', 'create_folder');
         return {
             type: 'text',
-            text: '📝 **Введите название новой папки:**\n\nПришлите название текстовым сообщением.',
+            text: '📝 **Введите название новой папки:**\\n\\nПришлите название текстовым сообщением.',
             buttons: [{ text: '❌ Отмена', action: '/storage' }]
         };
     }
@@ -262,7 +262,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         sessionStorage.setItem('pending_action', 'connect_friends');
         return {
             type: 'menu',
-            text: '🤝 **Подключение к Хранилке друга**\n\nВведите ссылку которую Вам предоставил друг, чтобы сохранять файлы в его облако.',
+            text: '🤝 **Подключение к Хранилке друга**\\n\\nВведите ссылку которую Вам предоставил друг, чтобы сохранять файлы в его облако.',
             buttons: [
                 { text: '🔙 Назад', action: '/storage' }
             ]
@@ -290,7 +290,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     
                 return {
                     type: 'text',
-                    text: '🤝 **Хранилка друга подключена!**\n\n' + (res.data.message || 'Связь установлена. Используется облако друга.'),
+                    text: '🤝 **Хранилка друга подключена!**\\n\\n' + (res.data.message || 'Связь установлена. Используется облако друга.'),
                     buttons: [
                         { text: '📁 Список папок', action: '/storage_list_folders' },
                         { text: '🔙 В меню', action: '/storage' }
@@ -306,7 +306,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     if (lowerQuery === 'auth_webdav' || lowerQuery === '/storage_custom') {
         return {
             type: 'menu',
-            text: '📁 **Настройка своего сервера**\n\nВы можете подключить личное хранилище по протоколам FTP, SFTP или WebDAV.',
+            text: '📁 **Настройка своего сервера**\\n\\nВы можете подключить личное хранилище по протоколам FTP, SFTP или WebDAV.',
             buttons: [
                 { text: '🌐 WebDAV (Облако Mail.Ru)', action: '/storage_form_webdav' },
                 { text: '🔒 FTP', action: '/storage_form_ftp' },
@@ -322,7 +322,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const protocol = lowerQuery.includes('ftp') ? 'FTP/SFTP' : 'WebDAV';
         return {
             type: 'text',
-            text: `⚙️ **Подключение своего сервера ${protocol}**\n\nПросто пришлите строку в формате:\nпротокол://логин:пароль@хост\n\n**Примеры:**\n• webdav://user:pass@webdav.yandex.ru\n• ftp://admin:12345@92.255.162.189:21\n• sftp://root:password@my-server.com`,
+            text: `⚙️ **Подключение своего сервера ${protocol}**\\n\\nПросто пришлите строку в формате:\\nпротокол://логин:пароль@хост\\n\\n**Примеры:**\\n• webdav://user:pass@webdav.yandex.ru\\n• ftp://admin:12345@92.255.162.189:21\\n• sftp://root:password@my-server.com`,
             buttons: [{ text: '🔙 Назад', action: '/storage_auth' }]
         };
     }
@@ -361,7 +361,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         } catch (err) {
             return { 
                 type: 'error', 
-                text: '❌ Неверный формат! Убедитесь, что указали логин и пароль.\nПример: `ftp://user:pass@host`' 
+                text: '❌ Неверный формат! Убедитесь, что указали логин и пароль.\\nПример: `ftp://user:pass@host`' 
             };
         }
     }
@@ -428,7 +428,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
             return { 
                 type: 'text', 
-                text: '🔍 **Режим поиска**\n\nВведите название файла, расширение (например, `jpg`) или часть имени.\n\n_Я жду вашего ввода..._',
+                text: '🔍 **Режим поиска**\\n\\nВведите название файла, расширение (например, `jpg`) или часть имени.\\n\\n_Я жду вашего ввода..._',
             };
         }
         if (!searchTerm) {
@@ -502,10 +502,10 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
             return {
                 type: 'menu',
-                text: `🔍 **Результаты (${offset + 1}–${Math.min(offset + 10, allFiles.length)} из ${allFiles.length}):**\n\n` +
-                      `🟢 — можно скачать\n` +
-                      `🟡 — в другой папке\n` +
-                      `🔴 — смените диск\n\n` +
+                text: `🔍 **Результаты (${offset + 1}–${Math.min(offset + 10, allFiles.length)} из ${allFiles.length}):**\\n\\n` +
+                      `🟢 — можно скачать\\n` +
+                      `🟡 — в другой папке\\n` +
+                      `🔴 — смените диск\\n\\n` +
                       `Нажмите на файл для загрузки:`,
                       buttons: [...fileButtons, ...navButtons, { text: '🔙 В меню', action: '/storage' }]
             };
@@ -567,21 +567,22 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         switch (config.SERVICE) {
             case 'GEMINI':
                 url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
+                const geminiHistory = history || [];
+                const currentUserParts = [];
+
                 const prompt = text || (hasFiles ? "Проанализируй эти файлы" : "Привет");
-                
-                // ✅ FIX: Не добавляем системный промт для системных задач
-                const geminiPrompt = `${SYSTEM_PROMPT}\n\nЗапрос: ${prompt}`;
-                const parts = [{ text: geminiPrompt }];
+                currentUserParts.push({ text: prompt });
 
                 files.forEach(f => {
-                    if (f.base64) parts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 } });
+                    if (f.base64) currentUserParts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 } });
                 });
 
-                const contents = [{ parts }];
-                // Пока не используем history, но в будущем можно добавить
-                // if (history.length > 0) { ... }
-                
-                body = { contents };
+                const contents = [...geminiHistory, { role: 'user', parts: currentUserParts }];
+
+                body = { 
+                    contents,
+                    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] }
+                };
                 break;
 
             case 'CLOUDFLARE':
@@ -599,8 +600,17 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
                     body = { image: Array.from(byteArray), prompt: text || "Опиши изображение" };
                 } else {
-                    const messages = [];
-                    // TODO: Преобразовывать и добавлять history, если она есть
+                    const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+
+                    if (history && history.length > 0) {
+                        history.forEach(h => {
+                            const role = h.role === 'model' ? 'assistant' : 'user';
+                            if (h.parts && h.parts[0] && h.parts[0].text) {
+                                messages.push({ role, content: h.parts[0].text });
+                            }
+                        });
+                    }
+                    
                     messages.push({ role: 'user', content: text });
                     body = { messages, stream: false };
                 }
@@ -609,28 +619,50 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             case 'BOTHUB':
                 url = `${config.BASE_URL}/chat/completions`;
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                
+                const botHubMessages = [{ role: 'system', content: SYSTEM_PROMPT }];
+
+                if (history && history.length > 0) {
+                    history.forEach(h => {
+                        const role = h.role === 'model' ? 'assistant' : 'user';
+                        if (h.parts && h.parts[0] && h.parts[0].text) {
+                            botHubMessages.push({ role, content: h.parts[0].text });
+                        }
+                    });
+                }
+                
                 const userContent = [{ type: 'text', text: text || "Опиши это" }];
                 files.forEach(f => {
                     if (f.base64) userContent.push({ type: 'image_url', image_url: { url: `data:${f.mimeType};base64,${f.base64}` } });
                 });
-                body = { model: config.MODEL, messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent }] };
+                
+                botHubMessages.push({ role: 'user', content: userContent });
+                body = { model: config.MODEL, messages: botHubMessages };
                 break;
 
             case 'DEEPSEEK':
-            // URL для DeepSeek API
-            url = `${config.BASE_URL}/chat/completions`;
-            authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-            
-            // Формируем стандартный OpenAI-совместимый body
-            body = {
-                model: config.MODEL, // например, 'deepseek-chat'
-                messages: [
-                    { role: 'system', content: SYSTEM_PROMPT },
-                    { role: 'user', content: text || "Привет" }
-                ],
-                stream: false
-            };
-            break;
+                url = `${config.BASE_URL}/chat/completions`;
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                
+                const deepseekMessages = [{ role: 'system', content: SYSTEM_PROMPT }];
+
+                if (history && history.length > 0) {
+                    history.forEach(h => {
+                        const role = h.role === 'model' ? 'assistant' : 'user';
+                        if (h.parts && h.parts[0] && h.parts[0].text) {
+                            deepseekMessages.push({ role, content: h.parts[0].text });
+                        }
+                    });
+                }
+                
+                deepseekMessages.push({ role: 'user', content: text || "Привет" });
+                
+                body = {
+                    model: config.MODEL,
+                    messages: deepseekMessages,
+                    stream: false
+                };
+                break;
         }
     }
 
@@ -750,7 +782,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     const message = errorJson.error?.message || errorJson.message;
                     if (message && typeof message === 'string') {
                         // Берем только первую, самую информативную часть сообщения
-                        friendlyMessage = message.split(/[\.|\n]/)[0];
+                        friendlyMessage = message.split(/[\.|\\n]/)[0];
                     } else {
                         // Если не смогли найти, оставляем как есть, но без JSON
                         friendlyMessage = originalMessage.substring(0, originalMessage.indexOf('{')).trim();

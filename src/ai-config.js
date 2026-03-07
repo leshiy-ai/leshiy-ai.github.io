@@ -171,8 +171,8 @@ export const AI_MODELS = {
 };
 
 export const SERVICE_TYPE_MAP = {
-    'TEXT_TO_TEXT': { name: '✍️ Text → Text', kvKey: 'leshiy-ai-config-text-model' },
-    'IMAGE_TO_TEXT': { name: '👁️ Image → Text', kvKey: 'leshiy-ai-config-image-model' },
+    'TEXT_TO_TEXT': { name: '✍️ Text → Text', kvKey: 'ACTIVE_MODEL_TEXT_TO_TEXT' },
+    'IMAGE_TO_TEXT': { name: '👁️ Image → Text', kvKey: 'ACTIVE_MODEL_IMAGE_TO_TEXT' },
     'AUDIO_TO_TEXT': { name: '🎤 Audio → Text', kvKey: 'ACTIVE_MODEL_AUDIO_TO_TEXT' },
     'VIDEO_TO_TEXT': { name: '🎧 Video → Text', kvKey: 'ACTIVE_MODEL_VIDEO_TO_TEXT' },
     'TEXT_TO_AUDIO': { name: '🔊 Text → Audio', kvKey: 'ACTIVE_MODEL_TEXT_TO_AUDIO' },

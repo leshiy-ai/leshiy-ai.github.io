@@ -218,8 +218,20 @@ function App() {
             tooltip_close: "Close chat"
         }
     };
-
     const t = translations[language];
+
+    const [activeModels, setActiveModels] = useState({
+        TEXT_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_TEXT') || 'TEXT_TO_TEXT_CLOUDFLARE',
+        IMAGE_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_IMAGE_TO_TEXT') || 'IMAGE_TO_TEXT_CLOUDFLARE',
+        AUDIO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_AUDIO_TO_TEXT') || 'AUDIO_TO_TEXT_CLOUDFLARE',
+        VIDEO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_VIDEO_TO_TEXT') || 'VIDEO_TO_TEXT_CLOUDFLARE',
+    });
+
+    const updateModel = (type, modelKey) => {
+        setActiveModels(prev => ({ ...prev, [type]: modelKey }));
+        const kvKey = `ACTIVE_MODEL_${type}`;
+        localStorage.setItem(kvKey, modelKey);
+    };
 
     const fetchChats = useCallback(async () => {
         if (currentUserId && currentUserId !== "guest") {
@@ -244,14 +256,25 @@ function App() {
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: translations[language].welcome }]);
     }, [language, translations]);
-
+   
+    useEffect(() => {
+        Object.keys(activeModels).forEach(type => {
+            const config = SERVICE_TYPE_MAP[type];
+            if (config && config.kvKey) {
+                if (!localStorage.getItem(config.kvKey)) {
+                    localStorage.setItem(config.kvKey, activeModels[type]);
+                    console.log(`✅ Записали дефолт для ${type}: ${activeModels[type]}`);
+                }
+            }
+        });
+    }, []); 
+    
     useEffect(() => {
         if (input === '' && textareaRef.current) {
             textareaRef.current.style.height = 'auto';
         }
     }, [input]);
 
-    // useEffect - ЮзЭффекты - Слушатели нашего App
     useEffect(() => {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
@@ -431,11 +454,10 @@ function App() {
 
     const generateSmartTitle = async (context, userText) => {
         try {
-            // Проверяем, что на входе не null и не undefined, иначе substring упадет
             const safeContext = (context || "").toString();
             const safeUserText = (userText || "").toString();
     
-            const prompt = `Диалог:\n${safeContext.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: "${safeUserText.substring(0, 100)}". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            const prompt = `Диалог:\\n${safeContext.substring(0, 500)}\\n\\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: \"${safeUserText.substring(0, 100)}\". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
             const aiResponse = await askLeshiy({
                 text: prompt,
@@ -489,7 +511,7 @@ function App() {
     const [hasMore, setHasMore] = useState(true);
 
     const loadChatFromHistory = async (chatId, isLoadMore = false) => {
-        const limit = 20; // Загружаем порциями по 20 сообщений
+        const limit = 20; 
         const currentOffset = isLoadMore ? chatOffset : 0;
     
         setIsLoading(true);
@@ -532,15 +554,14 @@ function App() {
     const handleDeleteChat = async (chatId) => {
         if (!window.confirm("Вы уверены, что хотите удалить этот чат навсегда?")) return;
     
-        // Оптимистично убираем из списка
         setChatList(prev => prev.filter(c => c.id !== chatId));
 
         try {
             await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
                 userId: String(currentUserId),
                 chatId: chatId,
-                isDeleted: true, // Флаг для воркера
-                messages: []     // Чтобы не ругался валидатор
+                isDeleted: true, 
+                messages: []     
             });
 
             if (currentChatId === chatId) {
@@ -566,13 +587,11 @@ function App() {
             const trimmedTitle = newTitle.trim();
             
             try {
-                // 1. Загружаем текущую историю, чтобы не затереть её
                 const historyRes = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
                     params: { userId: currentUserId, chatId: chatId }
                 });
                 const currentMessages = historyRes.data.messages || [];
 
-                // 2. Отправляем все данные, включая сообщения
                 await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
                     userId: String(currentUserId),
                     chatId: chatId,
@@ -580,7 +599,6 @@ function App() {
                     messages: currentMessages
                 });
     
-                // 3. Обновляем список чатов с сервера
                 fetchChats();
     
             } catch (e) {
@@ -592,33 +610,27 @@ function App() {
     };
     
     const handleHistorySync = async (chatId, updatedMessages, userText) => {
-        // 1. Проверяем ID прямо перед сохранением (не доверяем старым переменным)
         const activeUserId = localStorage.getItem('vk_user_id') || 
             new URLSearchParams(window.location.search).get('user_id');
 
-        // 2. Если ID всё еще нет — СТОП. Не гадим в папку undefined
         if (!activeUserId || activeUserId === 'undefined') {
         console.warn("💾 Сохранение отменено: user_id не найден");
         return;
         }
 
-        // 1. Сверяем по списку, который у нас уже есть в стейте
         const existingChat = chatList.find(c => c.id === chatId);
         let currentTitle = existingChat ? existingChat.title : "Новый чат";
     
-        // 2. Считаем "чистые" сообщения (без ошибок и кнопок)
         const validMessages = updatedMessages.filter(m => m.text || m.content);
     
-        // 3. Условие: если сообщений 4 или больше И имя всё еще дефолтное
         const isDefault = currentTitle === "Новый чат" || currentTitle.includes("Чат от");
     
         if (validMessages.length >= 4 && isDefault) {
             console.log("🎯 Условие выполнено, запрашиваю имя у ИИ...");
     
-            // Сначала готовим контекст (берем первые 4 сообщения)
             const context = validMessages.slice(0, 4)
                 .map(m => `${m.role === 'user' ? 'Юзер' : 'ИИ'}: ${m.text || m.content || ''}`)
-                .join('\n');
+                .join('\\n');
     
             try {
                 const smartTitle = await generateSmartTitle(context, userText);
@@ -627,7 +639,6 @@ function App() {
                     console.log("✅ Новое имя получено:", smartTitle);
                     currentTitle = smartTitle;
                     
-                    // Обновляем список в интерфейсе
                     setChatList(prev => prev.map(c => 
                         c.id === chatId ? { ...c, title: smartTitle } : c
                     ));
@@ -637,7 +648,6 @@ function App() {
             }
         }
     
-        // 4. В любом случае сохраняем историю в S3 с актуальным заголовком
         await syncChatHistory(chatId, updatedMessages, currentTitle);
     };
 
@@ -678,17 +688,17 @@ function App() {
             ? [] 
             : messages;
 
+        const historyForAi = initialMessages.map(m => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.text || m.content }]
+        }));
+
         const newMessages = [...initialMessages, userMsg];
         setMessages(newMessages);
         setIsLoading(true);
         setFiles([]);
         setInput('');
     
-        const historyForAi = newMessages.slice(-10).map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.text || m.content }]
-        }));
-
         try {
             const aiResponse = await askLeshiy({ 
                 text: userMessageText, 
@@ -1014,7 +1024,7 @@ function App() {
             
             <div 
                 id="storage-modal" 
-                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>
+                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>\
                 <div className="storage-content" onClick={(e) => e.stopPropagation()}>
                     <div className="storage-header">
                         <span>🗄️ Приложение "Хранилка" by Leshiy</span>
@@ -1028,7 +1038,7 @@ function App() {
                     {isStorageVisible && <iframe 
                         id="storage-frame" 
                         src={storageUrl} 
-                        title="Хранилка">
+                        title="Хранилка">\
                     </iframe>}
                 </div>
             </div>
@@ -1053,7 +1063,7 @@ function App() {
                 {messages.map((m) => (
                     <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} />
                 ))}
-                {isLoading && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
+                {isLoading && <div className="message-container ai"><div className="bubble typing\">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
             </div>
             
