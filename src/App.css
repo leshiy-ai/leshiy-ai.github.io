@@ -345,8 +345,8 @@ body.sidebar-collapsed .history-item {
 
 body.sidebar-collapsed .history-item.active {
     border-radius: 12px;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     padding: 0;
 }
 
