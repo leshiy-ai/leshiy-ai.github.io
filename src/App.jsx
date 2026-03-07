@@ -1058,110 +1058,119 @@ function App() {
         recognition.continuous = true;
 
         recognition.onstart = () => {
-            finalTranscriptRef.current = '';
-            shouldSendOnEndRef.current = false;
             setIsRecording(true);
+            shouldSendOnEndRef.current = false;
         };
 
         recognition.onresult = (event) => {
+            let finalSessionText = '';
             let interimTranscript = '';
-            let finalTranscriptPiece = '';
 
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const transcriptPart = event.results[i][0].transcript;
+            for (let i = 0; i < event.results.length; ++i) {
+                const part = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscriptPiece += transcriptPart;
+                    finalSessionText += part;
                 } else {
-                    interimTranscript += transcriptPart;
+                    interimTranscript += part;
                 }
             }
+            
+            const lowerFull = finalSessionText.toLowerCase().trim();
+            const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
+            const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
+            const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
+            const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
 
-            if (finalTranscriptPiece) {
-                const lowerFinalPiece = finalTranscriptPiece.toLowerCase().trim();
-                const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
-                const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
-                const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
-                const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
-
-                let commandProcessed = false;
-
-                const sendCmd = sendCommands.find(cmd => lowerFinalPiece.endsWith(cmd));
-                if (sendCmd) {
-                    const textToAdd = finalTranscriptPiece.substring(0, finalTranscriptPiece.toLowerCase().lastIndexOf(sendCmd));
-                    finalTranscriptRef.current += textToAdd;
-                    shouldSendOnEndRef.current = true;
-                    recognition.stop();
-                    commandProcessed = true;
-                }
-
-                if (!commandProcessed) {
-                    const clearCmd = clearCommands.find(cmd => lowerFinalPiece.endsWith(cmd));
-                    if (clearCmd) {
-                        finalTranscriptRef.current = '';
-                        interimTranscript = '';
-                        commandProcessed = true;
-                    }
-                }
-                
-                if (!commandProcessed) {
-                    const undoCmd = undoCommands.find(cmd => lowerFinalPiece.endsWith(cmd));
-                    if (undoCmd) {
-                        // Сначала добавляем любой текст, который мог прийти вместе с командой
-                        const textBeforeCommand = finalTranscriptPiece.substring(0, finalTranscriptPiece.toLowerCase().lastIndexOf(undoCmd));
-                        finalTranscriptRef.current += textBeforeCommand;
-
-                        // Используем regex для безопасного удаления последнего слова, сохраняя переносы строк
-                        finalTranscriptRef.current = finalTranscriptRef.current.replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
-                        
-                        interimTranscript = '';
-                        commandProcessed = true;
-                    }
-                }
-
-                if (!commandProcessed) {
-                    let processedPiece = finalTranscriptPiece;
-                    newLineCommands.forEach(cmd => {
-                        const regex = new RegExp(` *${cmd} *`, 'gi');
-                        processedPiece = processedPiece.replace(regex, '\n');
-                    });
-                    finalTranscriptRef.current += processedPiece;
-                }
+            const sendCmd = sendCommands.find(cmd => lowerFull.endsWith(cmd));
+            if (sendCmd) {
+                const cleanText = finalSessionText.substring(0, finalSessionText.toLowerCase().lastIndexOf(sendCmd));
+                finalTranscriptRef.current = cleanText;
+                shouldSendOnEndRef.current = true;
+                recognition.stop();
+                return;
             }
 
+            if (clearCommands.some(cmd => lowerFull.endsWith(cmd))) {
+                transcriptBaseRef.current = '';
+                finalTranscriptRef.current = '';
+                setInput('');
+                recognition.stop();
+                return;
+            }
+
+            const undoCmd = undoCommands.find(cmd => lowerFull.endsWith(cmd));
+            if (undoCmd) {
+                let textToModify = finalSessionText.substring(0, finalSessionText.toLowerCase().lastIndexOf(undoCmd));
+                textToModify = textToModify.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
+                finalTranscriptRef.current = textToModify;
+                setInput(transcriptBaseRef.current + finalTranscriptRef.current + interimTranscript);
+                return;
+            }
+
+            let processedFinal = finalSessionText;
+            newLineCommands.forEach(cmd => {
+                processedFinal = processedFinal.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
+            });
+
+            finalTranscriptRef.current = processedFinal;
             setInput(transcriptBaseRef.current + finalTranscriptRef.current + interimTranscript);
         };
 
         recognition.onend = () => {
-            setIsRecording(false);
-            if (shouldSendOnEndRef.current) {
-                handleSendRef.current(transcriptBaseRef.current + finalTranscriptRef.current);
+            // Если мы всё еще хотим записывать (т.е. не было ручной остановки) - рестартим.
+            if (isRecording && !shouldSendOnEndRef.current) {
+                transcriptBaseRef.current += finalTranscriptRef.current;
+                finalTranscriptRef.current = '';
+                try {
+                    // Короткая задержка перед рестартом, чтобы избежать гонки состояний
+                    setTimeout(() => recognition.start(), 100);
+                } catch (e) {
+                    console.error("Recognition restart failed:", e);
+                    setIsRecording(false);
+                }
+            } else {
+                // Иначе, это была ручная остановка или отправка, просто выключаем индикатор
+                setIsRecording(false);
+                if (shouldSendOnEndRef.current) {
+                    handleSendRef.current(transcriptBaseRef.current + finalTranscriptRef.current);
+                    transcriptBaseRef.current = '';
+                    finalTranscriptRef.current = '';
+                }
             }
         };
 
         recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error);
-            if (event.error !== 'no-speech') {
-                setIsRecording(false);
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                return;
             }
+            console.error("Speech recognition error:", event.error);
+            setIsRecording(false);
         };
 
         return () => {
-            if (recognitionRef.current) {
-                recognitionRef.current.stop();
-            }
+            recognition.onend = null;
+            recognitionRef.current.stop();
         };
-    }, [language]);
+    }, [language]); // <-- ГЛАВНОЕ ИСПРАВЛЕНИЕ: УБРАНА ЗАВИСИМОСТЬ от isRecording
 
     const handleMicClick = () => {
         if (!recognitionRef.current) return;
+
         if (isRecording) {
+            // Говорим onend, что мы останавливаем запись вручную
+            setIsRecording(false); 
             recognitionRef.current.stop();
         } else {
-            // Устанавливаем базовый текст здесь, где `input` всегда свежий
-            transcriptBaseRef.current = input; 
-            recognitionRef.current.start();
+            transcriptBaseRef.current = input;
+            finalTranscriptRef.current = '';
+            try {
+                recognitionRef.current.start();
+            } catch(e) {
+                console.error("Could not start recognition:", e);
+                setIsRecording(false);
+            }
         }
-    };     
+    };
     // ------------------------ //   
 
     const AdminPanel = ({ onClose }) => {
