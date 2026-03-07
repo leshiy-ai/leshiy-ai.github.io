@@ -244,6 +244,8 @@ function App() {
     const modelSelectorRef = useRef(null);
     const recognitionRef = useRef(null);
     const baseTextRef = useRef('');
+    const finalTranscriptRef = useRef('');
+    const textToSendOnEnd = useRef(null);
     
     const t = useMemo(() => TRANSLATIONS[language], [language]);
 
@@ -314,10 +316,12 @@ function App() {
             }
         });
     }, [activeModels]);
-    
+
     useEffect(() => {
-        if (input === '' && textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
         }
     }, [input]);
 
@@ -513,7 +517,7 @@ function App() {
         setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
 
-    const generateSmartTitle = async (context, userText) => {
+    const generateSmartTitle = useCallback(async (context, userText) => {
         try {
             const safeContext = (context || "").toString();
             const safeUserText = (userText || "").toString();
@@ -540,9 +544,9 @@ function App() {
         }
         
         return null; 
-    };
+    }, [currentUserId]);
 
-    const syncChatHistory = async (chatId, currentMessages, titleOverride = null) => {
+    const syncChatHistory = useCallback(async (chatId, currentMessages, titleOverride = null) => {
         if (currentUserId === "guest") return;
         
         const payload = {
@@ -565,7 +569,127 @@ function App() {
         } catch (err) {
             console.error("Ошибка сохранения истории:", err);
         }
-    };
+    }, [currentUserId, fetchChats]);
+
+    const handleHistorySync = useCallback(async (chatId, updatedMessages, userText) => {
+        const activeUserId = localStorage.getItem('vk_user_id') || 
+            new URLSearchParams(window.location.search).get('user_id');
+
+        if (!activeUserId || activeUserId === 'undefined') {
+            return;
+        }
+
+        const existingChat = chatList.find(c => c.id === chatId);
+        let currentTitle = existingChat ? existingChat.title : "Новый чат";
+    
+        const validMessages = updatedMessages.filter(m => m.text || m.content);
+    
+        const isDefault = currentTitle === "Новый чат" || currentTitle.includes("Чат от");
+    
+        if (validMessages.length >= 4 && isDefault) {
+    
+            const context = validMessages.slice(0, 4)
+                .map(m => `${m.role === 'user' ? 'Юзер' : 'ИИ'}: ${m.text || m.content || ''}`)
+                .join('\n');
+    
+            try {
+                const smartTitle = await generateSmartTitle(context, userText);
+                
+                if (smartTitle) {
+                    currentTitle = smartTitle;
+                    
+                    setChatList(prev => prev.map(c => 
+                        c.id === chatId ? { ...c, title: smartTitle } : c
+                    ));
+                }
+            } catch (e) {
+                console.error("Ошибка при генерации заголовка:", e);
+            }
+        }
+    
+        await syncChatHistory(chatId, updatedMessages, currentTitle);
+    }, [chatList, currentUserId, generateSmartTitle, syncChatHistory]);
+
+    const handleSend = useCallback(async (text) => {
+        const userMessageText = (typeof text === 'string' ? text : input).trim();
+
+        if (userMessageText.toLowerCase() === '/admin') {
+            setShowAdminPanel(true);
+            setInput('');
+            return;
+        }
+
+        if (!userMessageText && files.length === 0) return;
+
+        let chatId = currentChatId;
+        let isNewChat = false;
+        if (!chatId) {
+            isNewChat = true;
+            chatId = `chat_${Date.now()}`;
+            setCurrentChatId(chatId);
+            localStorage.setItem('last_chat_id', chatId);
+        }
+
+        const currentFiles = [...files];
+        const userMsg = {
+            id: Date.now(),
+            role: 'user',
+            text: userMessageText,
+            attachments: currentFiles.map(f => ({ 
+                preview: f.preview, 
+                name: f.file.name, 
+                type: f.file.type 
+            }))
+        };
+
+        const initialMessages = (messages.length === 1 && messages[0].id === welcomeMessageIdRef.current && !(typeof text === 'string'))
+            ? []
+            : messages;
+
+        const historyForAi = initialMessages.map(m => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.text || m.content }]
+        }));
+
+        const newMessages = [...initialMessages, userMsg];
+        setMessages(newMessages);
+        setIsLoading(true);
+        setFiles([]);
+        setInput('');
+
+        try {
+            const aiResponse = await askLeshiy({
+                text: userMessageText,
+                history: historyForAi,
+                userId: currentUserId,
+                files: currentFiles.filter(f => f.base64).map(f => ({ 
+                    inlineData: { data: f.base64, mimeType: f.mimeType }
+                }))
+            });
+
+            const assistantMsg = {
+                id: Date.now() + 1,
+                role: aiResponse.type === 'error' ? 'ai error' : 'ai',
+                text: aiResponse.text,
+                buttons: aiResponse.buttons
+            };
+
+            const updatedMessages = [...newMessages, assistantMsg];
+            setMessages(updatedMessages);
+
+            handleHistorySync(chatId, updatedMessages, isNewChat ? userMessageText : null);
+
+        } catch (err) {
+            console.error("Ошибка связи с Лешим:", err);
+            setMessages(prev => [...prev, {
+                id: Date.now(),
+                role: 'ai error',
+                text: 'Произошла ошибка при обращении к лешему.'
+            }]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [files, currentChatId, messages, currentUserId, handleHistorySync]);
 
     const [chatOffset, setChatOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
@@ -702,128 +826,6 @@ function App() {
         }
     };
     
-    const handleHistorySync = async (chatId, updatedMessages, userText) => {
-        const activeUserId = localStorage.getItem('vk_user_id') || 
-            new URLSearchParams(window.location.search).get('user_id');
-
-        if (!activeUserId || activeUserId === 'undefined') {
-        return;
-        }
-
-        const existingChat = chatList.find(c => c.id === chatId);
-        let currentTitle = existingChat ? existingChat.title : "Новый чат";
-    
-        const validMessages = updatedMessages.filter(m => m.text || m.content);
-    
-        const isDefault = currentTitle === "Новый чат" || currentTitle.includes("Чат от");
-    
-        if (validMessages.length >= 4 && isDefault) {
-    
-            const context = validMessages.slice(0, 4)
-                .map(m => `${m.role === 'user' ? 'Юзер' : 'ИИ'}: ${m.text || m.content || ''}`)
-                .join('\n');
-    
-            try {
-                const smartTitle = await generateSmartTitle(context, userText);
-                
-                if (smartTitle) {
-                    currentTitle = smartTitle;
-                    
-                    setChatList(prev => prev.map(c => 
-                        c.id === chatId ? { ...c, title: smartTitle } : c
-                    ));
-                }
-            } catch (e) {
-                console.error("Ошибка при генерации заголовка:", e);
-            }
-        }
-    
-        await syncChatHistory(chatId, updatedMessages, currentTitle);
-    };
-
-    const handleSend = async (commandOverride) => {
-        const isCommand = typeof commandOverride === 'string';
-        const rawText = isCommand ? commandOverride : input;
-        const userMessageText = rawText.trim();
-    
-        if (userMessageText.toLowerCase() === '/admin') {
-            setShowAdminPanel(true);
-            setInput('');
-            return;
-        }
-    
-        if (!userMessageText && files.length === 0) return;
-    
-        let chatId = currentChatId;
-        let isNewChat = false;
-        if (!chatId) {
-            isNewChat = true;
-            chatId = `chat_${Date.now()}`;
-            setCurrentChatId(chatId);
-            localStorage.setItem('last_chat_id', chatId);
-        }
-    
-        const currentFiles = [...files];
-        const userMsg = { 
-            id: Date.now(), 
-            role: 'user', 
-            text: userMessageText, 
-            attachments: currentFiles.map(f => ({ 
-                preview: f.preview, 
-                name: f.file.name, 
-                type: f.file.type 
-            })) 
-        };
-    
-        const initialMessages = (messages.length === 1 && messages[0].id === welcomeMessageIdRef.current && !isCommand)
-            ? [] 
-            : messages;
-
-        const historyForAi = initialMessages.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.text || m.content }]
-        }));
-
-        const newMessages = [...initialMessages, userMsg];
-        setMessages(newMessages);
-        setIsLoading(true);
-        setFiles([]);
-        setInput('');
-    
-        try {
-            const aiResponse = await askLeshiy({ 
-                text: userMessageText, 
-                history: historyForAi, 
-                userId: currentUserId, 
-                files: currentFiles.filter(f => f.base64).map(f => ({ 
-                    inlineData: { data: f.base64, mimeType: f.mimeType }
-                })) 
-            });
-    
-            const assistantMsg = { 
-                id: Date.now() + 1, 
-                role: aiResponse.type === 'error' ? 'ai error' : 'ai', 
-                text: aiResponse.text,
-                buttons: aiResponse.buttons 
-            };
-            
-            const updatedMessages = [...newMessages, assistantMsg];
-            setMessages(updatedMessages);
-
-            handleHistorySync(chatId, updatedMessages, isNewChat ? userMessageText : null);
-    
-        } catch (err) {
-            console.error("Ошибка связи с Лешим:", err);
-            setMessages(prev => [...prev, { 
-                id: Date.now(), 
-                role: 'ai error', 
-                text: 'Произошла ошибка при обращении к лешему.' 
-            }]);
-        } finally { 
-            setIsLoading(false); 
-        }
-    };
-
     const handleMenuAction = (action) => {
         if (action.startsWith('http')) {
             window.open(action, '_blank', 'noopener,noreferrer');
@@ -1044,40 +1046,77 @@ function App() {
             return;
         }
 
-        recognitionRef.current = new SpeechRecognition();
-        const recognition = recognitionRef.current;
+        const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
+
         recognition.lang = language === 'ru' ? 'ru-RU' : 'en-US';
         recognition.interimResults = true;
         recognition.continuous = true;
 
+        recognition.onstart = () => {
+            setIsRecording(true);
+        };
+
         recognition.onresult = (event) => {
             let interim_transcript = '';
-            let final_transcript = '';
-            for (let i = 0; i < event.results.length; ++i) {
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                let transcriptPiece = event.results[i][0].transcript;
+
                 if (event.results[i].isFinal) {
-                    final_transcript += event.results[i][0].transcript;
+                    const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go', 'enter'];
+                    const newLineCommands = language === 'ru' ? ['с новой строки', 'новая строка', 'энтер'] : ['new line'];
+                    const lowerTrimmedPiece = transcriptPiece.toLowerCase().trim();
+
+                    for (const cmd of sendCommands) {
+                        if (lowerTrimmedPiece.endsWith(cmd)) {
+                            const textPortion = transcriptPiece.substring(0, transcriptPiece.toLowerCase().lastIndexOf(cmd));
+                            finalTranscriptRef.current += textPortion;
+                            textToSendOnEnd.current = (baseTextRef.current + finalTranscriptRef.current).trim();
+                            recognition.stop();
+                            return; 
+                        }
+                    }
+                    
+                    newLineCommands.forEach(cmd => {
+                        const regex = new RegExp(`\\s*${cmd}\\s*`, 'gi');
+                        transcriptPiece = transcriptPiece.replace(regex, '\n');
+                    });
+                    
+                    finalTranscriptRef.current += transcriptPiece;
+
                 } else {
-                    interim_transcript += event.results[i][0].transcript;
+                    interim_transcript += transcriptPiece;
                 }
             }
-            setInput(baseTextRef.current + final_transcript + interim_transcript);
+            setInput(baseTextRef.current + finalTranscriptRef.current + interim_transcript);
         };
+
 
         recognition.onend = () => {
             setIsRecording(false);
+            if (textToSendOnEnd.current !== null) {
+                handleSend(textToSendOnEnd.current);
+                textToSendOnEnd.current = null;
+            }
         };
-        
+
         recognition.onerror = (event) => {
             console.error("Speech recognition error", event.error);
-            setIsRecording(false);
+            if(event.error !== 'no-speech') {
+                setIsRecording(false);
+            }
         };
 
         return () => {
             if (recognitionRef.current) {
+                recognitionRef.current.onresult = null;
+                recognitionRef.current.onend = null;
+                recognitionRef.current.onerror = null;
                 recognitionRef.current.stop();
             }
         };
-    }, [language]);
+    }, [language, handleSend]);
 
     const handleMicClick = () => {
         const recognition = recognitionRef.current;
@@ -1087,9 +1126,10 @@ function App() {
             recognition.stop();
         } else {
             baseTextRef.current = input;
+            finalTranscriptRef.current = '';
+            textToSendOnEnd.current = null;
             recognition.start();
         }
-        setIsRecording(!isRecording);
     };
     // ------------------------ //
 
@@ -1273,12 +1313,8 @@ function App() {
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
-                                handleSend();
+                                handleSend(input);
                             }
-                        }}
-                        onInput={(e) => {
-                            e.target.style.height = 'auto';
-                            e.target.style.height = (e.target.scrollHeight) + 'px';
                         }}
                         placeholder={t.placeholder(files)}
                     />
@@ -1304,7 +1340,7 @@ function App() {
                      <button id="input-mic-btn" className={`tool-btn ${isRecording ? 'recording' : ''}`} title={t.tooltip_record_voice} onClick={handleMicClick}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>
                     </button>
-                    <button className="send-btn" title={t.tooltip_send} onClick={() => handleSend()} disabled={isLoading || (!input.trim() && files.length === 0)}>
+                    <button className="send-btn" title={t.tooltip_send} onClick={() => handleSend(input)} disabled={isLoading || (!input.trim() && files.length === 0)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                     </button>
                 </div>
