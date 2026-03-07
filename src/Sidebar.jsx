@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const Sidebar = ({ 
+  t, // Принимаем объект переводов
   chatList = [], 
   currentChatId, 
   onSelectChat, 
@@ -90,20 +90,20 @@ const Sidebar = ({
   return (
     <div id="sidebar" className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-top">
-          <button id="toggle-menu" className="menu-btn" onClick={toggleSidebar}>☰</button>
-          <div className="new-chat" onClick={handleNewChat}>
+          <button id="toggle-menu" className="menu-btn" onClick={toggleSidebar} title={t.tooltip_toggle_menu}>☰</button>
+          <div className="new-chat" onClick={handleNewChat} title={t.tooltip_new_chat}>
             <span className="icon">➕</span>
             <span className="text">Новый чат</span>
           </div>
         </div>
       
         <div className="sidebar-middle">
-          <div className="nav-item" id="open-storage" onClick={handleStorage}>
+          <div className="nav-item" id="open-storage" onClick={handleStorage} title={t.tooltip_storage}>
             <span className="icon">🗄️</span>
             <span className="text">Хранилка</span>
           </div>
           {isAdmin && (
-            <div className="nav-item" id="open-admin-panel" onClick={handleAdminPanel}>
+            <div className="nav-item" id="open-admin-panel" onClick={handleAdminPanel} title={t.tooltip_admin}>
               <span className="icon">🅰️</span>
               <span className="text">Админ меню</span>
             </div>
@@ -178,7 +178,7 @@ const Sidebar = ({
 
           <div 
             className="user-profile"
-            title={isLoggedIn ? `Профиль: ${userName}` : 'Нажмите для авторизации через VK'}
+            title={isLoggedIn ? `${t.tooltip_logout}: ${userName}` : t.tooltip_login}
             onClick={handleProfileClick}
             style={{ cursor: 'pointer' }}
           >

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
@@ -36,7 +36,13 @@ const TRANSLATIONS = {
         tooltip_toggle_theme: "Сменить тему",
         tooltip_reload: "Обновить чат",
         tooltip_close: "Закрыть чат",
-        tooltip_select_model: "Выбрать модель"
+        tooltip_select_model: "Выбрать модель",
+        tooltip_toggle_menu: "Открыть/закрыть меню",
+        tooltip_new_chat: "Начать новый чат",
+        tooltip_storage: "Открыть Хранилище",
+        tooltip_admin: "Открыть админ-панель",
+        tooltip_logout: "Выйти",
+        tooltip_login: "Войти через VK ID",
     },
     en: {
         title: 'Leshiy-AI',
@@ -58,7 +64,13 @@ const TRANSLATIONS = {
         tooltip_toggle_theme: "Change theme",
         tooltip_reload: "Reload chat",
         tooltip_close: "Close chat",
-        tooltip_select_model: "Select model"
+        tooltip_select_model: "Select model",
+        tooltip_toggle_menu: "Toggle menu",
+        tooltip_new_chat: "Start new chat",
+        tooltip_storage: "Open Storage",
+        tooltip_admin: "Open Admin Panel",
+        tooltip_logout: "Logout",
+        tooltip_login: "Login with VK ID",
     }
 };
 
@@ -230,7 +242,7 @@ function App() {
     const textareaRef = useRef(null);
     const modelSelectorRef = useRef(null);
     
-    const t = TRANSLATIONS[language];
+    const t = useMemo(() => TRANSLATIONS[language], [language]);
 
     const [activeModels, setActiveModels] = useState({
         TEXT_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_TEXT') || 'TEXT_TO_TEXT_CLOUDFLARE',
@@ -263,7 +275,7 @@ function App() {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, []); // Убрана зависимость, т.к. ref стабилен
+    }, []);
 
     const fetchChats = useCallback(async () => {
         if (currentUserId && currentUserId !== "guest") {
@@ -286,8 +298,8 @@ function App() {
         
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
-        setMessages([{ id: welcomeId, role: 'ai', text: TRANSLATIONS[language].welcome }]);
-    }, [language]);
+        setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
+    }, [t]);
    
     useEffect(() => {
         Object.keys(activeModels).forEach(type => {
@@ -298,7 +310,7 @@ function App() {
                 }
             }
         });
-    }, []); // Этот хук должен выполняться один раз
+    }, [activeModels]);
     
     useEffect(() => {
         if (input === '' && textareaRef.current) {
@@ -406,7 +418,7 @@ function App() {
 
     useEffect(() => {
         localStorage.setItem('language', language);
-        const welcomeMessage = TRANSLATIONS[language].welcome;
+        const welcomeMessage = t.welcome;
         setMessages(prevMessages => 
             prevMessages.map(msg => 
                 msg.id === welcomeMessageIdRef.current 
@@ -414,7 +426,7 @@ function App() {
                     : msg
             )
         );
-    }, [language]);
+    }, [language, t]);
 
     const scrollToBottom = (force = false) => {
         if (force) {
@@ -936,7 +948,7 @@ function App() {
     const closeApp = () => {
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
-        setMessages([{ id: welcomeId, role: 'ai', text: TRANSLATIONS[language].welcome }]);
+        setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
         softReload();
     };
 
@@ -1086,6 +1098,7 @@ function App() {
         <div className="app-wrapper">
             {document.getElementById('sidebar') && createPortal(
             <Sidebar
+            t={t}
             chatList={chatList || []} 
             currentChatId={currentChatId}
             onSelectChat={onSelectChat} 
