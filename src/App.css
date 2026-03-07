@@ -1,4 +1,3 @@
-
 :root {
   --bg-color: #19191a;
   --panel-bg: #222222;
@@ -263,35 +262,33 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 /* --- MOBILE INPUT AREA STYLES --- */
 @media (max-width: 600px) {
     .input-area {
-        flex-wrap: wrap; /* Allow items to wrap */
+        flex-wrap: wrap; 
         padding: 8px;
         border-radius: 20px;
     }
 
     .input-area textarea {
-        order: 1; /* Textarea on top */
-        flex-basis: 100%; /* Full width */
-        margin-bottom: 8px; /* Space between textarea and buttons */
+        order: 1; 
+        flex-basis: 100%;
+        margin-bottom: 8px;
         min-height: 44px;
         padding: 10px 15px;
     }
 
-    /* Prevent placeholder text from wrapping and causing overflow */
     .input-area textarea::placeholder {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* Container for the bottom row of buttons */
     .input-area > #input-add-btn,
     .input-area > #input-mic-btn,
     .input-area > .send-btn {
-        order: 2; /* All buttons on the bottom row */
+        order: 2; 
     }
 
     #input-add-btn {
-        margin-right: auto; /* Pushes other buttons to the right */
+        margin-right: auto; 
     }
     .sidebar-history {
         padding-right: 0;
@@ -340,8 +337,12 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   color: white;
 }
 
-.sidebar.collapsed .history-item.active {
-    border-radius: 8px; /* Ensure rounded corners in collapsed view */
+.sidebar-collapsed .history-item.active {
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
 }
 
 .history-item.active .chat-date {
@@ -426,7 +427,6 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* SCROLLBAR STYLES */
 .sidebar-history::-webkit-scrollbar {
   width: 6px;
 }
@@ -439,4 +439,43 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 }
 .sidebar-history:hover::-webkit-scrollbar-thumb {
   background-color: var(--text-secondary);
+}
+
+.history-loader {
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.history-loader-bar {
+    width: 60px;
+    height: 4px;
+    background-color: var(--border-color);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+}
+
+.history-loader-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 50%;
+    background-color: var(--accent-color);
+    border-radius: 2px;
+    animation: history-load-anim 1.5s infinite;
+}
+
+@keyframes history-load-anim {
+    0% {
+        transform: translateX(-100%);
+    }
+    50% {
+        transform: translateX(200%);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
 }

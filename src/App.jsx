@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
@@ -276,10 +275,6 @@ function App() {
     }, [input]);
 
     useEffect(() => {
-        const welcomeId = Date.now();
-        welcomeMessageIdRef.current = welcomeId;
-        setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
-
         const handleAuthSuccess = (event) => {
             const data = event.detail; 
             if (!data) return;
@@ -322,11 +317,19 @@ function App() {
                 body.classList.add('sidebar-collapsed');
             }
         };
+        
+        const handleFocus = () => {
+            if (sessionStorage.getItem('waiting_for_auth') === 'true') {
+                sessionStorage.removeItem('waiting_for_auth');
+                handleSend('/storage_list'); 
+            }
+        };
 
         window.addEventListener('vk-auth-success', handleAuthSuccess);
         window.addEventListener('send-bot-command', handleBotCommand);
         document.addEventListener('touchstart', hTS);
         document.addEventListener('touchend', hTE);
+        window.addEventListener('focus', handleFocus);
         if (mBtn) mBtn.addEventListener('click', hMC);
 
         return () => {
@@ -334,6 +337,7 @@ function App() {
             window.removeEventListener('send-bot-command', handleBotCommand);
             document.removeEventListener('touchstart', hTS);
             document.removeEventListener('touchend', hTE);
+            window.removeEventListener('focus', handleFocus);
             if (mBtn) mBtn.removeEventListener('click', hMC);
         };
     }, []);
@@ -345,6 +349,8 @@ function App() {
         
         if (lastId && !currentChatId) {
             onSelectChat(lastId);
+        } else if (!lastId) {
+            onNewChatRequest();
         }
     
         return () => {
@@ -378,11 +384,19 @@ function App() {
         );
     }, [language]);
 
-    const scrollToBottom = () => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scrollToBottom = (force = false) => {
+        if (force) {
+            chatEndRef.current?.scrollIntoView(false);
+        } else {
+            chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
     };
-
-    useEffect(scrollToBottom, [messages]);
+    
+    useEffect(() => {
+        if (messages.length > 0) {
+            scrollToBottom();
+        }
+    }, [messages]);
 
     const handleFileUpload = async (filesToUpload) => {
         for (let file of filesToUpload) {
@@ -457,7 +471,7 @@ function App() {
             const safeContext = (context || "").toString();
             const safeUserText = (userText || "").toString();
     
-            const prompt = `Диалог:\\n${safeContext.substring(0, 500)}\\n\\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: \"${safeUserText.substring(0, 100)}\". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
+            const prompt = `Диалог:\n${safeContext.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: \"${safeUserText.substring(0, 100)}\". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
             
             const aiResponse = await askLeshiy({
                 text: prompt,
@@ -509,23 +523,41 @@ function App() {
 
     const [chatOffset, setChatOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
 
     const loadChatFromHistory = async (chatId, isLoadMore = false) => {
-        const limit = 20; 
+        if (isLoadMore && isFetchingMore) return;
+
+        const limit = 20;
         const currentOffset = isLoadMore ? chatOffset : 0;
     
-        setIsLoading(true);
+        if (isLoadMore) {
+            setIsFetchingMore(true);
+        } else {
+            setIsLoading(true);
+        }
+
+        const chatWindow = chatWindowRef.current;
+        const oldScrollHeight = chatWindow?.scrollHeight || 0;
+
         try {
             const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
-                params: { 
-                    userId: currentUserId, 
+                params: {
+                    userId: currentUserId,
                     chatId: chatId,
                     offset: currentOffset,
                     limit: limit
                 }
             });
     
-            const historyMessages = res.data.messages || []; 
+            const historyMessages = res.data.messages || [];
+            
+            if (!isLoadMore && historyMessages.length === 0) {
+                console.warn(`История чата ${chatId} пуста или не найдена. Начинаем новый чат.`);
+                onNewChatRequest();
+                return;
+            }
+
             const serverHasMore = res.data.hasMore;
     
             const formattedMsgs = historyMessages.map(m => ({
@@ -536,18 +568,34 @@ function App() {
     
             if (isLoadMore) {
                 setMessages(prev => [...formattedMsgs, ...prev]);
-                setChatOffset(prev => prev + limit);
-                setHasMore(serverHasMore);
+                
+                requestAnimationFrame(() => {
+                    if (chatWindow) {
+                        const newScrollHeight = chatWindow.scrollHeight;
+                        chatWindow.scrollTop = newScrollHeight - oldScrollHeight;
+                    }
+                });
+
             } else {
                 setMessages(formattedMsgs);
-                setChatOffset(limit);
-                setHasMore(serverHasMore);
-                setCurrentChatId(chatId);
+                scrollToBottom(true);
             }
+
+            setChatOffset(prev => prev + limit);
+            setHasMore(serverHasMore);
+            setCurrentChatId(chatId);
+
         } catch (e) {
-            console.error("Не удалось подгрузить историю:", e);
+            console.error("Не удалось подгрузить историю, начинаем новый чат:", e);
+            if (!isLoadMore) {
+                onNewChatRequest();
+            }
         } finally {
-            setIsLoading(false);
+            if (isLoadMore) {
+                setIsFetchingMore(false);
+            } else {
+                setIsLoading(false);
+            }
         }
     };
 
@@ -630,7 +678,7 @@ function App() {
     
             const context = validMessages.slice(0, 4)
                 .map(m => `${m.role === 'user' ? 'Юзер' : 'ИИ'}: ${m.text || m.content || ''}`)
-                .join('\\n');
+                .join('\n');
     
             try {
                 const smartTitle = await generateSmartTitle(context, userText);
@@ -652,7 +700,8 @@ function App() {
     };
 
     const handleSend = async (commandOverride) => {
-        const rawText = typeof commandOverride === 'string' ? commandOverride : input;
+        const isCommand = typeof commandOverride === 'string';
+        const rawText = isCommand ? commandOverride : input;
         const userMessageText = rawText.trim();
     
         if (userMessageText.toLowerCase() === '/admin') {
@@ -684,7 +733,7 @@ function App() {
             })) 
         };
     
-        const initialMessages = messages[0]?.id === welcomeMessageIdRef.current 
+        const initialMessages = (messages.length === 1 && messages[0].id === welcomeMessageIdRef.current && !isCommand)
             ? [] 
             : messages;
 
@@ -749,13 +798,6 @@ function App() {
         }
     };
 
-    window.addEventListener('focus', () => {
-        if (sessionStorage.getItem('waiting_for_auth') === 'true') {
-            sessionStorage.removeItem('waiting_for_auth');
-            handleSend('/storage_list'); 
-        }
-    }, { once: false });
-
     const handleSwipeMessage = useCallback((messageId) => {
         setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
     }, []);
@@ -787,6 +829,26 @@ function App() {
         }
     };
     
+    useEffect(() => {
+        const chatWindow = chatWindowRef.current;
+    
+        const handleScroll = () => {
+            if (chatWindow && chatWindow.scrollTop === 0 && hasMore && !isFetchingMore) {
+                loadChatFromHistory(currentChatId, true);
+            }
+        };
+    
+        if (chatWindow) {
+            chatWindow.addEventListener('scroll', handleScroll);
+        }
+    
+        return () => {
+            if (chatWindow) {
+                chatWindow.removeEventListener('scroll', handleScroll);
+            }
+        };
+    }, [chatWindowRef, hasMore, isFetchingMore, currentChatId, loadChatFromHistory]);
+
     const handleTouchStart = (e) => {
         if (chatWindowRef.current && chatWindowRef.current.scrollTop === 0) {
             startY.current = e.touches[0].pageY;
@@ -809,7 +871,7 @@ function App() {
             }
             const ptrText = document.getElementById('ptr-text');
             if (ptrText) {
-                ptrText.innerText = pullDistance > 60 ? "Отпустите для обновления" : "Потяните для обновления";
+                ptrText.innerText = pullDistance > 60 ? "Отпустите для загрузки истории" : "Потяните вверх";
             }
         }
     };
@@ -824,20 +886,19 @@ function App() {
         const matrix = window.getComputedStyle(container).transform;
         const translateY = matrix !== 'none' ? parseFloat(matrix.split(',')[5]) : 0;
 
-        if (translateY > 60) {
-            container.style.transform = 'translateY(60px)';
+        if (translateY > 80) {
+            container.style.transform = 'translateY(50px)';
             const ptrText = document.getElementById('ptr-text');
             const ptrLoader = document.getElementById('ptr-loader');
-            if (ptrText) ptrText.innerText = "Обновление...";
+            if (ptrText) ptrText.innerText = "Загрузка...";
             if (ptrLoader) ptrLoader.style.display = 'block';
 
-            setTimeout(() => {
-                softReload();
-                container.style.transform = 'translateY(0)';
-                setTimeout(() => {
+            loadChatFromHistory(currentChatId, true).finally(() => {
+                 setTimeout(() => {
+                    container.style.transform = 'translateY(0)';
                     if (ptrLoader) ptrLoader.style.display = 'none';
-                }, 300);
-            }, 1000);
+                }, 500);
+            });
         } else {
             container.style.transform = 'translateY(0)';
         }
@@ -1024,7 +1085,7 @@ function App() {
             
             <div 
                 id="storage-modal" 
-                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>\
+                className={`storage-modal ${isStorageVisible ? 'active' : ''}`}>
                 <div className="storage-content" onClick={(e) => e.stopPropagation()}>
                     <div className="storage-header">
                         <span>🗄️ Приложение "Хранилка" by Leshiy</span>
@@ -1038,7 +1099,7 @@ function App() {
                     {isStorageVisible && <iframe 
                         id="storage-frame" 
                         src={storageUrl} 
-                        title="Хранилка">\
+                        title="Хранилка">
                     </iframe>}
                 </div>
             </div>
@@ -1060,10 +1121,15 @@ function App() {
             </header>
 
             <div className="chat-window" ref={chatWindowRef}>
+                {isFetchingMore && (
+                    <div className="history-loader">
+                        <div className="history-loader-bar"></div>
+                    </div>
+                )}
                 {messages.map((m) => (
                     <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} />
                 ))}
-                {isLoading && <div className="message-container ai"><div className="bubble typing\">{t.thinking}</div></div>}
+                {isLoading && !isFetchingMore && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
             </div>
             
