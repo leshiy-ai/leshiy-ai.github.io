@@ -247,10 +247,9 @@ function App() {
     const recognitionRef = useRef(null);
     const wasManuallyStoppedRef = useRef(false);
     const shouldSendOnEndRef = useRef(false);
-    // Для текста из прошлых сессий или набранного вручную
-    const baseTextRef = useRef('');
-    // Для финального текста текущей сессии (от старта до паузы)
-    const sessionFinalTextRef = useRef('');
+    const isSendingRef = useRef(false); // Мьютекс для предотвращения двойной отправки
+    const baseTextRef = useRef(''); // Текст из прошлых сессий или набранный вручную
+    const sessionFinalTextRef = useRef(''); // Финальный текст ТЕКУЩЕЙ сессии
     
     const t = useMemo(() => TRANSLATIONS[language], [language]);
 
@@ -1065,24 +1064,30 @@ function App() {
             setIsRecording(true);
             wasManuallyStoppedRef.current = false;
             shouldSendOnEndRef.current = false;
-            sessionFinalTextRef.current = ''; // Сброс текста сессии при каждом новом старте
+            sessionFinalTextRef.current = '';
         };
 
         recognition.onresult = (event) => {
             let sessionFinal = '';
             let sessionInterim = '';
 
-            // ВСЕГДА пересобираем текст текущей сессии с нуля. Это защищает от дублей.
             for (let i = 0; i < event.results.length; ++i) {
-                const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    sessionFinal += transcript;
+                    sessionFinal += event.results[i][0].transcript;
                 } else {
-                    sessionInterim += transcript;
+                    sessionInterim += event.results[i][0].transcript;
                 }
             }
 
-            sessionFinalTextRef.current = sessionFinal; // Обновляем реф финальной части сессии
+            // --- АНТИ-ДУБЛЬ "МЕТОД ХВОСТА" ---
+            const currentBase = baseTextRef.current.trim();
+            if (sessionFinal.trim() !== "" && currentBase.endsWith(sessionFinal.trim())) {
+                if (!sessionInterim) return;
+                sessionFinal = "";
+            }
+            // -------------------------------------
+
+            sessionFinalTextRef.current = sessionFinal;
 
             const lowerFinal = sessionFinal.toLowerCase().trim();
             const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
@@ -1090,10 +1095,17 @@ function App() {
             const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
             const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
 
-            // 1. КОМАНДА "ОТПРАВИТЬ"
+            // 1. КОМАНДА "ОТПРАВИТЬ" (с блокировкой)
             const sendCmd = sendCommands.find(cmd => lowerFinal.endsWith(cmd));
-            if (sendCmd) {
+            if (sendCmd && !isSendingRef.current) {
+                isSendingRef.current = true;
+
                 let textToSend = sessionFinal.substring(0, sessionFinal.toLowerCase().lastIndexOf(sendCmd));
+                
+                newLineCommands.forEach(cmd => {
+                    textToSend = textToSend.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
+                });
+
                 const totalText = baseTextRef.current + textToSend;
                 
                 shouldSendOnEndRef.current = true;
@@ -1115,14 +1127,11 @@ function App() {
             // 3. КОМАНДА "ОТМЕНИТЬ"
             const undoCmd = undoCommands.find(cmd => lowerFinal.endsWith(cmd));
             if (undoCmd) {
-                // Удаляем команду из текста сессии
                 sessionFinalTextRef.current = sessionFinal.substring(0, sessionFinal.toLowerCase().lastIndexOf(undoCmd));
                 
-                // Если в сессии еще что-то есть, удаляем последнее слово оттуда
                 if (sessionFinalTextRef.current.trim()) {
                      sessionFinalTextRef.current = sessionFinalTextRef.current.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
                 } else {
-                    // Иначе - удаляем из "базы"
                     baseTextRef.current = baseTextRef.current.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
                 }
                 
@@ -1132,13 +1141,12 @@ function App() {
                 return;
             }
             
-            // --- ОБЫЧНЫЙ ТЕКСТ (команд не было) ---
+            // --- ОБЫЧНЫЙ ТЕКСТ ---
             let processedSession = sessionFinal;
             newLineCommands.forEach(cmd => {
                 processedSession = processedSession.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
             });
             
-            // Отображаем: База + обработанная сессия + текущий черновик
             setInput(baseTextRef.current + processedSession + sessionInterim);
         };
 
@@ -1149,26 +1157,26 @@ function App() {
                 baseTextRef.current = '';
                 sessionFinalTextRef.current = '';
                 setInput('');
+                isSendingRef.current = false;
                 return;
             }
-
-            // ФИКСАЦИЯ: Добавляем финальный текст сессии в базу
+            
             let processedSession = sessionFinalTextRef.current;
-             const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
-             newLineCommands.forEach(cmd => {
-                processedSession = processedSession.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
-            });
-            baseTextRef.current += processedSession;
-            sessionFinalTextRef.current = ''; // Очищаем сессию
-            setInput(baseTextRef.current); // Показываем итоговый текст
+            if (processedSession.trim()) {
+                const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
+                newLineCommands.forEach(cmd => {
+                   processedSession = processedSession.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
+               });
+               baseTextRef.current += processedSession.trim() + ' ';
+           }
+           
+           sessionFinalTextRef.current = '';
+           setInput(baseTextRef.current);
 
-            // Перезапуск, если это была не ручная остановка
             if (!wasManuallyStoppedRef.current) {
-                try {
-                    setTimeout(() => recognition.start(), 50);
-                } catch (e) {
-                    console.error("Ошибка авто-перезапуска распознавания:", e);
-                }
+                setTimeout(() => {
+                    try { recognition.start(); } catch(e) {}
+                }, 100); 
             }
         };
 
@@ -1177,6 +1185,7 @@ function App() {
                 console.error("Ошибка распознавания речи:", event.error);
             }
             setIsRecording(false);
+            isSendingRef.current = false; // Снимаем блокировку и при ошибке
         };
         
         return () => {
@@ -1194,9 +1203,9 @@ function App() {
             wasManuallyStoppedRef.current = true;
             recognitionRef.current.stop();
         } else {
-            // Сохраняем текст, набранный вручную, как базу
+            isSendingRef.current = false;
             baseTextRef.current = input ? input.trim() + ' ' : '';
-            sessionFinalTextRef.current = ''; // Убедимся, что сессия пуста
+            sessionFinalTextRef.current = '';
             try {
                 recognitionRef.current.start();
             } catch (e) {

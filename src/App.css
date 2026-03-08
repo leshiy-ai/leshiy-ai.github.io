@@ -37,7 +37,21 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .message-container { display: flex; margin-bottom: 15px; transition: transform 0.3s ease-out, opacity 0.3s ease-out; }
 .message-container.user { justify-content: flex-end; }
 .message-container.ai { justify-content: flex-start; }
-.bubble { padding: 12px 18px; border-radius: 18px; max-width: 85%; line-height: 1.4; word-wrap: break-word; background: var(--bubble-bg); border: 1px solid var(--border-color); position: relative; touch-action: pan-y; transition: transform 0.3s; display: flex; flex-direction: column; }
+.bubble {
+    padding: 12px 18px;
+    border-radius: 18px;
+    max-width: 85%;
+    line-height: 1.4;
+    background: var(--bubble-bg);
+    border: 1px solid var(--border-color);
+    position: relative;
+    touch-action: pan-y;
+    transition: transform 0.3s;
+    display: flex;
+    flex-direction: column;
+    white-space: pre-wrap; 
+    word-break: break-word;
+}
 .message-container.user .bubble { background: var(--accent-color); color: white; border-color: var(--accent-color); }
 .message-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; }
 .menu-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.2s ease; backdrop-filter: blur(5px); }
