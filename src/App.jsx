@@ -247,10 +247,10 @@ function App() {
     const recognitionRef = useRef(null);
     const wasManuallyStoppedRef = useRef(false);
     const shouldSendOnEndRef = useRef(false);
-    const isSendingRef = useRef(false); // Мьютекс для предотвращения двойной отправки
-    const baseTextRef = useRef(''); // Текст из прошлых сессий или набранный вручную
-    const sessionFinalTextRef = useRef(''); // Финальный текст ТЕКУЩЕЙ сессии
-    
+    const isSendingRef = useRef(false);
+    const baseTextRef = useRef('');
+    const sessionFinalTextRef = useRef('');
+
     const t = useMemo(() => TRANSLATIONS[language], [language]);
 
     const [activeModels, setActiveModels] = useState({
@@ -1079,13 +1079,15 @@ function App() {
                 }
             }
 
-            // --- АНТИ-ДУБЛЬ "МЕТОД ХВОСТА" ---
+            // --- АНТИ-ДУБЛЬ V2 (CUMULATIVE FIX) ---
             const currentBase = baseTextRef.current.trim();
-            if (sessionFinal.trim() !== "" && currentBase.endsWith(sessionFinal.trim())) {
-                if (!sessionInterim) return;
-                sessionFinal = "";
+            const finalTrimmed = sessionFinal.trim();
+    
+            if (finalTrimmed && currentBase && finalTrimmed.startsWith(currentBase)) {
+                // Это кумулятивный результат (моб). Отрезаем базу, чтобы оставить только новое.
+                sessionFinal = finalTrimmed.substring(currentBase.length);
             }
-            // -------------------------------------
+            // ----------------------------------------
 
             sessionFinalTextRef.current = sessionFinal;
 
@@ -1163,11 +1165,7 @@ function App() {
             
             let processedSession = sessionFinalTextRef.current;
             if (processedSession.trim()) {
-                const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
-                newLineCommands.forEach(cmd => {
-                   processedSession = processedSession.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
-               });
-               baseTextRef.current += processedSession.trim() + ' ';
+               baseTextRef.current += processedSession; // Уже может содержать пробел в начале
            }
            
            sessionFinalTextRef.current = '';
