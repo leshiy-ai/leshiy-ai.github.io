@@ -242,13 +242,15 @@ function App() {
     const welcomeMessageIdRef = useRef(null);
     const textareaRef = useRef(null);
     const modelSelectorRef = useRef(null);
+
     // --- РЕФЫ ДЛЯ РАСПОЗНАВАНИЯ РЕЧИ ---
     const recognitionRef = useRef(null);
     const wasManuallyStoppedRef = useRef(false);
     const shouldSendOnEndRef = useRef(false);
-    // Единый источник правды для всего текста (база + сессия). Убирает дубли.
+    // Текст, который был в поле ввода ДО старта распознавания
+    const baseTextRef = useRef('');
+    // Полный собранный текст (база + финальный сессионный). Источник правды.
     const fullTranscriptRef = useRef('');
-
     
     const t = useMemo(() => TRANSLATIONS[language], [language]);
 
@@ -1044,8 +1046,8 @@ function App() {
         };
     }, []);
 
-        // --- Speech Recognition (ЛОГИКА РАСПОЗНАВАНИЯ РЕЧИ) --- //
-    
+    // --- Speech Recognition (ЛОГИКА РАСПОЗНАВАНИЯ РЕЧИ) ---
+
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
@@ -1057,110 +1059,123 @@ function App() {
         recognitionRef.current = recognition;
         recognition.lang = language === 'ru' ? 'ru-RU' : 'en-US';
         recognition.interimResults = true;
-        recognition.continuous = true; // Ключевой параметр для длинных диктовок
+        recognition.continuous = true;
 
-        // Срабатывает при начале распознавания
         recognition.onstart = () => {
             setIsRecording(true);
             wasManuallyStoppedRef.current = false;
             shouldSendOnEndRef.current = false;
         };
 
-        // Срабатывает при получении нового результата (промежуточного или финального)
         recognition.onresult = (event) => {
-            let finalTranscript = '';
-            let interimTranscript = '';
+            let finalSession = '';
+            let interimSession = '';
 
-            // Собираем финальный и промежуточный текст из всех результатов, которые нам дал API.
+            // Пересобираем текст *текущей* сессии из event.results.
             for (let i = 0; i < event.results.length; ++i) {
                 const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscript += transcript;
+                    finalSession += transcript;
                 } else {
-                    interimTranscript += transcript;
+                    interimSession += transcript;
                 }
             }
 
-            // --- Обработка команд ---
-            const lowerFullText = finalTranscript.toLowerCase().trim();
+            const lowerFinal = finalSession.toLowerCase().trim();
             const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
             const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
             const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
             const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
 
-            // 1. Команда "Отправить"
-            const sendCmd = sendCommands.find(cmd => lowerFullText.endsWith(cmd));
+            // 1. КОМАНДА "ОТПРАВИТЬ"
+            const sendCmd = sendCommands.find(cmd => lowerFinal.endsWith(cmd));
             if (sendCmd) {
-                let textBeforeCommand = finalTranscript.substring(0, finalTranscript.toLowerCase().lastIndexOf(sendCmd));
-                // Также обработаем "новые строки" перед отправкой
+                let cleanFinal = finalSession.substring(0, finalSession.toLowerCase().lastIndexOf(sendCmd));
                 newLineCommands.forEach(cmd => {
-                    textBeforeCommand = textBeforeCommand.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
+                    cleanFinal = cleanFinal.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
                 });
-                fullTranscriptRef.current = textBeforeCommand; 
+                const totalText = baseTextRef.current + cleanFinal;
+                
                 shouldSendOnEndRef.current = true;
+                handleSendRef.current(totalText.trim());
+                
+                baseTextRef.current = '';
+                fullTranscriptRef.current = '';
+                
                 recognition.stop();
                 return;
             }
 
-            // 2. Команда "Очистить"
-            if (clearCommands.some(cmd => lowerFullText.endsWith(cmd))) {
-                fullTranscriptRef.current = ''; 
-                setInput(''); 
-                wasManuallyStoppedRef.current = true;
+            // 2. КОМАНДА "ОЧИСТИТЬ"
+            if (clearCommands.some(cmd => lowerFinal.endsWith(cmd))) {
+                baseTextRef.current = '';
+                fullTranscriptRef.current = '';
+                setInput('');
+                wasManuallyStoppedRef.current = true; // <-- ВАЖНО: Предотвращаем авто-рестарт
                 recognition.stop();
                 return;
             }
 
-            // 3. Команда "Отменить" (удалить последнее слово/фразу)
-            const undoCmd = undoCommands.find(cmd => lowerFullText.endsWith(cmd));
+            // 3. КОМАНДА "ОТМЕНИТЬ"
+            const undoCmd = undoCommands.find(cmd => lowerFinal.endsWith(cmd));
             if (undoCmd) {
-                let textBeforeCommand = finalTranscript.substring(0, finalTranscript.toLowerCase().lastIndexOf(undoCmd));
-                
-                // СНАЧАЛА обработаем "новые строки", чтобы они превратились в \n
-                newLineCommands.forEach(cmd => {
-                    textBeforeCommand = textBeforeCommand.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
-                });
+                let textBeforeCommand = finalSession.substring(0, finalSession.toLowerCase().lastIndexOf(undoCmd));
+                let fullTextToClean = baseTextRef.current + textBeforeCommand;
 
-                // А ТЕПЕРЬ аккуратно удаляем последнее слово из обработанного текста
-                let newText = textBeforeCommand.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
+                newLineCommands.forEach(cmd => {
+                    fullTextToClean = fullTextToClean.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
+                });
                 
-                fullTranscriptRef.current = newText;
-                setInput(newText + interimTranscript); 
+                const newText = fullTextToClean.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
+                
+                baseTextRef.current = newText ? newText.trim() + ' ' : '';
+                fullTranscriptRef.current = baseTextRef.current;
+                setInput(baseTextRef.current);
+
+                // НЕ ставим wasManuallyStoppedRef.current = true, чтобы onend мог перезапустить распознавание
+                recognition.stop(); // Останавливаем, чтобы сбросить event.results
                 return;
             }
-
-            // --- Обычная обработка текста (если команд не было) ---
-            let processedText = finalTranscript;
+            
+            // --- ОБЫЧНЫЙ ТЕКСТ (команд не было) ---
+            let processedFinal = finalSession;
             newLineCommands.forEach(cmd => {
-                processedText = processedText.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
+                processedFinal = processedFinal.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
             });
-
-            fullTranscriptRef.current = processedText;
-            setInput(processedText + interimTranscript);
+            
+            // Обновляем "источник правды"
+            fullTranscriptRef.current = baseTextRef.current + processedFinal;
+            
+            // Обновляем поле ввода для пользователя
+            setInput(fullTranscriptRef.current + interimSession);
         };
 
-        // Срабатывает при завершении сессии распознавания
         recognition.onend = () => {
             setIsRecording(false);
             
-            setInput(fullTranscriptRef.current);
-
+            // Если была команда "отправить", инпут и рефы уже очищены
             if (shouldSendOnEndRef.current) {
-                handleSendRef.current(fullTranscriptRef.current);
-                fullTranscriptRef.current = ''; 
-            } else if (wasManuallyStoppedRef.current) {
-                // Ручная остановка
-            } else {
-                // Авто-рестарт
-                try {
-                    setTimeout(() => recognition.start(), 50);
-                } catch (e) {
-                    console.error("Ошибка автоматического перезапуска распознавания:", e);
-                }
+                setInput('');
+                return;
+            }
+
+            // Если остановили вручную (клик, "очистить"), просто фиксируем текст
+            if (wasManuallyStoppedRef.current) {
+                baseTextRef.current = fullTranscriptRef.current;
+                setInput(baseTextRef.current);
+                return;
+            }
+
+            // Иначе - это авто-остановка (пауза в речи или после "отменить"). Фиксируем и перезапускаем.
+            baseTextRef.current = fullTranscriptRef.current;
+            setInput(baseTextRef.current);
+            try {
+                setTimeout(() => recognition.start(), 50); // Небольшая задержка для стабильности
+            } catch (e) {
+                console.error("Ошибка авто-перезапуска распознавания:", e);
             }
         };
 
-        // Обработка ошибок
         recognition.onerror = (event) => {
             if (event.error !== 'no-speech' && event.error !== 'aborted') {
                 console.error("Ошибка распознавания речи:", event.error);
@@ -1176,15 +1191,18 @@ function App() {
         };
     }, [language]);
 
-    // Обработчик клика по кнопке микрофона
     const handleMicClick = () => {
         if (!recognitionRef.current) return;
 
         if (isRecording) {
+            // Пользователь нажал "стоп"
             wasManuallyStoppedRef.current = true;
             recognitionRef.current.stop();
         } else {
-            fullTranscriptRef.current = input; 
+            // Пользователь нажал "старт"
+            // Запоминаем текст, набранный вручную, как "базу"
+            baseTextRef.current = input ? input + ' ' : '';
+            fullTranscriptRef.current = baseTextRef.current;
             try {
                 recognitionRef.current.start();
             } catch (e) {
@@ -1192,7 +1210,8 @@ function App() {
             }
         }
     };
-    // ---------------------------------------------------- //
+    
+    // ------------------------ //    
 
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
