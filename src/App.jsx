@@ -537,7 +537,7 @@ function App() {
             
     
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
-                const cleanedTitle = aiResponse.text.replace(/["'«»*.]/g, '').trim();
+                const cleanedTitle = aiResponse.text.replace(/[\"'«»*.]/g, '').trim();
                 return cleanedTitle;
             } else {
                 console.warn("AI Title Generation failed with response:", aiResponse);
@@ -1375,32 +1375,76 @@ function App() {
             </div>
             
             <div className="input-area-container" onPaste={handlePaste}>
-                <div className="input-area">
-                    {files.length > 0 && (
-                        <div className="file-preview-container">
-                        {files.map(file => {
-                            const type = file.file.type;
-                            const name = file.file.name;
 
-                            let icon = '📎';
-                            if (type.startsWith('video/')) icon = '🎬';
-                            else if (type.startsWith('audio/') || name.endsWith('.mp3')) icon = '🎵';
-                            else if (name.endsWith('.zip') || name.endsWith('.rar')) icon = '📦';
-                            else if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) icon = '📄';
-                    
-                            return (
-                                <div key={file.id} className="file-preview-item">
-                                    {file.preview ? (
-                                        <img src={file.preview} className="image-preview" />
-                                    ) : (
-                                        <div className="file-preview-icon">{icon}</div>
-                                    )}
-                                    <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
-                                    <span className="file-preview-name">{name}</span>
+                <div className="input-area">
+                    {/* ЛОГИКА ГОЛОСОВЫХ КОМАНД ИЛИ ПРЕВЬЮ ФАЙЛОВ */}
+                    {(isRecording || files.length > 0) && (
+                        <div className="file-preview-container">
+                            {isRecording ? (
+                                // Показываем команды, когда микрофон включен
+                                <div className="voice-commands-hints">
+                                    <div className="rec-indicator">
+                                        <span className="rec-dot"></span>
+                                        <span className="rec-label">ЗАПИСЬ</span>
+                                    </div>
+                                    <div className="hints-scroll">
+                                        <button className="hint-btn" onClick={() => {
+                                            // ЛОГИКА ОТПРАВКИ
+                                            handleSend(input);
+                                            wasManuallyStoppedRef.current = true;
+                                            recognitionRef.current?.stop();
+                                        }}>Отправить</button>
+
+                                        <button className="hint-btn" onClick={() => {
+                                            // ЛОГИКА ОТМЕНЫ ПОСЛЕДНЕГО СЛОВА
+                                            const currentText = input.trim();
+                                            const corrected = currentText.replace(/[^\s,;!?]*$/, '');
+                                            baseTextRef.current = corrected;
+                                            setInput(corrected);
+                                        }}>Отменить</button>
+
+                                        <button className="hint-btn" onClick={() => {
+                                            // ЛОГИКА НОВОЙ СТРОКИ
+                                            const newValue = input + '\n';
+                                            baseTextRef.current = newValue;
+                                            setInput(newValue);
+                                        }}>Новая строка</button>
+
+                                        <button className="hint-btn" onClick={() => {
+                                            // ЛОГИКА ОЧИСТКИ
+                                            baseTextRef.current = '';
+                                            sessionFinalTextRef.current = '';
+                                            setInput('');
+                                            wasManuallyStoppedRef.current = true;
+                                            recognitionRef.current?.stop();
+                                        }}>Очистить</button>
+                                    </div>
                                 </div>
-                            );
-                        })}
-                    </div>
+                            ) : (
+                                // Твой стандартный рендер файлов
+                                files.map(file => {
+                                    const type = file.file.type;
+                                    const name = file.file.name;
+                                    let icon = '📎';
+                                    if (type.startsWith('video/')) icon = '🎬';
+                                    else if (type.startsWith('audio/') || name.endsWith('.mp3')) icon = '🎵';
+                                    else if (name.endsWith('.zip') || name.endsWith('.rar')) icon = '📦';
+                                    else if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) icon = '📄';
+
+                                    return (
+                                        <div key={file.id} className="file-preview-item">
+                                            {file.preview ? (
+                                                <img src={file.preview} className="image-preview" alt="preview" />
+                                            ) : (
+                                                <div className="file-preview-icon">{icon}</div>
+                                            )}
+                                            <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
+                                            <span className="file-preview-name">{name}</span>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     )}
                     <button id="input-add-btn" className="tool-btn" title={t.tooltip_add_file} onClick={() => fileInputRef.current.click()}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>

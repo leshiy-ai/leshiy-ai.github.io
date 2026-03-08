@@ -7,6 +7,7 @@
   --accent-color: #4caf50;
   --bubble-bg: #2d2d2e;
   --border-color: #363738;
+  --text-main: #e1e3e6;
 }
 [data-theme="light"] {
   --bg-color: #ffffff;
@@ -16,6 +17,7 @@
   --accent-color: #4caf50;
   --bubble-bg: #e2f7e2;
   --border-color: #dce1e6;
+  --text-main: #000000;
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; }
@@ -49,7 +51,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     transition: transform 0.3s;
     display: flex;
     flex-direction: column;
-    white-space: pre-wrap; 
+    white-space: pre-wrap;
     word-break: break-word;
 }
 .message-container.user .bubble { background: var(--accent-color); color: white; border-color: var(--accent-color); }
@@ -74,6 +76,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     background-color: var(--panel-bg);
     border: 1px solid var(--border-color);
     border-radius: 28px;
+    flex-wrap: wrap;
 }
 
 .input-area textarea {
@@ -162,11 +165,12 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 
 .file-preview-container {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px; 
-    padding-bottom: 8px;
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding: 0 8px 8px 8px;
     width: 100%;
-    order: -1; 
+    order: -1;
+    overflow-x: auto;
 }
 
 .file-preview-item {
@@ -181,6 +185,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .image-preview {
@@ -298,13 +303,13 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 /* --- MOBILE INPUT AREA STYLES --- */
 @media (max-width: 600px) {
     .input-area {
-        flex-wrap: wrap; 
+        flex-wrap: wrap;
         padding: 8px;
         border-radius: 20px;
     }
 
     .input-area textarea {
-        order: 1; 
+        order: 1;
         flex-basis: 100%;
         margin-bottom: 8px;
         min-height: 44px;
@@ -321,11 +326,11 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     .input-area > .model-selector-container,
     .input-area > #input-mic-btn,
     .input-area > .send-btn {
-        order: 2; 
+        order: 2;
     }
 
     #input-add-btn {
-        margin-right: auto; 
+        margin-right: auto;
     }
     .sidebar-history {
         padding-right: 0;
@@ -609,4 +614,76 @@ body.sidebar-collapsed .history-item .icon {
     100% {
         transform: translateX(-100%);
     }
+}
+.voice-commands-hints {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 5px 10px;
+    width: 100%;
+    color: var(--text-main);
+    font-size: 13px;
+}
+
+.rec-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ef4444;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.rec-dot {
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse-dot 1s infinite;
+}
+
+.hints-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 0;
+    scrollbar-width: none; /* Firefox */
+}
+
+.hints-scroll::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+.hint-btn {
+    background: var(--bg-button, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+    color: var(--text-main);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.hint-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.hint-btn:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.rec-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+@keyframes pulse-dot {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
 }
