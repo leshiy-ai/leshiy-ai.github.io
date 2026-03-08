@@ -224,6 +224,7 @@ function App() {
     const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [isNumberMode, setIsNumberMode] = useState(false);
+    const [textCaseMode, setTextCaseMode] = useState('normal');
     
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
@@ -253,6 +254,7 @@ function App() {
     const baseTextRef = useRef('');
     const sessionFinalTextRef = useRef('');
     const isNumberModeRef = useRef(isNumberMode);
+    const textCaseModeRef = useRef(textCaseMode);
 
     const t = useMemo(() => TRANSLATIONS[language], [language]);
 
@@ -263,10 +265,10 @@ function App() {
         'звёздочка': '*', 'умножить': '*', 'пробел': ' ',
         'собака': '@', 'решётка': '#', 'номер': '№',
         'доллар': '$', 'евро': '€', 'рубль': '₽', 'градус': '°',
-        'процент': '%', 'проценты': '%', 'апостроф': "'", 'амперсанд': '&', 
-        'слэш': '/', 'обратный слэш': '\\', 'тильда': '~',
-        'восклицательный знак': '!', 'вопросительный знак': '?', 'вопрос': '?',
-        'вопрос': '?', 'двоеточие': ':', 'степень': '^',
+        'процент': '%', 'проценты': '%', 'апостроф': "'", 'амперсанд': '&',
+        'слэш': '/', 'обратный слэш': '\\',
+        'тильда': '~', 'восклицательный знак': '!', 'вопросительный знак': '?', 'вопрос': '?',
+        'двоеточие': ':', 'степень': '^',
         'многоточие': '...', 'троеточие': '...', 'вертикальная черта': '|',
         'открыть скобку': '(', 'скобка открывается': '(',
         'закрыть скобку': ')', 'скобка закрывается': ')',
@@ -277,18 +279,20 @@ function App() {
     }), []);
 
     const numberMap = useMemo(() => ({
-        'ноль': 0, 'раз': 1, 'один': 1, 'два': 2, 'три': 3, 'четыре': 4, 'пять': 5,
+        'раз': 1, 'ноль': 0, 'один': 1, 'два': 2, 'три': 3, 'четыре': 4, 'пять': 5,
         'шесть': 6, 'семь': 7, 'восемь': 8, 'девять': 9, 'десять': 10
     }), []);
 
     const applyPunctuation = useCallback((text) => {
-        let processed = text;
+        let processed = ` ${text} `;
         const sortedKeys = Object.keys(punctuationMap).sort((a, b) => b.length - a.length);
         sortedKeys.forEach(key => {
-            const regex = new RegExp(`\\s*${key}\\s*`, 'gi');
-            processed = processed.replace(regex, `${punctuationMap[key]} `);
+            const regex = new RegExp(` ${key} `, 'gi');
+            processed = processed.replace(regex, ` ${punctuationMap[key]} `);
         });
-        return processed.replace(/\s+/g, ' ').trim();
+        processed = processed.replace(/\s+([.,!?:;»”’)])/g, '$1');
+        processed = processed.replace(/([(«“‘])\s+/g, '$1');
+        return processed.replace(/^[ \t]+|[ \t]+$/g, '');
     }, [punctuationMap]);
 
     const convertWordsToNumbers = useCallback((text) => {
@@ -300,9 +304,26 @@ function App() {
         return processed;
     }, [numberMap]);
 
+    const applyCaseMode = useCallback((text, mode) => {
+        if (!text) return '';
+        switch (mode) {
+            case 'upper':
+                return text.toUpperCase();
+            case 'lower':
+                return text.toLowerCase();
+            case 'normal':
+            default:
+                return text.replace(/(^|[.!?]\s+)([а-яёa-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
+        }
+    }, []);
+
     useEffect(() => {
         isNumberModeRef.current = isNumberMode;
     }, [isNumberMode]);
+
+    useEffect(() => {
+        textCaseModeRef.current = textCaseMode;
+    }, [textCaseMode]);
 
     const [activeModels, setActiveModels] = useState({
         TEXT_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_TEXT') || 'TEXT_TO_TEXT_CLOUDFLARE',
@@ -1100,12 +1121,15 @@ function App() {
     const processNewLineCommands = useCallback((text) => {
         if (!text) return '';
         const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
-        let processedText = text;
+        // Pad with spaces for robust matching of multi-word commands
+        let processedText = ` ${text} `;
         newLineCommands.forEach(cmd => {
-            // Используем 'gi' для глобальной замены, если команда сказана несколько раз
-            processedText = processedText.replace(new RegExp(` *${cmd} *`, 'gi'), '\n');
+            // Match the command surrounded by spaces
+            const regex = new RegExp(` ${cmd} `, 'gi');
+            processedText = processedText.replace(regex, '\n');
         });
-        return processedText;
+        // Clean up spaces around the generated newline and trim the result
+        return processedText.replace(/\s*\n\s*/g, '\n');
     }, [language]);
 
     useEffect(() => {
@@ -1146,8 +1170,40 @@ function App() {
             // Сохраняем "сырой" финальный результат для onend и для проверки команд
             sessionFinalTextRef.current = sessionFinal || sessionInterim;
             
-            // --- ОБРАБОТКА КОМАНД НА ЛЕТУ ---
+            // --- ОБРАБОТКА ГОЛОСОВЫХ РЕЖИМОВ ---
             const lowerSession = (sessionFinal || sessionInterim).toLowerCase().trim();
+            if (lowerSession.endsWith('цифрами') || lowerSession.endsWith('символами')) {
+                setIsNumberMode(true);
+                isNumberModeRef.current = true;
+                recognition.stop();
+                return;
+            }
+            if (lowerSession.endsWith('буквами') || lowerSession.endsWith('текстом')) {
+                setIsNumberMode(false);
+                isNumberModeRef.current = false;
+                recognition.stop();
+                return;
+            }
+            if (lowerSession.endsWith('заглавными') || lowerSession.endsWith('большими')) {
+                setTextCaseMode('upper');
+                textCaseModeRef.current = 'upper';
+                recognition.stop();
+                return;
+            }
+            if (lowerSession.endsWith('маленькими') || lowerSession.endsWith('строчными')) {
+                setTextCaseMode('lower');
+                textCaseModeRef.current = 'lower';
+                recognition.stop();
+                return;
+            }
+            if (lowerSession.endsWith('обычными') || lowerSession.endsWith('как в предложении')) {
+                setTextCaseMode('normal');
+                textCaseModeRef.current = 'normal';
+                recognition.stop();
+                return;
+            }
+
+            // --- ОБРАБОТКА КОМАНД НА ЛЕТУ ---
             const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
             const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
             const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
@@ -1200,18 +1256,53 @@ function App() {
             if (isNumberModeRef.current) {
                 processedSession = convertWordsToNumbers(processedSession);
             }
+            processedSession = applyCaseMode(processedSession, textCaseModeRef.current)
+
             setInput(baseTextRef.current + processedSession + sessionInterim);
         };
 
         recognition.onend = () => {
+            const serviceWords = [
+                'цифрами', 'символами', 'буквами', 'текстом', 
+                'заглавными', 'большими', 'маленькими', 'строчными', 'обычными', 'как в предложении'
+            ];
+
+            const processChunk = (text) => {
+                let cleanPhrase = text.trim();
+                let commandFound = false;
+
+                for (const word of serviceWords) {
+                    if (cleanPhrase.toLowerCase() === word) {
+                        cleanPhrase = '';
+                        commandFound = true;
+                        break;
+                    }
+                }
+
+                if (!commandFound) {
+                    for (const word of serviceWords) {
+                        const regex = new RegExp(`\\s+${word}$`, 'i');
+                        if (regex.test(cleanPhrase)) {
+                            cleanPhrase = cleanPhrase.replace(regex, '');
+                            break;
+                        }
+                    }
+                }
+
+                if (!cleanPhrase) return '';
+
+                let processed = processNewLineCommands(cleanPhrase);
+                processed = applyPunctuation(processed);
+                if (isNumberModeRef.current) {
+                    processed = convertWordsToNumbers(processed);
+                }
+                return applyCaseMode(processed, textCaseModeRef.current);
+            }
+
             // 1. ЛОГИКА ОТПРАВКИ
             if (shouldSendOnEndRef.current) {
-                let finalSessionText = processNewLineCommands(sessionFinalTextRef.current);
-                finalSessionText = applyPunctuation(finalSessionText);
-                if (isNumberModeRef.current) {
-                    finalSessionText = convertWordsToNumbers(finalSessionText);
-                }
-                const finalToSubmit = baseTextRef.current + finalSessionText;
+                const processedText = processChunk(sessionFinalTextRef.current);
+                const finalToSubmit = (baseTextRef.current + processedText).trim();
                 const cleanText = finalToSubmit.replace(/(отправить|послать|send|go)\s*$/gi, '').trim();
                 
                 handleSendRef.current(cleanText);
@@ -1225,12 +1316,11 @@ function App() {
 
             // 2. ОБЫЧНОЕ ЗАВЕРШЕНИЕ ФРАЗЫ: фиксируем её в базу
             if (sessionFinalTextRef.current) {
-                let textToAdd = sessionFinalTextRef.current.trim();
-                textToAdd = applyPunctuation(textToAdd);
-                if (isNumberModeRef.current) {
-                    textToAdd = convertWordsToNumbers(textToAdd);
+                const processedText = processChunk(sessionFinalTextRef.current);
+                if (processedText) {
+                    // Add a space only if the text doesn't end with a newline
+                    baseTextRef.current += processedText + (processedText.endsWith('\n') ? '' : ' ');
                 }
-                baseTextRef.current += processNewLineCommands(textToAdd) + ' ';
                 sessionFinalTextRef.current = '';
             }
             
@@ -1270,7 +1360,7 @@ function App() {
                 recognitionRef.current.stop();
             }
         };
-    }, [language, processNewLineCommands, applyPunctuation, convertWordsToNumbers]);       
+    }, [language, processNewLineCommands, applyPunctuation, convertWordsToNumbers, applyCaseMode]);       
 
     const handleMicClick = () => {
         if (!recognitionRef.current) return;
@@ -1447,17 +1537,29 @@ function App() {
                                     </div>
                                     <div className="hints-scroll">
                                         <button 
+                                            className="hint-btn" 
+                                            onClick={() => {
+                                                const modes = ['normal', 'upper', 'lower'];
+                                                const nextIndex = (modes.indexOf(textCaseMode) + 1) % modes.length;
+                                                setTextCaseMode(modes[nextIndex]);
+                                            }}
+                                        >
+                                            {textCaseMode === 'normal' && '🔤 Aa (Норм)'}
+                                            {textCaseMode === 'upper' && '🔠 AA (ВЕРХ)'}
+                                            {textCaseMode === 'lower' && '🔡 aa (низ)'}
+                                        </button>
+                                        <button 
                                             className={`hint-btn ${isNumberMode ? 'active-mode' : ''}`} 
                                             onClick={() => setIsNumberMode(prev => !prev)}
                                         >
-                                            {isNumberMode ? '🔢 Цифры' : '🔤 Буквы'}
+                                            {isNumberMode ? '🔢 Цифрами' : '🔣 Буквами'}
                                         </button>
                                         <button className="hint-btn" onClick={() => {
                                             if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
                                             handleSend(input);
                                             wasManuallyStoppedRef.current = true;
                                             recognitionRef.current?.stop();
-                                        }}>Отправить</button>
+                                        }}>🆗 Отправить</button>
 
                                         <button className="hint-btn" onClick={() => {
                                             const currentInput = input.trim();
@@ -1472,7 +1574,6 @@ function App() {
                                         }}>Отменить</button>
 
                                         <button className="hint-btn" onClick={() => {
-                                            // ЛОГИКА НОВОЙ СТРОКИ
                                             const newValue = input + '\n';
                                             baseTextRef.current = newValue;
                                             setInput(newValue);
