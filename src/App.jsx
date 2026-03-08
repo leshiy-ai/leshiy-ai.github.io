@@ -1093,10 +1093,10 @@ function App() {
             }
             
             // Сохраняем "сырой" финальный результат для onend и для проверки команд
-            sessionFinalTextRef.current = sessionFinal;
+            sessionFinalTextRef.current = sessionFinal || sessionInterim;
             
             // --- ОБРАБОТКА КОМАНД НА ЛЕТУ ---
-            const lowerSession = sessionFinal.toLowerCase().trim();
+            const lowerSession = (sessionFinal || sessionInterim).toLowerCase().trim();
             const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
             const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
             const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
@@ -1123,10 +1123,12 @@ function App() {
             const undoCmd = undoCommands.find(cmd => lowerSession.endsWith(cmd));
             if (undoCmd) {
                 const sessionTextBeforeCommand = sessionFinal.substring(0, sessionFinal.toLowerCase().lastIndexOf(undoCmd));
+                const textForUndo = sessionFinal || sessionInterim;
+                const textBeforeCommand = textForUndo.substring(0, textForUndo.toLowerCase().lastIndexOf(undoCmd));
 
                 if (sessionTextBeforeCommand.trim()) {
                     // Отмена слова из текущей сессии
-                    const correctedSession = sessionTextBeforeCommand.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
+                    const correctedSession = textBeforeCommand.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
                     sessionFinalTextRef.current = correctedSession; // Сохраняем исправленное
                     const newFullText = baseTextRef.current + processNewLineCommands(correctedSession) + ' ';
                     setInput(newFullText);
@@ -1180,12 +1182,15 @@ function App() {
             if (!wasManuallyStoppedRef.current) {
                 setTimeout(() => {
                     try {
-                        recognition.start();
+                        // Проверяем, не нажал ли пользователь "стоп" за эти 200мс
+                        if (!wasManuallyStoppedRef.current && recognitionRef.current) {
+                            recognitionRef.current.start();
+                        }
                     } catch (e) {
                         console.error("Ошибка авто-перезапуска распознавания:", e);
                         setIsRecording(false);
                     }
-                }, 150); // Пауза, чтобы мобильный браузер успел освободить аудиоканал
+                }, 200); // Пауза, чтобы мобильный браузер успел освободить аудиоканал
             } else {
                 setIsRecording(false); // Если остановлен вручную, просто выключаем индикатор
             }
@@ -1226,7 +1231,7 @@ function App() {
             }
         }
     };
-    // ------------------------ //  
+    // ------------------------ //
 
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
