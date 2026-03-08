@@ -248,8 +248,9 @@ function App() {
     const wasManuallyStoppedRef = useRef(false);
     const shouldSendOnEndRef = useRef(false);
     const isSendingRef = useRef(false);
-    const baseTextRef = useRef('');
-    const sessionFinalTextRef = useRef('');
+    const baseTextRef = useRef(''); // Текст до старта микрофона
+    const sessionFinalTextRef = useRef(''); // Накопленный финальный текст в рамках сессии
+    const processedFinalsRef = useRef(new Set()); // "Ядерный" фикс дублей
 
     const t = useMemo(() => TRANSLATIONS[language], [language]);
 
@@ -1045,7 +1046,7 @@ function App() {
         };
     }, []);
 
-    // --- Speech Recognition (УЛЬТИМАТИВНЫЙ ФИКС) ---
+    // --- Speech Recognition ("Ядерный" вариант) ---
 
     const processNewLineCommands = useCallback((text) => {
         if (!text) return '';
@@ -1081,14 +1082,18 @@ function App() {
             let sessionInterim = '';
 
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                const transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) {
-                    // Вторая линия обороны: добавляем, только если этого куска еще нет в конце
-                    if (!sessionFinalTextRef.current.endsWith(transcript.trim())) {
-                        sessionFinalTextRef.current += transcript;
+                const result = event.results[i];
+                const transcript = result[0].transcript.trim();
+                
+                if (result.isFinal) {
+                    const resultKey = `${i}-${transcript.toLowerCase()}`;
+                    
+                    if (!processedFinalsRef.current.has(resultKey)) {
+                        sessionFinalTextRef.current += result[0].transcript;
+                        processedFinalsRef.current.add(resultKey);
                     }
                 } else {
-                    sessionInterim += transcript;
+                    sessionInterim += result[0].transcript;
                 }
             }
             
@@ -1099,7 +1104,7 @@ function App() {
             const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
             const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
 
-            // 1. КОМАНДА \"ОТПРАВИТЬ\"
+            // 1. КОМАНДА "ОТПРАВИТЬ"
             const sendCmd = sendCommands.find(cmd => lowerSessionText.endsWith(cmd));
             if (sendCmd && !isSendingRef.current) {
                 isSendingRef.current = true;
@@ -1113,7 +1118,7 @@ function App() {
                 return;
             }
 
-            // 2. КОМАНДА \"ОЧИСТИТЬ\"
+            // 2. КОМАНДА "ОЧИСТИТЬ"
             if (clearCommands.some(cmd => lowerSessionText.endsWith(cmd))) {
                 baseTextRef.current = '';
                 sessionFinalTextRef.current = '';
@@ -1129,25 +1134,21 @@ function App() {
                 const sessionTextBeforeCommand = currentSessionText.substring(0, currentSessionText.toLowerCase().lastIndexOf(undoCmd));
 
                 if (sessionTextBeforeCommand.trim()) {
-                    // Случай 1: Отмена слова, сказанного в текущей сессии
                     const correctedSession = sessionTextBeforeCommand.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
                     sessionFinalTextRef.current = correctedSession;
                     const newFullText = baseTextRef.current + (correctedSession ? correctedSession + ' ' : '');
                     setInput(processNewLineCommands(newFullText));
                 } else {
-                    // Случай 2: Отмена слова из текста, который был до включения микрофона
                     const correctedBase = baseTextRef.current.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
                     baseTextRef.current = correctedBase ? correctedBase + ' ' : '';
-                    sessionFinalTextRef.current = ''; // Сессия пуста
+                    sessionFinalTextRef.current = '';
                     setInput(processNewLineCommands(baseTextRef.current));
                 }
                 
-                // Останавливаем, чтобы применить правку. Микрофон перезапустится автоматически в onend.
                 recognition.stop();
                 return;
             }
 
-            // ОБНОВЛЕНИЕ ПОЛЯ ВВОДА В РЕАЛЬНОМ ВРЕМЕНИ
             const processedSession = processNewLineCommands(currentSessionText);
             setInput(baseTextRef.current + processedSession + sessionInterim);
         };
@@ -1155,7 +1156,8 @@ function App() {
         recognition.onend = () => {
             setIsRecording(false);
             
-            // Если была команда "отправить", все уже очищено
+            processedFinalsRef.current.clear();
+
             if (shouldSendOnEndRef.current) {
                 baseTextRef.current = '';
                 sessionFinalTextRef.current = '';
@@ -1163,27 +1165,22 @@ function App() {
                 return;
             }
             
-            // Фиксируем накопленное за сессию в базу
             if (sessionFinalTextRef.current) {
-                    baseTextRef.current += processNewLineCommands(sessionFinalTextRef.current).trim() + ' ';
+                 baseTextRef.current += processNewLineCommands(sessionFinalTextRef.current).trim() + ' ';
             }
-            // ОБНУЛЯЕМ СЕССИЮ
             sessionFinalTextRef.current = '';
             
-            // Отображаем итоговый результат в поле ввода
             setInput(baseTextRef.current);
 
-            // Перезапускаем, если не было ручной остановки
             if (!wasManuallyStoppedRef.current) {
                 setTimeout(() => {
                     try {
-                        // Жестко очищаем сессию перед новым стартом
-                        sessionFinalTextRef.current = '';
-                        recognition.start();
+                        processedFinalsRef.current.clear();
+                        recognitionRef.current.start();
                     } catch (e) {
-                            console.error("Ошибка авто-перезапуска распознавания:", e);
+                         console.error("Ошибка авто-перезапуска распознавания:", e);
                     }
-                }, 100);
+                }, 200);
             }
         };
 
@@ -1197,8 +1194,8 @@ function App() {
         
         return () => {
             if (recognitionRef.current) {
-                recognitionRef.current.onend = null;
-                recognitionRef.current.stop();
+               recognitionRef.current.onend = null;
+               recognitionRef.current.stop();
             }
         };
     }, [language, processNewLineCommands]);
@@ -1210,10 +1207,9 @@ function App() {
             wasManuallyStoppedRef.current = true;
             recognitionRef.current.stop();
         } else {
-            // Фиксируем текст из поля ввода в базу
             baseTextRef.current = input ? input.trim() + ' ' : '';
-            // Жестко очищаем сессию перед новым стартом
             sessionFinalTextRef.current = '';
+            processedFinalsRef.current.clear();
             try {
                 recognitionRef.current.start();
             } catch (e) {
@@ -1221,6 +1217,7 @@ function App() {
             }
         }
     };
+    
     // ------------------------ //    
 
     const AdminPanel = ({ onClose }) => {
