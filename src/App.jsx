@@ -223,6 +223,7 @@ function App() {
     const [isStorageVisible, setStorageVisible] = useState(false);
     const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
+    const [isNumberMode, setIsNumberMode] = useState(false);
     
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
@@ -242,6 +243,7 @@ function App() {
     const welcomeMessageIdRef = useRef(null);
     const textareaRef = useRef(null);
     const modelSelectorRef = useRef(null);
+    const restartTimeoutRef = useRef(null);
 
     // --- РЕФЫ ДЛЯ РАСПОЗНАВАНИЯ РЕЧИ ---
     const recognitionRef = useRef(null);
@@ -250,8 +252,57 @@ function App() {
     const isSendingRef = useRef(false);
     const baseTextRef = useRef('');
     const sessionFinalTextRef = useRef('');
+    const isNumberModeRef = useRef(isNumberMode);
 
     const t = useMemo(() => TRANSLATIONS[language], [language]);
+
+    const punctuationMap = useMemo(() => ({
+        'тчк': '.', 'точка': '.', 'зпт': ',', 'запятая': ',', 'точка с запятой': ';',
+        'тире': '-', 'дефис': '-', 'минус': '-',
+        'равно': '=', 'плюс': '+', 'подчёркивание': '_',
+        'звёздочка': '*', 'умножить': '*', 'пробел': ' ',
+        'собака': '@', 'решётка': '#', 'номер': '№',
+        'доллар': '$', 'евро': '€', 'рубль': '₽', 'градус': '°',
+        'процент': '%', 'проценты': '%', 'апостроф': "'", 'амперсанд': '&', 
+        'слэш': '/', 'обратный слэш': '\\', 'тильда': '~',
+        'восклицательный знак': '!', 'вопросительный знак': '?', 'вопрос': '?',
+        'вопрос': '?', 'двоеточие': ':', 'степень': '^',
+        'многоточие': '...', 'троеточие': '...', 'вертикальная черта': '|',
+        'открыть скобку': '(', 'скобка открывается': '(',
+        'закрыть скобку': ')', 'скобка закрывается': ')',
+        'кавычки': '"', 'открыть кавычку': '«', 'закрыть кавычку': '»',
+        'кавычка открывается': '«', 'кавычка закрывается': '»',
+        'знак больше': '>', 'знак меньше': '<',
+        'смайлик': '🙂', 'грустный смайлик': '☹️', 'сердце': '❤️'
+    }), []);
+
+    const numberMap = useMemo(() => ({
+        'ноль': 0, 'раз': 1, 'один': 1, 'два': 2, 'три': 3, 'четыре': 4, 'пять': 5,
+        'шесть': 6, 'семь': 7, 'восемь': 8, 'девять': 9, 'десять': 10
+    }), []);
+
+    const applyPunctuation = useCallback((text) => {
+        let processed = text;
+        const sortedKeys = Object.keys(punctuationMap).sort((a, b) => b.length - a.length);
+        sortedKeys.forEach(key => {
+            const regex = new RegExp(`\\s*${key}\\s*`, 'gi');
+            processed = processed.replace(regex, `${punctuationMap[key]} `);
+        });
+        return processed.replace(/\s+/g, ' ').trim();
+    }, [punctuationMap]);
+
+    const convertWordsToNumbers = useCallback((text) => {
+        let processed = text;
+        Object.keys(numberMap).forEach(word => {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            processed = processed.replace(regex, numberMap[word]);
+        });
+        return processed;
+    }, [numberMap]);
+
+    useEffect(() => {
+        isNumberModeRef.current = isNumberMode;
+    }, [isNumberMode]);
 
     const [activeModels, setActiveModels] = useState({
         TEXT_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_TEXT') || 'TEXT_TO_TEXT_CLOUDFLARE',
@@ -1122,67 +1173,74 @@ function App() {
             // 3. КОМАНДА "ОТМЕНИТЬ"
             const undoCmd = undoCommands.find(cmd => lowerSession.endsWith(cmd));
             if (undoCmd) {
-                const sessionTextBeforeCommand = sessionFinal.substring(0, sessionFinal.toLowerCase().lastIndexOf(undoCmd));
-                const textForUndo = sessionFinal || sessionInterim;
-                const textBeforeCommand = textForUndo.substring(0, textForUndo.toLowerCase().lastIndexOf(undoCmd));
+                const sessionTextBeforeCommand = sessionFinal.substring(0, sessionFinal.toLowerCase().lastIndexOf(undoCmd)).trim();
 
-                if (sessionTextBeforeCommand.trim()) {
-                    // Отмена слова из текущей сессии
-                    const correctedSession = textBeforeCommand.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
-                    sessionFinalTextRef.current = correctedSession; // Сохраняем исправленное
+                if (sessionTextBeforeCommand) {
+                    const match = sessionTextBeforeCommand.match(/\S+$/);
+                    const correctedSession = match ? sessionTextBeforeCommand.substring(0, match.index).trim() : '';
+                    sessionFinalTextRef.current = correctedSession;
                     const newFullText = baseTextRef.current + processNewLineCommands(correctedSession) + ' ';
                     setInput(newFullText);
                 } else {
-                    // Отмена слова из базового текста
-                    const correctedBase = baseTextRef.current.trim().replace(/[\wа-яА-ЯёЁ]+[.,!?;:]?\s*$/, '');
+                    const base = baseTextRef.current.trim();
+                    const match = base.match(/\S+$/);
+                    const correctedBase = match ? base.substring(0, match.index).trim() : '';
                     baseTextRef.current = correctedBase ? correctedBase + ' ' : '';
-                    sessionFinalTextRef.current = ''; // Сессия пуста
+                    sessionFinalTextRef.current = '';
                     setInput(baseTextRef.current);
                 }
                 
-                recognition.stop(); // Перезапустится в onend
+                recognition.stop();
                 return;
             }
             
             // --- ВИЗУАЛИЗАЦИЯ ---
-            // Показываем пользователю результат с обработкой переносов строк
-            const processedSession = processNewLineCommands(sessionFinal);
+            let processedSession = processNewLineCommands(sessionFinal);
+            processedSession = applyPunctuation(processedSession);
+            if (isNumberModeRef.current) {
+                processedSession = convertWordsToNumbers(processedSession);
+            }
             setInput(baseTextRef.current + processedSession + sessionInterim);
         };
 
         recognition.onend = () => {
             // 1. ЛОГИКА ОТПРАВКИ
             if (shouldSendOnEndRef.current) {
-                // Собираем полный текст из базы и финальной сессии
-                const finalToSubmit = baseTextRef.current + processNewLineCommands(sessionFinalTextRef.current);
-                // Очищаем от самой команды "отправить"
+                let finalSessionText = processNewLineCommands(sessionFinalTextRef.current);
+                finalSessionText = applyPunctuation(finalSessionText);
+                if (isNumberModeRef.current) {
+                    finalSessionText = convertWordsToNumbers(finalSessionText);
+                }
+                const finalToSubmit = baseTextRef.current + finalSessionText;
                 const cleanText = finalToSubmit.replace(/(отправить|послать|send|go)\s*$/gi, '').trim();
                 
-                handleSendRef.current(cleanText); // Отправляем
+                handleSendRef.current(cleanText);
                 
-                // Полная зачистка
                 baseTextRef.current = '';
                 sessionFinalTextRef.current = '';
                 setInput('');
-                setIsRecording(false); // Выключаем индикатор
-                return; // Выходим, чтобы не было авто-рестарта
+                setIsRecording(false);
+                return;
             }
 
             // 2. ОБЫЧНОЕ ЗАВЕРШЕНИЕ ФРАЗЫ: фиксируем её в базу
             if (sessionFinalTextRef.current) {
-                // ИСПРАВЛЕНИЕ: сначала trim, потом обработка команды. Это чинит баг с "новой строкой".
-                baseTextRef.current += processNewLineCommands(sessionFinalTextRef.current.trim()) + ' ';
+                let textToAdd = sessionFinalTextRef.current.trim();
+                textToAdd = applyPunctuation(textToAdd);
+                if (isNumberModeRef.current) {
+                    textToAdd = convertWordsToNumbers(textToAdd);
+                }
+                baseTextRef.current += processNewLineCommands(textToAdd) + ' ';
                 sessionFinalTextRef.current = '';
             }
             
-            // Отображаем итоговый текст в поле ввода
             setInput(baseTextRef.current);
 
-            // 3. АВТО-РЕСТАРТ: имитируем непрерывность, если микрофон не был выключен вручную
+            // 3. АВТО-РЕСТАРТ
             if (!wasManuallyStoppedRef.current) {
-                setTimeout(() => {
+                if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
+                restartTimeoutRef.current = setTimeout(() => {
                     try {
-                        // Проверяем, не нажал ли пользователь "стоп" за эти 200мс
                         if (!wasManuallyStoppedRef.current && recognitionRef.current) {
                             recognitionRef.current.start();
                         }
@@ -1190,15 +1248,14 @@ function App() {
                         console.error("Ошибка авто-перезапуска распознавания:", e);
                         setIsRecording(false);
                     }
-                }, 200); // Пауза, чтобы мобильный браузер успел освободить аудиоканал
+                }, 200);
             } else {
-                setIsRecording(false); // Если остановлен вручную, просто выключаем индикатор
+                setIsRecording(false);
             }
         };
 
         recognition.onerror = (event) => {
             if (event.error === 'no-speech' && !wasManuallyStoppedRef.current) {
-                // Это не ошибка, а просто пауза в речи. `onend` обработает перезапуск.
                 recognition.stop();
             } else if (event.error !== 'aborted') {
                 console.error("Ошибка распознавания речи:", event.error);
@@ -1206,19 +1263,20 @@ function App() {
             }
         };
 
-        // Чистим за собой при размонтировании компонента
         return () => {
+            if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
             if (recognitionRef.current) {
-                recognitionRef.current.onend = null; // Предотвращаем рекурсивный вызов onend
+                recognitionRef.current.onend = null;
                 recognitionRef.current.stop();
             }
         };
-    }, [language, processNewLineCommands]);       
+    }, [language, processNewLineCommands, applyPunctuation, convertWordsToNumbers]);       
 
     const handleMicClick = () => {
         if (!recognitionRef.current) return;
 
         if (isRecording) {
+            if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
             wasManuallyStoppedRef.current = true;
             recognitionRef.current.stop();
         } else {
@@ -1385,22 +1443,32 @@ function App() {
                                 <div className="voice-commands-hints">
                                     <div className="rec-indicator">
                                         <span className="rec-dot"></span>
-                                        <span className="rec-label">ЗАПИСЬ</span>
+                                        <span className="rec-label">REC</span>
                                     </div>
                                     <div className="hints-scroll">
+                                        <button 
+                                            className={`hint-btn ${isNumberMode ? 'active-mode' : ''}`} 
+                                            onClick={() => setIsNumberMode(prev => !prev)}
+                                        >
+                                            {isNumberMode ? '🔢 Цифры' : '🔤 Буквы'}
+                                        </button>
                                         <button className="hint-btn" onClick={() => {
-                                            // ЛОГИКА ОТПРАВКИ
+                                            if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
                                             handleSend(input);
                                             wasManuallyStoppedRef.current = true;
                                             recognitionRef.current?.stop();
                                         }}>Отправить</button>
 
                                         <button className="hint-btn" onClick={() => {
-                                            // ЛОГИКА ОТМЕНЫ ПОСЛЕДНЕГО СЛОВА
-                                            const currentText = input.trim();
-                                            const corrected = currentText.replace(/[^\s,;!?]*$/, '');
-                                            baseTextRef.current = corrected;
-                                            setInput(corrected);
+                                            const currentInput = input.trim();
+                                            const match = currentInput.match(/\S+$/);
+                                            const correctedText = match ? currentInput.substring(0, match.index).trim() : '';
+                                            baseTextRef.current = correctedText ? correctedText + ' ' : '';
+                                            sessionFinalTextRef.current = '';
+                                            setInput(baseTextRef.current);
+                                            if (recognitionRef.current && isRecording) {
+                                                recognitionRef.current.stop();
+                                            }
                                         }}>Отменить</button>
 
                                         <button className="hint-btn" onClick={() => {
@@ -1411,7 +1479,7 @@ function App() {
                                         }}>Новая строка</button>
 
                                         <button className="hint-btn" onClick={() => {
-                                            // ЛОГИКА ОЧИСТКИ
+                                            if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
                                             baseTextRef.current = '';
                                             sessionFinalTextRef.current = '';
                                             setInput('');
