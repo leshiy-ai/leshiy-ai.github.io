@@ -2,7 +2,7 @@
   "name": "leshiy-ai.github.io",
   "private": true,
   "version": "1.0.5",
-  "author": "Огорельцев Александр Валерьевич",
+  "author": "Огорельцев Александр",
   "type": "module",
   "scripts": {
     "dev": "vite",
