@@ -366,8 +366,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         }
     }
 
-    // ЗАГРУЗКА ФАЙЛОВ
-    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload") || hasFiles) {
+    // ЗАГРУЗКА ФАЙЛОВ (Умный режим)
+    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
         if (!hasFiles) return { type: 'text', text: "Прикрепите файл! 📎" };
 
         try {
@@ -713,7 +713,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     
                 // Проверяем, имеем ли мы право на последнюю попытку
                 if (config.SERVICE === 'GEMINI') {
-                    console.log("Cloudflare Proxy failed. Activating personal Gemini Proxy...");
+                    console.log("Cloudflare failed. Activating personal Gemini Proxy...");
                     try {
                         // Формируем URL: заменяем только домен на прокси
                         const geminiProxyUrl = url.replace(new URL(url).origin, CONFIG.GEMINI_PROXY);
