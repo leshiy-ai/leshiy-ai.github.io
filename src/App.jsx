@@ -593,34 +593,38 @@ function App() {
         setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
 
-    const generateSmartTitle = useCallback(async (context, userText) => {
-        try {
-            const safeContext = (context || "").toString();
-            const safeUserText = (userText || "").toString();
+    const generateSmartTitle = useCallback(async (messageHistory) => {
+        if (!messageHistory || messageHistory.length === 0) {
+            return null;
+        }
     
-            const prompt = `Диалог:\n${safeContext.substring(0, 500)}\n\nПроанализируй диалог и дай короткое название тему (2-4 слова) сути вопроса пользователя: \"${safeUserText.substring(0, 100)}\". Игнорируй приветствия. Ответь ТОЛЬКО названием, без кавычек и точек.`;
+        // Формируем историю для передачи в AI
+        const historyForAI = messageHistory.map(m => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.text || m.content || '' }]
+        }));
+
+        try {
+            const prompt = "Проанализируй этот диалог и придумай для него короткое, ёмкое название (2-4 слова). Отвечай только названием, без лишних слов, кавычек или точек.";
             
             const aiResponse = await askLeshiy({
-                text: prompt,
-                userId: currentUserId,
-                history: [],
-                isSystemTask: true
+                text: prompt, 
+                history: historyForAI, // Передаем всю историю
+                isSystemTask: true // Используем системную модель для этой задачи
             });
             
-    
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
-                const cleanedTitle = aiResponse.text.replace(/[\"'«»*.]/g, '').trim();
-                return cleanedTitle;
-            } else {
-                console.warn("AI Title Generation failed with response:", aiResponse);
-                return null;
+                const cleanedTitle = aiResponse.text.replace(/[\"«»*.]/g, '').trim();
+                if (cleanedTitle) {
+                    return cleanedTitle;
+                }
             }
+            return null;
         } catch (e) {
             console.warn("AI Title Generation failed with error:", e);
+            return null;
         }
-        
-        return null; 
-    }, [currentUserId]);
+    }, []);
 
     const syncChatHistory = useCallback(async (chatId, currentMessages, titleOverride = null) => {
         if (currentUserId === "guest") return;
@@ -647,33 +651,21 @@ function App() {
         }
     }, [currentUserId, fetchChats]);
 
-    const handleHistorySync = useCallback(async (chatId, updatedMessages, userText) => {
-        const activeUserId = localStorage.getItem('vk_user_id') || 
-            new URLSearchParams(window.location.search).get('user_id');
-
-        if (!activeUserId || activeUserId === 'undefined') {
-            return;
-        }
+    const handleHistorySync = useCallback(async (chatId, updatedMessages) => {
+        if (currentUserId === "guest") return;
 
         const existingChat = chatList.find(c => c.id === chatId);
         let currentTitle = existingChat ? existingChat.title : "Новый чат";
     
         const validMessages = updatedMessages.filter(m => m.text || m.content);
+        const isDefaultTitle = !existingChat || existingChat.title === "Новый чат" || existingChat.title.includes("Чат от");
     
-        const isDefault = currentTitle === "Новый чат" || currentTitle.includes("Чат от");
-    
-        if (validMessages.length >= 4 && isDefault) {
-    
-            const context = validMessages.slice(0, 4)
-                .map(m => `${m.role === 'user' ? 'Юзер' : 'ИИ'}: ${m.text || m.content || ''}`)
-                .join('\n');
-    
+        if (validMessages.length >= 4 && isDefaultTitle) {
             try {
-                const smartTitle = await generateSmartTitle(context, userText);
+                const smartTitle = await generateSmartTitle(validMessages);
                 
                 if (smartTitle) {
                     currentTitle = smartTitle;
-                    
                     setChatList(prev => prev.map(c => 
                         c.id === chatId ? { ...c, title: smartTitle } : c
                     ));
@@ -684,7 +676,8 @@ function App() {
         }
     
         await syncChatHistory(chatId, updatedMessages, currentTitle);
-    }, [chatList, currentUserId, generateSmartTitle, syncChatHistory]);
+    }, [chatList, generateSmartTitle, syncChatHistory, currentUserId]);
+
 
     const handleSend = useCallback(async (text) => {
         const userMessageText = (typeof text === 'string' ? text : input).trim();
@@ -698,12 +691,12 @@ function App() {
         if (!userMessageText && files.length === 0) return;
 
         let chatId = currentChatId;
-        let isNewChat = false;
         if (!chatId) {
-            isNewChat = true;
             chatId = `chat_${Date.now()}`;
             setCurrentChatId(chatId);
             localStorage.setItem('last_chat_id', chatId);
+            // Создаем новый чат в списке сразу
+            setChatList(prev => [...prev, { id: chatId, title: "Новый чат", lastUpdate: Date.now() }]);
         }
 
         const currentFiles = [...files];
@@ -738,8 +731,10 @@ function App() {
                 text: userMessageText,
                 history: historyForAi,
                 userId: currentUserId,
-                files: currentFiles.filter(f => f.base64).map(f => ({ 
-                    inlineData: { data: f.base64, mimeType: f.mimeType }
+                files: currentFiles.map(f => ({ 
+                    file: f.file,
+                    base64: f.base64,
+                    mimeType: f.mimeType
                 }))
             });
 
@@ -753,7 +748,7 @@ function App() {
             const updatedMessages = [...newMessages, assistantMsg];
             setMessages(updatedMessages);
 
-            handleHistorySync(chatId, updatedMessages, isNewChat ? userMessageText : null);
+            handleHistorySync(chatId, updatedMessages);
 
         } catch (err) {
             console.error("Ошибка связи с Лешим:", err);
@@ -765,7 +760,7 @@ function App() {
         } finally {
             setIsLoading(false);
         }
-    }, [files, currentChatId, messages, currentUserId, handleHistorySync]);
+    }, [files, input, currentChatId, messages, currentUserId, handleHistorySync]);
 
     const handleSendRef = useRef(handleSend);
     useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
@@ -1126,10 +1121,10 @@ function App() {
         newLineCommands.forEach(cmd => {
             // Match the command surrounded by spaces
             const regex = new RegExp(` ${cmd} `, 'gi');
-            processedText = processedText.replace(regex, '\n');
+            processedText = processedText.replace(regex, '\\n');
         });
         // Clean up spaces around the generated newline and trim the result
-        return processedText.replace(/\s*\n\s*/g, '\n');
+        return processedText.replace(/\s*\n\s*/g, '\\n');
     }, [language]);
 
     useEffect(() => {
@@ -1319,7 +1314,7 @@ function App() {
                 const processedText = processChunk(sessionFinalTextRef.current);
                 if (processedText) {
                     // Add a space only if the text doesn't end with a newline
-                    baseTextRef.current += processedText + (processedText.endsWith('\n') ? '' : ' ');
+                    baseTextRef.current += processedText + (processedText.endsWith('\\n') ? '' : ' ');
                 }
                 sessionFinalTextRef.current = '';
             }
@@ -1574,7 +1569,7 @@ function App() {
                                         }}>Отменить</button>
 
                                         <button className="hint-btn" onClick={() => {
-                                            const newValue = input + '\n';
+                                            const newValue = input + '\\n';
                                             baseTextRef.current = newValue;
                                             setInput(newValue);
                                         }}>Новая строка</button>
