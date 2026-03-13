@@ -568,8 +568,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // ==========================================================
         switch (config.SERVICE) {
             case 'GEMINI':
-                 // ИЗМЕНЕНИЕ: Убираем ключ из URL, он будет добавлен на сервере
-                url = `${config.BASE_URL}/models/${config.MODEL}:generateContent`;
+                url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
+
                 const geminiHistory = history || [];
                 const currentUserParts = [];
 
