@@ -686,7 +686,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     
         // --- ПОПЫТКА 1: Яндекс Прокси ---
         try {
-            console.log("Attempt 1: Yandex Proxy");
             response = await fetch(CONFIG.PROXY_URL, {
                 method: 'POST',
                 mode: 'cors',
@@ -714,7 +713,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     
                 // Проверяем, имеем ли мы право на последнюю попытку
                 if (config.SERVICE === 'GEMINI') {
-                    console.log("Cloudflare failed. Activating dedicated Gemini Proxy as last resort...");
+                    console.log("Cloudflare Proxy failed. Activating personal Gemini Proxy...");
                     try {
                         // Формируем URL: заменяем только домен на прокси
                         const geminiProxyUrl = url.replace(new URL(url).origin, CONFIG.GEMINI_PROXY);
