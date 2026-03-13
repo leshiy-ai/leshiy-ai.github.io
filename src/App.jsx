@@ -594,25 +594,17 @@ function App() {
     };
 
     const generateSmartTitle = useCallback(async (messageHistory) => {
-        if (!messageHistory || messageHistory.length === 0) {
-            return null;
-        }
-    
-        // Формируем историю для передачи в AI
-        const historyForAI = messageHistory.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.text || m.content || '' }]
-        }));
+        if (!messageHistory || messageHistory.length < 1) return null;
 
         try {
             const prompt = "Проанализируй этот диалог и придумай для него короткое, ёмкое название (2-4 слова). Отвечай только названием, без лишних слов, кавычек или точек.";
-            
+
             const aiResponse = await askLeshiy({
-                text: prompt, 
-                history: historyForAI, // Передаем всю историю
-                isSystemTask: true // Используем системную модель для этой задачи
+                text: prompt,
+                history: messageHistory, // Передаем полный массив сообщений как историю
+                isSystemTask: true
             });
-            
+
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
                 const cleanedTitle = aiResponse.text.replace(/[\"«»*.]/g, '').trim();
                 if (cleanedTitle) {
@@ -621,7 +613,7 @@ function App() {
             }
             return null;
         } catch (e) {
-            console.warn("AI Title Generation failed with error:", e);
+            console.warn("AI Title Generation failed:", e);
             return null;
         }
     }, []);
@@ -656,15 +648,14 @@ function App() {
 
         const existingChat = chatList.find(c => c.id === chatId);
         let currentTitle = existingChat ? existingChat.title : "Новый чат";
-    
-        const validMessages = updatedMessages.filter(m => m.text || m.content);
-        const isDefaultTitle = !existingChat || existingChat.title === "Новый чат" || existingChat.title.includes("Чат от");
-    
-        if (validMessages.length >= 4 && isDefaultTitle) {
+
+        const userMessageCount = updatedMessages.filter(m => m.role === 'user').length;
+        const isDefaultTitle = !existingChat || existingChat.title === "Новый чат" || /^Чат от/.test(existingChat.title);
+
+        if (userMessageCount >= 2 && isDefaultTitle) {
             try {
-                const smartTitle = await generateSmartTitle(validMessages);
-                
-                if (smartTitle) {
+                const smartTitle = await generateSmartTitle(updatedMessages);
+                if (smartTitle && smartTitle !== currentTitle) {
                     currentTitle = smartTitle;
                     setChatList(prev => prev.map(c => 
                         c.id === chatId ? { ...c, title: smartTitle } : c
@@ -674,7 +665,7 @@ function App() {
                 console.error("Ошибка при генерации заголовка:", e);
             }
         }
-    
+
         await syncChatHistory(chatId, updatedMessages, currentTitle);
     }, [chatList, generateSmartTitle, syncChatHistory, currentUserId]);
 
@@ -696,7 +687,7 @@ function App() {
             setCurrentChatId(chatId);
             localStorage.setItem('last_chat_id', chatId);
             // Создаем новый чат в списке сразу
-            setChatList(prev => [...prev, { id: chatId, title: "Новый чат", lastUpdate: Date.now() }]);
+            setChatList(prev => [{ id: chatId, title: "Новый чат", lastUpdate: Date.now() }, ...prev]);
         }
 
         const currentFiles = [...files];

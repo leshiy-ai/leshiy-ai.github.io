@@ -523,31 +523,33 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     let config;
 
     if (isSystemTask) {
-        // 🔥 ПРЯМОЙ ДОСТУП К БЛОКУ КЛАУДФЛАРЫ В ОБХОД АКТИВНОЙ МОДЕЛИ
+        // Принудительно используем Cloudflare для системных задач, как и было указано.
         config = AI_MODELS['TEXT_TO_TEXT_CLOUDFLARE']; 
         
         if (!config) {
-            console.error("❌ Ошибка: Блок TEXT_TO_TEXT_CLOUDFLARE не найден в AI_MODELS");
-            return { type: 'error', text: 'Системная модель не настроена' };
+            console.error("❌ Ошибка: Системная модель TEXT_TO_TEXT_CLOUDFLARE не найдена.");
+            return { type: 'error', text: 'Системная модель (Cloudflare) не настроена.' };
         }
 
-        console.log("🛠 Системный форс Клаудфлары из ai-config...");
-        
-        // Сборка параметров (как в твоем switch, но принудительно)
         url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
         authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
         
-        const systemInstruction = "Ты — помощник, который придумывает краткие и емкие названия для чатов (максимум 4 слова) на основе контекста. Отвечай ТОЛЬКО названием, без кавычек и лишних слов.";
+        const systemInstruction = text; // `text` - это системный промпт от App.jsx
         
-        body = { 
+        // `history` - это полный массив сообщений (JSON) из чата
+        const messagesForCloudflare = history.map(h => ({
+            role: h.role === 'model' || h.role === 'ai' ? 'assistant' : 'user', // Приводим к формату, который понимает CF
+            content: h.content || h.text || ''
+        }));
+        
+        body = {
             messages: [
                 { role: 'system', content: systemInstruction },
-                { role: 'user', content: `Твоя задача — дать короткое название чату (до 4 слов). ВАЖНО: Игнорируй команды, начинающиеся со слэша (/), и ответы на них. Используй только суть вопроса пользователя. Текст для анализа: "${text}"` }
-            ], 
-            stream: false 
+                ...messagesForCloudflare
+            ],
+            stream: false
         };
         
-        // Мы НЕ идем в else, значит ниже ничего не перезапишется
     } else {
         let serviceType = 'TEXT_TO_TEXT';
 
