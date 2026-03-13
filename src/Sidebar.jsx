@@ -6,7 +6,8 @@ const Sidebar = ({
   currentChatId, 
   onSelectChat, 
   onDeleteChat, 
-  onRenameChat 
+  onRenameChat,
+  onAutoRenameChat
 }) => {
 
   const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
@@ -148,6 +149,13 @@ const Sidebar = ({
                         onClick={(e) => { e.stopPropagation(); onRenameChat(chat.id); }}
                       >
                         ✏️
+                      </button>
+                      <button 
+                        className="action-icon auto-rename" 
+                        title={t.tooltip_auto_rename} 
+                        onClick={(e) => { e.stopPropagation(); onAutoRenameChat(chat.id); }}
+                      >
+                        ✨
                       </button>
                       <button 
                         className="action-icon delete" 

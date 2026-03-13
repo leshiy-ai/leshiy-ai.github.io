@@ -43,6 +43,7 @@ const TRANSLATIONS = {
         tooltip_admin: "Открыть админ-панель",
         tooltip_logout: "Выйти",
         tooltip_login: "Войти через VK ID",
+        tooltip_auto_rename: "Автоматически переименовать чат",
     },
     en: {
         title: 'Leshiy-AI',
@@ -71,6 +72,7 @@ const TRANSLATIONS = {
         tooltip_admin: "Open Admin Panel",
         tooltip_logout: "Logout",
         tooltip_login: "Login with VK ID",
+        tooltip_auto_rename: "Automatically rename chat",
     }
 };
 
@@ -870,24 +872,52 @@ function App() {
             
             try {
                 const historyRes = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
-                    params: { userId: currentUserId, chatId: chatId }
+                    params: { userId: currentUserId, chatId: chatId, limit: 1000 }
                 });
                 const currentMessages = historyRes.data.messages || [];
 
-                await axios.post(`${CONFIG.STORAGE_GATEWAY}/api/history`, {
-                    userId: String(currentUserId),
-                    chatId: chatId,
-                    chatTitle: trimmedTitle,
-                    messages: currentMessages
-                });
-    
-                fetchChats();
+                await syncChatHistory(chatId, currentMessages, trimmedTitle);
     
             } catch (e) {
                 console.error("Ошибка переименования чата:", e);
                 alert(`Не удалось переименовать чат. ${e.message}`);
-                fetchChats();
             }
+        }
+    };
+
+    const handleAutoRenameChat = async (chatId) => {
+        if (!chatId || currentUserId === 'guest') return;
+
+        try {
+            const res = await axios.get(`${CONFIG.STORAGE_GATEWAY}/api/get-history`, {
+                params: {
+                    userId: currentUserId,
+                    chatId: chatId,
+                    limit: 1000 
+                }
+            });
+
+            const historyMessages = res.data.messages || [];
+            if (historyMessages.length === 0) {
+                alert("Невозможно переименовать пустой чат.");
+                return;
+            }
+
+            const smartTitle = await generateSmartTitle(historyMessages);
+
+            if (smartTitle) {
+                setChatList(prev => prev.map(c =>
+                    c.id === chatId ? { ...c, title: smartTitle } : c
+                ));
+                await syncChatHistory(chatId, historyMessages, smartTitle);
+                alert(`Чат переименован в: "${smartTitle}"`);
+            } else {
+                alert("Не удалось сгенерировать новое название для чата.");
+            }
+
+        } catch (e) {
+            console.error("Ошибка автоматического переименования чата:", e);
+            alert(`Ошибка: ${e.message}`);
         }
     };
     
@@ -1438,6 +1468,7 @@ function App() {
             onSelectChat={onSelectChat} 
             onDeleteChat={handleDeleteChat}
             onRenameChat={handleRenameChat}
+            onAutoRenameChat={handleAutoRenameChat}
             userName={userName}
             isLoggedIn={isLoggedIn}
             userPhoto={userPhoto}
