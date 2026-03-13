@@ -367,7 +367,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     }
 
     // ЗАГРУЗКА ФАЙЛОВ (Умный режим)
-    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
+    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload") || hasFiles) {
         if (!hasFiles) return { type: 'text', text: "Прикрепите файл! 📎" };
 
         try {
