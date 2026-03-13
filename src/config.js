@@ -8,7 +8,7 @@ export const CONFIG = {
     // Прокси для Gemini, чтобы обходить блокировки Google.
     // В Vite доступ к переменным идет через import.meta.env
     PROXY_SECRET_KEY: import.meta.env.VITE_PROXY_SECRET_KEY,
-    GEMINI_PROXY_KEY: import.meta.env.VITE_GEMINI_PROXY_KEY, // <--- ДОБАВЛЕНО
+    GEMINI_PROXY_KEY: import.meta.env.VITE_GEMINI_PROXY_KEY,
     GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY,
     CLOUDFLARE_API_TOKEN: import.meta.env.VITE_CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ACCOUNT_ID: import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID,
