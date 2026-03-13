@@ -10,6 +10,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     let userQuery = text?.trim() || "";
     let lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
+
+    // Сохраняем последний запрос пользователя для именования чата
+    if (!isSystemTask && userQuery) {
+        sessionStorage.setItem('last_user_query', userQuery);
+    }
     
     // 1. ПЕРЕМЕННЫЕ
     const SITE_APP_ID = "54467300"; // ID для авторизации на сайте
@@ -169,7 +174,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 buttons: [{ text: '🔙 Назад', action: '/storage' }]
             };
         } catch (e) {
-            return { type: 'error', text: '❌ Ошибка API при создании инвайта.' };
+            return { type: 'error', text: '❌ Ошибка API при создания инвайта.' };
         }
     }
 
@@ -537,12 +542,15 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
         authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
         
-        const systemInstruction = "Ты — помощник, который придумывает краткие и емкие названия для чатов (максимум 4 слова) на основе контекста. Отвечай ТОЛЬКО названием, без кавычек и лишних слов.";
+        const systemInstruction = "Ты — помощник, который придумывает краткие и емкие названия для чатов (максимум 4 слова). Отвечай ТОЛЬКО названием, без кавычек и лишних слов.";
         
+        // Получаем реальный запрос пользователя из sessionStorage
+        const textForTitle = sessionStorage.getItem('last_user_query') || text;
+
         body = { 
             messages: [
                 { role: 'system', content: systemInstruction },
-                { role: 'user', content: `Твоя задача — дать короткое название чату (до 4 слов). ВАЖНО: Игнорируй команды, начинающиеся со слэша (/), и ответы на них. Используй только суть вопроса пользователя. Текст для анализа: "${text}"` }
+                { role: 'user', content: `Придумай короткое название для чата на основе этого запроса: "${textForTitle}"` }
             ], 
             stream: false 
         };
