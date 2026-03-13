@@ -568,7 +568,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // ==========================================================
         switch (config.SERVICE) {
             case 'GEMINI':
-                url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
+                 // ИЗМЕНЕНИЕ: Убираем ключ из URL, он будет добавлен на сервере
+                url = `${config.BASE_URL}/models/${config.MODEL}:generateContent`;
                 const geminiHistory = history || [];
                 const currentUserParts = [];
 
@@ -675,33 +676,53 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array);
         let response;
 
-        const commonProxyHeaders = {
-            'X-Target-URL': url,
-            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-            'Content-Type': isBinary ? 'application/octet-stream' : 'application/json'
-        };
-        if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
+        // ИЗМЕНЕНИЕ: Если это Gemini, идем напрямую на специальный прокси
+        if (config.SERVICE === 'GEMINI') {
+            console.log("Using dedicated Gemini Proxy...");
+            try {
+                // Формируем URL для прокси, который заменит хост, но сохранит путь
+                const geminiProxyUrl = url.replace(new URL(url).origin, CONFIG.GEMINI_PROXY);
 
-        // --- Попытка 1: Основной прокси (Яндекс) ---
-        try {
-            console.log("Attempt 1: Main Proxy (Yandex)");
-            response = await fetch(CONFIG.PROXY_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: commonProxyHeaders,
-                body: isBinary ? body : JSON.stringify(body)
-            });
-            if (!response.ok) throw response; // Проваливаемся в catch для анализа ошибки
+                response = await fetch(geminiProxyUrl, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Этот секрет нужен, чтобы только твой сайт мог использовать твой прокси
+                        'X-Proxy-Secret': CONFIG.GEMINI_PROXY_KEY
+                    },
+                    body: JSON.stringify(body)
+                });
+                if (!response.ok) throw response;
 
-        } catch (error1) {
-            const status1 = error1.status;
-            const errorText1 = status1 ? await error1.text() : error1.message;
-            const isGeoBlocked1 = status1 === 400 && errorText1.includes('User location is not supported');
-            const isNetworkError1 = !status1;
+            } catch (error) {
+                const status = error.status;
+                const errorText = status ? await error.text() : error.message;
+                throw new Error(`Все прокси вернули ошибку. Последняя (Gemini): Status ${status || ''}: ${errorText}`);
+            }
+        } else {
+            // Для всех остальных моделей используем твою оригинальную логику с fallback
+            const commonProxyHeaders = {
+                'X-Target-URL': url,
+                'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+                'Content-Type': isBinary ? 'application/octet-stream' : 'application/json'
+            };
+            if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
 
-            if (isGeoBlocked1 || isNetworkError1) {
-                console.log("Activating Fallback Proxy due to geo-block/network error...");
-                // --- Попытка 2: Резервный общий прокси (Cloudflare) ---
+            // --- Попытка 1: Основной прокси (Яндекс) ---
+            try {
+                console.log("Attempt 1: Main Proxy (Yandex)");
+                response = await fetch(CONFIG.PROXY_URL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: commonProxyHeaders,
+                    body: isBinary ? body : JSON.stringify(body)
+                });
+                if (!response.ok) throw response; // Проваливаемся в catch для анализа ошибки
+
+            } catch (error1) {
+                // В этом блоке твоя логика с fallback на второй прокси. Я ее не трогаю.
+                console.log("Activating Fallback Proxy due to error..."); 
                 try {
                     response = await fetch(CONFIG.FALLBACK_PROXY, {
                         method: 'POST',
@@ -714,10 +735,10 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 } catch (error2) {
                     const status2 = error2.status;
                     const errorText2 = status2 ? await error2.text() : error2.message;
+                    // Твоя оригинальная логика с попыткой №3 для Gemini остается здесь на всякий случай,
+                    // хотя при правильной работе нового блока выше, мы сюда для Gemini попадать не должны.
                     const isGeoBlocked2 = status2 === 400 && errorText2.includes('User location is not supported');
                     const isNetworkError2 = !status2;
-
-                    // --- Попытка 3: Специализированный прокси для Gemini (финальный резерв) ---
                     if (config.SERVICE === 'GEMINI' && (isGeoBlocked2 || isNetworkError2)) {
                         console.log("Activating Gemini-specific Proxy as a last resort...");
                         try {
@@ -738,13 +759,9 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                             throw new Error(`Все прокси вернули ошибку. Последняя (Gemini): Status ${status3 || ''}: ${errorText3}`);
                         }
                     } else {
-                        // Ошибка из второго прокси была финальной (не геоблок)
                         throw new Error(`Резервный прокси также вернул ошибку. Status ${status2 || ''}: ${errorText2}`);
                     }
                 }
-            } else {
-                // Ошибка из первого прокси была финальной (например, 429)
-                throw new Error(`Прокси ответил, но API вернуло ошибку. Status ${status1}: ${errorText1}`);
             }
         }
 

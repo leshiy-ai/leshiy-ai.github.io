@@ -152,12 +152,15 @@ const Message = ({ message, onSwipe, onAction }) => {
             </div>
         );
     };
+    
+    // ИСПРАВЛЕНИЕ: Делаем рендеринг более надежным, проверяя оба поля: .text и .content
+    const textToRender = message.text || message.content;
 
     return (
         <div ref={msgRef} className={`message-container ${message.role}`} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
             <div className="bubble">
                 {message.attachments && <div className="attachments-grid">{message.attachments.map((f, i) => renderFile(f, i))}</div>}
-                {message.text ? <ReactMarkdown>{message.text}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
+                {textToRender ? <ReactMarkdown>{textToRender}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
                 {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
             </div>
         </div>
@@ -630,9 +633,10 @@ function App() {
         const payload = {
             userId: String(currentUserId),
             chatId: chatId,
+            // ИСПРАВЛЕНИЕ: Убеждаемся, что сохраняем текстовое содержимое независимо от формата
             messages: currentMessages.map(m => ({
                 role: m.role,
-                content: m.text,
+                content: m.text || m.content, // <--- ГЛАВНЫЙ ФИКС
                 id: m.id
             }))
         };
@@ -803,7 +807,7 @@ function App() {
             const formattedMsgs = historyMessages.map(m => ({
                 id: m.id || Date.now() + Math.random(),
                 role: m.role,
-                text: m.content || m.text
+                text: m.content || m.text // Тут уже было исправлено, оставляем как есть
             }));
     
             if (isLoadMore) {
