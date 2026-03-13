@@ -675,96 +675,74 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     try {
         const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array);
         let response;
-
-        // ИЗМЕНЕНИЕ: Если это Gemini, идем напрямую на специальный прокси
-        if (config.SERVICE === 'GEMINI') {
-            console.log("Using dedicated Gemini Proxy...");
+    
+        // Общие заголовки для Яндекса и Cloudflare
+        const commonProxyHeaders = {
+            'X-Target-URL': url,
+            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+            'Content-Type': isBinary ? 'application/octet-stream' : 'application/json'
+        };
+        if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
+    
+        // --- ПОПЫТКА 1: Яндекс Прокси ---
+        try {
+            console.log("Attempt 1: Yandex Proxy");
+            response = await fetch(CONFIG.PROXY_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: commonProxyHeaders,
+                body: isBinary ? body : JSON.stringify(body)
+            });
+            if (!response.ok) throw response;
+    
+        } catch (error1) {
+            // --- ПОПЫТКА 2: Cloudflare Прокси (Резерв) ---
+            console.warn("Yandex Proxy failed, trying Attempt 2: Cloudflare...");
             try {
-                // Формируем URL для прокси, который заменит хост, но сохранит путь
-                const geminiProxyUrl = url.replace(new URL(url).origin, CONFIG.GEMINI_PROXY);
-
-                response = await fetch(geminiProxyUrl, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        // Этот секрет нужен, чтобы только твой сайт мог использовать твой прокси
-                        'X-Proxy-Secret': CONFIG.GEMINI_PROXY_KEY
-                    },
-                    body: JSON.stringify(body)
-                });
-                if (!response.ok) throw response;
-
-            } catch (error) {
-                const status = error.status;
-                const errorText = status ? await error.text() : error.message;
-                throw new Error(`Все прокси вернули ошибку. Последняя (Gemini): Status ${status || ''}: ${errorText}`);
-            }
-        } else {
-            // Для всех остальных моделей используем твою оригинальную логику с fallback
-            const commonProxyHeaders = {
-                'X-Target-URL': url,
-                'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-                'Content-Type': isBinary ? 'application/octet-stream' : 'application/json'
-            };
-            if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
-
-            // --- Попытка 1: Основной прокси (Яндекс) ---
-            try {
-                console.log("Attempt 1: Main Proxy (Yandex)");
-                response = await fetch(CONFIG.PROXY_URL, {
+                response = await fetch(CONFIG.FALLBACK_PROXY, {
                     method: 'POST',
                     mode: 'cors',
                     headers: commonProxyHeaders,
                     body: isBinary ? body : JSON.stringify(body)
                 });
-                if (!response.ok) throw response; // Проваливаемся в catch для анализа ошибки
-
-            } catch (error1) {
-                // В этом блоке твоя логика с fallback на второй прокси. Я ее не трогаю.
-                console.log("Activating Fallback Proxy due to error..."); 
-                try {
-                    response = await fetch(CONFIG.FALLBACK_PROXY, {
-                        method: 'POST',
-                        mode: 'cors',
-                        headers: commonProxyHeaders,
-                        body: isBinary ? body : JSON.stringify(body)
-                    });
-                    if (!response.ok) throw response; // Проваливаемся во внутренний catch
-
-                } catch (error2) {
-                    const status2 = error2.status;
-                    const errorText2 = status2 ? await error2.text() : error2.message;
-                    // Твоя оригинальная логика с попыткой №3 для Gemini остается здесь на всякий случай,
-                    // хотя при правильной работе нового блока выше, мы сюда для Gemini попадать не должны.
-                    const isGeoBlocked2 = status2 === 400 && errorText2.includes('User location is not supported');
-                    const isNetworkError2 = !status2;
-                    if (config.SERVICE === 'GEMINI' && (isGeoBlocked2 || isNetworkError2)) {
-                        console.log("Activating Gemini-specific Proxy as a last resort...");
-                        try {
-                            const geminiProxyRequestUrl = url.replace('generativelanguage.googleapis.com', new URL(CONFIG.GEMINI_PROXY).host);
-                            response = await fetch(geminiProxyRequestUrl, {
-                                method: 'POST',
-                                mode: 'cors',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-Proxy-Secret': CONFIG.GEMINI_PROXY_KEY
-                                },
-                                body: JSON.stringify(body)
-                            });
-                            if (!response.ok) throw response;
-                        } catch (error3) {
-                            const status3 = error3.status;
-                            const errorText3 = status3 ? await error3.text() : error3.message;
-                            throw new Error(`Все прокси вернули ошибку. Последняя (Gemini): Status ${status3 || ''}: ${errorText3}`);
-                        }
-                    } else {
-                        throw new Error(`Резервный прокси также вернул ошибку. Status ${status2 || ''}: ${errorText2}`);
+                if (!response.ok) throw response;
+    
+            } catch (error2) {
+                // --- ПОПЫТКА 3: Выделенный Gemini Прокси (Только для Gemini) ---
+                const status2 = error2.status;
+                const errorText2 = status2 ? await error2.text() : error2.message;
+    
+                // Проверяем, имеем ли мы право на последнюю попытку
+                if (config.SERVICE === 'GEMINI') {
+                    console.log("Cloudflare failed. Activating dedicated Gemini Proxy as last resort...");
+                    try {
+                        // Формируем URL: заменяем только домен на прокси
+                        const geminiProxyUrl = url.replace(new URL(url).origin, CONFIG.GEMINI_PROXY);
+                        
+                        response = await fetch(geminiProxyUrl, {
+                            method: 'POST',
+                            mode: 'cors',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Proxy-Secret': CONFIG.GEMINI_PROXY_KEY
+                            },
+                            body: JSON.stringify(body)
+                        });
+                        
+                        if (!response.ok) throw response;
+    
+                    } catch (error3) {
+                        const status3 = error3.status;
+                        const errorText3 = status3 ? await error3.text() : error3.message;
+                        throw new Error(`Все 3 прокси отказали. Ошибка Gemini-Proxy (403/Geo?): ${status3} ${errorText3}`);
                     }
+                } else {
+                    // Если это не Gemini, и Cloudflare упал — всё, приехали
+                    throw new Error(`Cloudflare Proxy также вернул ошибку: ${status2} ${errorText2}`);
                 }
             }
         }
-
+    
         // --- ОБРАБОТКА ФИНАЛЬНОГО РЕЗУЛЬТАТА ---
         const data = await response.json();
         let resultText = "Не удалось разобрать ответ.";
