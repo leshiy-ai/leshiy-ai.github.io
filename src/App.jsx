@@ -652,7 +652,7 @@ function App() {
         const userMessageCount = updatedMessages.filter(m => m.role === 'user').length;
         const isDefaultTitle = !existingChat || existingChat.title === "Новый чат" || /^Чат от/.test(existingChat.title);
 
-        if (userMessageCount >= 2 && isDefaultTitle) {
+        if (userMessageCount >= 3 && isDefaultTitle) {
             try {
                 const smartTitle = await generateSmartTitle(updatedMessages);
                 if (smartTitle && smartTitle !== currentTitle) {
