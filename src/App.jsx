@@ -43,6 +43,8 @@ const TRANSLATIONS = {
         tooltip_admin: "Открыть админ-панель",
         tooltip_logout: "Выйти",
         tooltip_login: "Войти через VK ID",
+        tooltip_rename_chat: "Переименовать чат",
+        tooltip_delete_chat: "Удалить чат",
         tooltip_auto_rename: "Автоматически переименовать чат",
     },
     en: {
@@ -72,6 +74,8 @@ const TRANSLATIONS = {
         tooltip_admin: "Open Admin Panel",
         tooltip_logout: "Logout",
         tooltip_login: "Login with VK ID",
+        tooltip_rename_chat: "Rename chat",
+        tooltip_delete_chat: "Delete chat",
         tooltip_auto_rename: "Automatically rename chat",
     }
 };
@@ -856,7 +860,6 @@ function App() {
 
         } catch (e) {
             console.error("Ошибка удаления чата:", e);
-            alert('Не удалось удалить чат. Попробуйте снова.');
             fetchChats();
         }
     };
@@ -880,7 +883,6 @@ function App() {
     
             } catch (e) {
                 console.error("Ошибка переименования чата:", e);
-                alert(`Не удалось переименовать чат. ${e.message}`);
             }
         }
     };
@@ -899,7 +901,7 @@ function App() {
 
             const historyMessages = res.data.messages || [];
             if (historyMessages.length === 0) {
-                alert("Невозможно переименовать пустой чат.");
+                console.warn("Невозможно переименовать пустой чат.");
                 return;
             }
 
@@ -910,14 +912,13 @@ function App() {
                     c.id === chatId ? { ...c, title: smartTitle } : c
                 ));
                 await syncChatHistory(chatId, historyMessages, smartTitle);
-                alert(`Чат переименован в: "${smartTitle}"`);
+                console.log(`Чат успешно переименован в: "${smartTitle}"`);
             } else {
-                alert("Не удалось сгенерировать новое название для чата.");
+                console.warn("Не удалось сгенерировать новое название для чата.");
             }
 
         } catch (e) {
             console.error("Ошибка автоматического переименования чата:", e);
-            alert(`Ошибка: ${e.message}`);
         }
     };
     

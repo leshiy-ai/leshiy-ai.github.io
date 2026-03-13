@@ -146,6 +146,7 @@ const Sidebar = ({
                     <div className="history-actions">
                       <button 
                         className="action-icon rename" 
+                        title={t.tooltip_rename_chat} 
                         onClick={(e) => { e.stopPropagation(); onRenameChat(chat.id); }}
                       >
                         ✏️
@@ -159,6 +160,7 @@ const Sidebar = ({
                       </button>
                       <button 
                         className="action-icon delete" 
+                        title={t.tooltip_delete_chat} 
                         onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}
                       >
                         🗑️
