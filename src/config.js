@@ -14,6 +14,7 @@ export const CONFIG = {
     CLOUDFLARE_ACCOUNT_ID: import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID,
     BOTHUB_API_KEY: import.meta.env.VITE_BOTHUB_API_KEY,
     DEEPSEEK_API_KEY: import.meta.env.VITE_DEEPSEEK_API_KEY,
+    TELEGRAM_BOT_NAME: import.meta.env.VITE_TELEGRAM_BOT_NAME,
 
     // --- Прокси ---
     //PROXY_URL: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',

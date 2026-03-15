@@ -30,13 +30,13 @@ const Sidebar = ({
       setUserPhoto((photo && photo !== 'null' && photo !== 'undefined') ? photo : 'https://vk.com/images/camera_100.png');
       setIsLoggedIn(true);
     } else {
-      setUserName('Войти через VK');
+      setUserName(t.tooltip_login);
       setUserPhoto('https://vk.com/images/camera_100.png');
       setIsLoggedIn(false);
     }
     
     setIsAdmin(adminKey === 'true');
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     updateProfileData();
@@ -67,12 +67,17 @@ const Sidebar = ({
     setProfileMenuVisible(false);
     window.dispatchEvent(new CustomEvent('sidebar-logout'));
   };
+  const handleVkAuth = () => {
+    setProfileMenuVisible(false);
+    window.dispatchEvent(new CustomEvent('sidebar-vk-auth'));
+  }
+
+  const handleTgAuth = () => {
+    setProfileMenuVisible(false);
+    window.dispatchEvent(new CustomEvent('sidebar-tg-auth'));
+  }
   const handleProfileClick = () => {
-    if (isLoggedIn) {
-      setProfileMenuVisible(!isProfileMenuVisible);
-    } else {
-      window.dispatchEvent(new CustomEvent('sidebar-vk-auth'));
-    }
+    setProfileMenuVisible(!isProfileMenuVisible);
   };
 
   const toggleSidebar = () => {
@@ -176,13 +181,26 @@ const Sidebar = ({
         </div>
       </div>
 
-        <div className="sidebar-bottom" ref={profileRef}>
+      <div className="sidebar-bottom" ref={profileRef}>
           {isProfileMenuVisible && (
             <div className="profile-menu">
-              <div className="profile-menu-item logout" onClick={handleLogout}>
-                <span className="icon">🚪</span>
-                <span className="text">Выход</span>
-              </div>
+              {isLoggedIn ? (
+                <div className="profile-menu-item logout" onClick={handleLogout}>
+                  <span className="icon">🚪</span>
+                  <span className="text">Выход</span>
+                </div>
+              ) : (
+                <>
+                  <div className="profile-menu-item" onClick={handleVkAuth}>
+                    <img src="/vk_logo.svg" alt="VK" className="icon" />
+                    <span className="text">Войти через VK</span>
+                  </div>
+                  <div className="profile-menu-item" onClick={handleTgAuth}>
+                    <img src="/tg_logo.svg" alt="Telegram" className="icon" />
+                    <span className="text">Войти через Telegram</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
