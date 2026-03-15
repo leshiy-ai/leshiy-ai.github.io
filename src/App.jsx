@@ -43,6 +43,7 @@ const TRANSLATIONS = {
         tooltip_admin: "Открыть админ-панель",
         tooltip_logout: "Выйти",
         tooltip_login: "Войти через VK ID",
+        tooltip_login_tg: "Войти через Telegram",
         tooltip_rename_chat: "Переименовать чат",
         tooltip_delete_chat: "Удалить чат",
         tooltip_auto_rename: "Автоматически переименовать чат",
@@ -74,6 +75,7 @@ const TRANSLATIONS = {
         tooltip_admin: "Open Admin Panel",
         tooltip_logout: "Logout",
         tooltip_login: "Login with VK ID",
+        tooltip_login_tg: "Login with Telegram",
         tooltip_rename_chat: "Rename chat",
         tooltip_delete_chat: "Delete chat",
         tooltip_auto_rename: "Automatically rename chat",
@@ -1111,6 +1113,13 @@ function App() {
                 handleSend('/auth_init_vk');
             }
         };
+
+        const handleTgAuth = () => {
+            const userId = localStorage.getItem('vk_user_id');
+            if (!userId || userId === 'null') {
+                window.dispatchEvent(new CustomEvent('sidebar-tg-auth'));
+            }
+        };
   
         const handleAdminPanel = () => {
           setShowAdminPanel(true);
@@ -1127,12 +1136,14 @@ function App() {
     
         window.addEventListener('sidebar-storage', handleOpenStorage);
         window.addEventListener('sidebar-vk-auth', handleVkAuth);
+        window.addEventListener('sidebar-tg-auth', handleTgAuth);
         window.addEventListener('sidebar-logout', handleLogout);
         window.addEventListener('sidebar-admin-panel', handleAdminPanel);
     
         return () => {
             window.removeEventListener('sidebar-storage', handleOpenStorage);
             window.removeEventListener('sidebar-vk-auth', handleVkAuth);
+            window.removeEventListener('sidebar-tg-auth', handleTgAuth);
             window.removeEventListener('sidebar-logout', handleLogout);
             window.removeEventListener('sidebar-admin-panel', handleAdminPanel);
         };

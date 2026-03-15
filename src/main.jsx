@@ -1,9 +1,10 @@
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, render } from 'react-dom/client';
 import './index.css';
 import Sidebar from './Sidebar.jsx';
 import App from './App.jsx';
 import { CONFIG } from './config';
+import React from 'react';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -98,4 +99,76 @@ window.addEventListener('vk-auth-success', (event) => {
   
   // Сразу после получения ID, запрашиваем полный статус с нашего сервера
   window.fetchUserStatus();
+});
+
+// --- TELEGRAM AUTH MODAL ---
+
+const TelegramAuthModal = ({ onClose }) => {
+    const handleTgLogin = React.useCallback(async (user) => {
+        try {
+            const response = await fetch(`${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(user),
+            });
+
+            if (!response.ok) {
+                throw new Error('Telegram auth failed on server');
+            }
+
+            const userData = await response.json();
+
+            localStorage.setItem('vk_user_id', `tg_${userData.id}`);
+            localStorage.setItem('vk_user_name', userData.first_name);
+            localStorage.setItem('vk_user_photo', userData.photo_url || '/tg_logo.svg');
+            localStorage.setItem('isAdmin', userData.isAdmin || 'false');
+
+            window.dispatchEvent(new CustomEvent('user-profile-updated'));
+            onClose();
+        } catch (error) {
+            console.error("Ошибка аутентификации Telegram:", error);
+            alert("Не удалось войти через Telegram. Пожалуйста, попробуйте снова.");
+        }
+    }, [onClose]);
+
+    React.useEffect(() => {
+        const script = document.createElement('script');
+        script.src = "https://telegram.org/js/telegram-widget.js?22";
+        script.async = true;
+        script.setAttribute('data-telegram-login', CONFIG.TELEGRAM_BOT_NAME);
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-onauth', 'onTelegramAuth');
+        script.setAttribute('data-request-access', 'write');
+
+        window.onTelegramAuth = (user) => {
+            handleTgLogin(user);
+        };
+
+        const widgetContainer = document.getElementById('telegram-login-widget-container');
+        widgetContainer.appendChild(script);
+
+        return () => {
+            if (widgetContainer && script.parentNode === widgetContainer) {
+                widgetContainer.removeChild(script);
+            }
+        }
+    }, [handleTgLogin]);
+
+    return (
+        <div className="tg-auth-modal-overlay" onClick={onClose}>
+            <div className="tg-auth-modal" onClick={(e) => e.stopPropagation()}>
+                <button onClick={onClose} className="action-btn close-btn">&times;</button>
+                <h2>Вход через Telegram</h2>
+                <div id="telegram-login-widget-container"></div>
+            </div>
+        </div>
+    );
+};
+
+window.addEventListener('sidebar-tg-auth', () => {
+    const overlay = document.getElementById('tg_auth_overlay');
+    const root = createRoot(overlay);
+    root.render(<TelegramAuthModal onClose={() => root.unmount()} />); 
 });
