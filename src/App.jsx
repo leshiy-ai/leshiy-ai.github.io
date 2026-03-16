@@ -42,7 +42,7 @@ const TRANSLATIONS = {
         tooltip_storage: "Открыть Хранилище",
         tooltip_admin: "Открыть админ-панель",
         tooltip_logout: "Выйти",
-        tooltip_login: "Войти через VK ID",
+        tooltip_login: "Авторизоваться",
         tooltip_login_tg: "Войти через Telegram",
         tooltip_rename_chat: "Переименовать чат",
         tooltip_delete_chat: "Удалить чат",

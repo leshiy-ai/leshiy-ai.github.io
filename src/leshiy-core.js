@@ -52,7 +52,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         if (!currentUserId) {
             return {
                 type: 'menu',
-                text: '🔐 **Вход в Хранилку**\n\nДля доступа к вашим файлам необходимо авторизоваться через VK ID.',
+                text: '🔐 **Вход в Хранилку**\n\nДля доступа к вашим файлам необходимо авторизоваться.',
                 buttons: [
                     { text: '🆔 Войти через VK ID', action: '/auth_init_vk' }
                 ]
