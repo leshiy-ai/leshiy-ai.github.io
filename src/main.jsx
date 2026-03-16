@@ -1,11 +1,41 @@
 import { StrictMode } from 'react';
-import { createRoot, render } from 'react-dom/client';
+import { createRoot } from 'react-dom/client';
 import './index.css';
 import Sidebar from './Sidebar.jsx';
 import App from './App.jsx';
 import { CONFIG } from './config';
 import React from 'react';
 
+// --- ОБРАБОТЧИК РЕДИРЕКТА TELEGRAM ---
+// Выполняется один раз при загрузке страницы
+const handleTelegramRedirect = () => {
+  const params = new URLSearchParams(window.location.search);
+  const tgData = params.get('tg_data');
+
+  if (tgData) {
+    try {
+      const userData = JSON.parse(decodeURIComponent(tgData));
+      
+      // Сохраняем данные из URL
+      localStorage.setItem('vk_user_id', `tg_${userData.id}`);
+      localStorage.setItem('vk_user_name', userData.first_name);
+      localStorage.setItem('vk_user_photo', userData.photo_url || '/tg_logo.svg');
+      localStorage.setItem('isAdmin', userData.isAdmin || 'false');
+
+      // Очищаем URL, чтобы убрать данные и избежать повторной обработки
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Обновляем UI, чтобы сразу показать пользователя
+      window.dispatchEvent(new CustomEvent('user-profile-updated'));
+
+    } catch (error) {
+      console.error("Ошибка при обработке данных Telegram из URL:", error);
+    }
+  }
+};
+
+
+// --- ИНИЦИАЛИЗАЦИЯ REACT ---
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
@@ -24,7 +54,6 @@ window.handleStatusResponse = (data) => {
     const userId = data.id || data.vk_user_id;
     if (userId) localStorage.setItem('vk_user_id', userId);
 
-    // Данные приходят с нашего сервера, где они уже обработаны
     const userName = data.userName;
     if (userName) localStorage.setItem('vk_user_name', userName);
 
@@ -41,20 +70,17 @@ window.handleStatusResponse = (data) => {
 window.fetchUserStatus = async () => {
   const userId = localStorage.getItem('vk_user_id');
   if (!userId || userId === 'null' || userId === 'undefined') {
-    // Если ID нет, очищаем данные, чтобы не было "Пользователь" и серой аватарки
     window.handleStatusResponse(null);
     return;
   }
 
   try {
-    // Простой и правильный запрос, как вы и сказали
     const fullUrl = `${CONFIG.STORAGE_GATEWAY}/?action=get-status&userId=${userId}`;
     const response = await fetch(fullUrl);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     
     const serverData = await response.json();
     if (serverData) {
-      // Передаем ПОЛНЫЙ профиль от сервера в обработчик
       window.handleStatusResponse(serverData);
     }
   } catch (error) {
@@ -65,10 +91,13 @@ window.fetchUserStatus = async () => {
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Сначала проверяем, не вернулся ли пользователь с авторизации
+  handleTelegramRedirect();
+  
   const currentTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
   
-  // Запускаем проверку статуса при загрузке страницы
+  // Затем, как обычно, запрашиваем статус (возможно, он только что был установлен)
   window.fetchUserStatus();
 
   const toggleBtn = document.getElementById('toggle-menu');
@@ -84,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Слушатель для OneTap кнопки VK
 window.addEventListener('vk-auth-success', (event) => {
   const authData = event.detail;
-  // Ответ от кнопки приходит с полем user_id
   const userId = authData.user_id;
 
   if (!userId) {
@@ -94,79 +122,58 @@ window.addEventListener('vk-auth-success', (event) => {
   
   console.log("Система: Получен VK User ID:", userId);
 
-  // Сохраняем ТОЛЬКО ID
   localStorage.setItem('vk_user_id', String(userId));
-  
-  // Сразу после получения ID, запрашиваем полный статус с нашего сервера
   window.fetchUserStatus();
 });
 
-// --- TELEGRAM AUTH MODAL ---
 
+// --- TELEGRAM AUTH MODAL (редирект-версия) ---
 const TelegramAuthModal = ({ onClose }) => {
-    const handleTgLogin = React.useCallback(async (user) => {
-        try {
-            const response = await fetch(`${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(user),
-            });
 
-            if (!response.ok) {
-                throw new Error('Telegram auth failed on server');
-            }
+  // Функция для перехода на шлюз авторизации
+  const handleStartAuth = () => {
+      // Определяем, куда вернуть пользователя после авторизации
+      const returnTo = window.location.href.split('?')[0]; 
+      window.location.href = `${CONFIG.STORAGE_GATEWAY}/tg?return_to=${encodeURIComponent(returnTo)}`;
+  };
 
-            const userData = await response.json();
-
-            localStorage.setItem('vk_user_id', `tg_${userData.id}`);
-            localStorage.setItem('vk_user_name', userData.first_name);
-            localStorage.setItem('vk_user_photo', userData.photo_url || '/tg_logo.svg');
-            localStorage.setItem('isAdmin', userData.isAdmin || 'false');
-
-            window.dispatchEvent(new CustomEvent('user-profile-updated'));
-            onClose();
-        } catch (error) {
-            console.error("Ошибка аутентификации Telegram:", error);
-            alert("Не удалось войти через Telegram. Пожалуйста, попробуйте снова.");
-        }
-    }, [onClose]);
-
-    React.useEffect(() => {
-        const script = document.createElement('script');
-        script.src = "https://telegram.org/js/telegram-widget.js?22";
-        script.async = true;
-        script.setAttribute('data-telegram-login', CONFIG.TELEGRAM_BOT_NAME);
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-onauth', 'onTelegramAuth');
-        script.setAttribute('data-request-access', 'write');
-
-        window.onTelegramAuth = (user) => {
-            handleTgLogin(user);
-        };
-
-        const widgetContainer = document.getElementById('telegram-login-widget-container');
-        widgetContainer.appendChild(script);
-
-        return () => {
-            if (widgetContainer && script.parentNode === widgetContainer) {
-                widgetContainer.removeChild(script);
-            }
-        }
-    }, [handleTgLogin]);
-
-    return (
-        <div className="tg-auth-modal-overlay" onClick={onClose}>
-            <div className="tg-auth-modal" onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="action-btn close-btn">&times;</button>
-                <h2>Вход через Telegram</h2>
-                <div id="telegram-login-widget-container"></div>
-            </div>
-        </div>
-    );
+  return (
+      <div className="tg-auth-modal-overlay" onClick={onClose}>
+          <div className="tg-auth-modal" onClick={(e) => e.stopPropagation()}>
+              <button onClick={onClose} className="action-btn close-btn">&times;</button>
+              <h2>Вход через Telegram</h2>
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                  <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
+                      Для входа вы будете перенаправлены на защищенный шлюз Хранилки.
+                  </p>
+                  <button 
+                      onClick={handleStartAuth} 
+                      className="action-btn"
+                      style={{ 
+                          background: '#0088cc', 
+                          color: 'white', 
+                          width: '100%', 
+                          padding: '12px', 
+                          borderRadius: '12px', 
+                          border: 'none', 
+                          fontWeight: 'bold', 
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '10px'
+                      }}
+                  >
+                      <img src="/tg_logo.svg" alt="Telegram" style={{ height: '24px', width: '24px' }} />
+                      <span>Авторизоваться через Telegram</span>
+                  </button>
+              </div>
+          </div>
+      </div>
+  );
 };
 
+// Слушатель для вызова модального окна
 window.addEventListener('sidebar-tg-auth', () => {
     const overlay = document.getElementById('tg_auth_overlay');
     const root = createRoot(overlay);
