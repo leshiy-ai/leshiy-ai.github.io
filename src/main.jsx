@@ -16,9 +16,15 @@ const handleTelegramRedirect = () => {
     try {
       const userData = JSON.parse(decodeURIComponent(tgData));
       
+      // 1. Склеиваем имя и фамилию (проверяем, есть ли фамилия вообще)
+      const fullName = userData.last_name 
+        ? `${userData.first_name} ${userData.last_name}` 
+        : userData.first_name;
+
+      localStorage.setItem('vk_user_id', `${userData.id}`);
+      localStorage.setItem('vk_user_name', fullName); // Теперь с фамилией
+
       // Сохраняем данные из URL
-      localStorage.setItem('vk_user_id', `tg_${userData.id}`);
-      localStorage.setItem('vk_user_name', userData.first_name);
       localStorage.setItem('vk_user_photo', userData.photo_url || '/tg_logo.svg');
       localStorage.setItem('isAdmin', userData.isAdmin || 'false');
 
