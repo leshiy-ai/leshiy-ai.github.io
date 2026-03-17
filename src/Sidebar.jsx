@@ -20,41 +20,22 @@ const Sidebar = ({
   const collapsed = isSidebarCollapsed;
 
   const updateProfileData = useCallback(() => {
-    const tg = window.Telegram?.WebApp;
-    // 1. Пытаемся взять готового юзера
-    let tgUser = tg?.initDataUnsafe?.user;
-
-    // 2. Если объект пуст, пробуем достать из initData (иногда в TMA это надежнее)
-    if (!tgUser && tg?.initData) {
-      try {
-        const params = new URLSearchParams(tg.initData);
-        const userRaw = params.get('user');
-        if (userRaw) tgUser = JSON.parse(userRaw);
-      } catch (e) {
-        console.error("Ошибка парсинга tgUser");
-      }
-    }
-
-    // 2. Достаем данные из localStorage (для ВК или если уже логинились)
+    // Просто читаем то, что прилетело от сервера в сторейдж
     const id = localStorage.getItem('vk_user_id');
     const name = localStorage.getItem('vk_user_name');
     const photo = localStorage.getItem('vk_user_photo');
     const adminKey = localStorage.getItem('isAdmin');
 
-    // ПРИОРИТЕТ: Если нашли ТГ юзера — логиним сразу
-    if (tgUser && tgUser.id) {
-      const fullName = `${tgUser.first_name || ''} ${tgUser.last_name || ''}`.trim();
-      setUserName(fullName || `ID: ${tgUser.id}`);
-      setUserPhoto(tgUser.photo_url || 'https://vk.com/images/camera_100.png');
-      setIsLoggedIn(true);
-      
-      if (window.fetchUserStatus) window.fetchUserStatus(tgUser.id.toString());
-      
-    } else if (id && id !== 'null') {
+    if (id && id !== 'null' && id !== '') {
+      // Если ID есть — мы Online
       setUserName((name && name !== 'undefined') ? name : `ID: ${id}`);
       setUserPhoto((photo && photo !== 'null' && photo !== 'undefined') ? photo : 'https://vk.com/images/camera_100.png');
       setIsLoggedIn(true);
+      
+      // Пингуем Хранилку, чтобы она отдала файлы этого юзера
+      if (window.fetchUserStatus) window.fetchUserStatus(id);
     } else {
+      // Если пусто — показываем "Войти"
       setUserName(t.tooltip_login);
       setUserPhoto('https://vk.com/images/camera_100.png');
       setIsLoggedIn(false);
