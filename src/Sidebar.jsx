@@ -20,22 +20,16 @@ const Sidebar = ({
   const collapsed = isSidebarCollapsed;
 
   const updateProfileData = useCallback(() => {
-    // Просто читаем то, что прилетело от сервера в сторейдж
     const id = localStorage.getItem('vk_user_id');
     const name = localStorage.getItem('vk_user_name');
     const photo = localStorage.getItem('vk_user_photo');
     const adminKey = localStorage.getItem('isAdmin');
 
-    if (id && id !== 'null' && id !== '') {
-      // Если ID есть — мы Online
+    if (id && id !== 'null') {
       setUserName((name && name !== 'undefined') ? name : `ID: ${id}`);
       setUserPhoto((photo && photo !== 'null' && photo !== 'undefined') ? photo : 'https://vk.com/images/camera_100.png');
       setIsLoggedIn(true);
-      
-      // Пингуем Хранилку, чтобы она отдала файлы этого юзера
-      if (window.fetchUserStatus) window.fetchUserStatus(id);
     } else {
-      // Если пусто — показываем "Войти"
       setUserName(t.tooltip_login);
       setUserPhoto('https://vk.com/images/camera_100.png');
       setIsLoggedIn(false);
