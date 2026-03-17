@@ -48,6 +48,7 @@ const TRANSLATIONS = {
         tooltip_rename_chat: "Переименовать чат",
         tooltip_delete_chat: "Удалить чат",
         tooltip_auto_rename: "Автоматически переименовать чат",
+        tooltip_copy_text: "Копировать текст",
     },
     en: {
         title: 'Leshiy-AI',
@@ -81,6 +82,7 @@ const TRANSLATIONS = {
         tooltip_rename_chat: "Rename chat",
         tooltip_delete_chat: "Delete chat",
         tooltip_auto_rename: "Automatically rename chat",
+        tooltip_copy_text: "Copy text",
     }
 };
 
@@ -93,11 +95,12 @@ const fileToDataURL = (file) => {
     });
 };
 
-const Message = ({ message, onSwipe, onAction, userPhoto, userName }) => {
+const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
     const currentX = useRef(0);
     const isDragging = useRef(false);
+    const [isCopied, setIsCopied] = useState(false);
 
     const handleTouchStart = (e) => {
         startX.current = e.touches[0].clientX;
@@ -161,7 +164,17 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName }) => {
     const isUser = message.role === 'user';
     const avatarUrl = isUser ? userPhoto : '/Gemini.png';
     const showAvatar = !isUser || (isUser && !!userPhoto);
-    const name = isUser ? userName : 'Gemini-AI';
+    const name = isUser ? userName : 'Leshiy-AI';
+
+    const handleCopy = () => {
+        if (!textToRender) return;
+        navigator.clipboard.writeText(textToRender).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }).catch(err => {
+            console.error('Failed to copy text: ', err);
+        });
+    };
 
     return (
         <div ref={msgRef} className={`message-container ${message.role}`} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
@@ -175,6 +188,16 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName }) => {
                         {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
                     </div>
                 </div>
+                {!isUser && textToRender && (
+                    <button className="copy-btn" onClick={handleCopy} title={t.tooltip_copy_text}>
+                        {isCopied ? '✅' : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        )}
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -285,7 +308,7 @@ function App() {
         'тчк': '.', 'точка': '.', 'зпт': ',', 'запятая': ',', 'точка с запятой': ';',
         'тире': '-', 'дефис': '-', 'минус': '-',
         'равно': '=', 'плюс': '+', 'подчёркивание': '_',
-        'звёздочка': '*', 'умножить': '*', 'пробел': ' ',
+        'звёздочка': '*', 'умножить': '*', 'пробел': ' ', 
         'собака': '@', 'решётка': '#', 'номер': '№',
         'доллар': '$', 'евро': '€', 'рубль': '₽', 'градус': '°',
         'процент': '%', 'проценты': '%', 'апостроф': "'", 'амперсанд': '&',
@@ -1561,9 +1584,9 @@ function App() {
                     </div>
                 )}
                 {messages.map((m) => (
-                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} userPhoto={userPhoto} userName={userName} />
+                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} userPhoto={userPhoto} userName={userName} t={t} />
                 ))}
-                {isLoading && !isFetchingMore && <div className="message-container ai"><div className="bubble typing">⏳ Leshiy-AI думает...</div></div>}
+                {isLoading && !isFetchingMore && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
             </div>
             
