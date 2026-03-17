@@ -454,3 +454,39 @@ body.sidebar-collapsed .history-item {
 .sidebar.collapsed .chat-item-link .chat-date {
   display: none !important;
 }
+
+/* Цветовые акценты для кнопок входа */
+.profile-menu-item.vk-auth-btn {
+  color: #0077ff; /* Фирменный синий VK */
+}
+
+.profile-menu-item.tg-auth-btn {
+  color: #229ED9; /* Фирменный голубой TG */
+}
+
+/* Эффект при наведении с легким оттенком соответствующего цвета */
+.profile-menu-item.vk-auth-btn:hover {
+  background-color: rgba(0, 119, 255, 0.1);
+}
+
+.profile-menu-item.tg-auth-btn:hover {
+  background-color: rgba(34, 158, 217, 0.1);
+}
+
+/* Унификация иконок внутри пунктов меню */
+.profile-menu-item .icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* Если тема светлая, можно чуть приглушить яркость для лучшей читаемости */
+[data-theme='light'] .profile-menu-item.vk-auth-btn {
+  color: #0056b3;
+}
+
+/* СПЕЦИАЛЬНО ДЛЯ ВК: делаем чуть больше, чтобы скомпенсировать внутренние отступы SVG */
+.profile-menu-item.vk-auth-btn .icon img {
+  width: 25px; /* Увеличили на 5px */
+  height: 25px;
+}

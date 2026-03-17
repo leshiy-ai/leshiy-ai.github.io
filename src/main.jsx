@@ -5,6 +5,7 @@ import Sidebar from './Sidebar.jsx';
 import App from './App.jsx';
 import { CONFIG } from './config';
 import React from 'react';
+let modalRoot = null;
 
 // --- ОБРАБОТЧИК РЕДИРЕКТА TELEGRAM ---
 // Выполняется один раз при загрузке страницы
@@ -133,55 +134,87 @@ window.addEventListener('vk-auth-success', (event) => {
 });
 
 
-// --- TELEGRAM AUTH MODAL (редирект-версия) ---
 const TelegramAuthModal = ({ onClose }) => {
+  const containerRef = React.useRef(null);
 
-  // Функция для перехода на шлюз авторизации
-  const handleStartAuth = () => {
-      // Определяем, куда вернуть пользователя после авторизации
-      const returnTo = window.location.href.split('?')[0]; 
-      window.location.href = `${CONFIG.STORAGE_GATEWAY}/tg?return_to=${encodeURIComponent(returnTo)}`;
-  };
+  React.useEffect(() => {
+    // Чистим контейнер перед вставкой
+    if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = "https://telegram.org/js/telegram-widget.js?23";
+        script.setAttribute('data-telegram-login', 'gemini_aitg_bot');
+        script.setAttribute('data-size', 'large');
+        // Тот самый URL, что мы обсуждали:
+        script.setAttribute('data-auth-url', 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io');
+        script.setAttribute('data-request-access', 'write');
+        
+        containerRef.current.appendChild(script);
+    }
+  }, []);
 
   return (
-      <div className="tg-auth-modal-overlay" onClick={onClose}>
-          <div className="tg-auth-modal" onClick={(e) => e.stopPropagation()}>
-              <button onClick={onClose} className="action-btn close-btn">&times;</button>
-              <h2>Вход через Telegram</h2>
-              <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                  <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>
-                      Для входа вы будете перенаправлены на защищенный шлюз Хранилки.
-                  </p>
-                  <button 
-                      onClick={handleStartAuth} 
-                      className="action-btn"
-                      style={{ 
-                          background: '#0088cc', 
-                          color: 'white', 
-                          width: '100%', 
-                          padding: '12px', 
-                          borderRadius: '12px', 
-                          border: 'none', 
-                          fontWeight: 'bold', 
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '10px'
-                      }}
-                  >
-                      <img src="/tg_logo.svg" alt="Telegram" style={{ height: '24px', width: '24px' }} />
-                      <span>Авторизоваться через Telegram</span>
-                  </button>
-              </div>
-          </div>
+    /* Фон с блюром как у ВК */
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
+      background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', 
+      zIndex: 10001, display: 'flex', justifyContent: 'center', alignItems: 'center'
+    }} onClick={onClose}>
+      
+      {/* Белая карточка */}
+      <div style={{
+        background: 'white', padding: '24px', borderRadius: '20px', 
+        boxTarget: '0 10px 25px rgba(0,0,0,0.2)', width: '90%', maxWidth: '360px', 
+        position: 'relative', textAlign: 'center'
+      }} onClick={(e) => e.stopPropagation()}>
+        
+        <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontSize: '40px', marginBottom: '10px' }}>🔐</div>
+            <h3 style={{ margin: 0, fontFamily: 'sans-serif', color: '#333', fontSize: '20px' }}>Вход в Gemini AI</h3>
+            <p style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
+              Используйте Telegram для синхронизации ваших чатов и настроек
+            </p>
+        </div>
+
+        {/* Сюда встанет виджет */}
+        <div ref={containerRef} style={{ minHeight: '44px', display: 'flex', justifyContent: 'center' }}></div>
+        
+        <button 
+          onClick={onClose} 
+          style={{ width: '100%', marginTop: '20px', border: 'none', background: 'none', color: '#0077ff', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
+        >
+          Позже
+        </button>
       </div>
+    </div>
   );
 };
 
 // Слушатель для вызова модального окна
 window.addEventListener('sidebar-tg-auth', () => {
-    const overlay = document.getElementById('tg_auth_overlay');
-    const root = createRoot(overlay);
-    root.render(<TelegramAuthModal onClose={() => root.unmount()} />); 
+  // Проверка на Mini App
+  const tg = window.Telegram?.WebApp;
+  if (tg && tg.initData && tg.initData.length > 0) {
+      const returnTo = window.location.href.split('?')[0];
+      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+      window.location.href = autoAuthUrl;
+      return;
+  }
+
+  // Рендер модалки
+  const overlayElement = document.getElementById('tg_auth_overlay');
+  if (!overlayElement) {
+      console.error("Элемент tg_auth_overlay не найден в index.html!");
+      return;
+  }
+  
+  // Если корень еще не создан — создаем, если создан — используем повторно
+  if (!modalRoot) {
+      modalRoot = createRoot(overlayElement);
+  }
+
+  modalRoot.render(
+      <TelegramAuthModal onClose={() => modalRoot.render(null)} />
+  ); 
 });

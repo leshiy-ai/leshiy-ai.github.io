@@ -308,7 +308,7 @@ function App() {
         'тчк': '.', 'точка': '.', 'зпт': ',', 'запятая': ',', 'точка с запятой': ';',
         'тире': '-', 'дефис': '-', 'минус': '-',
         'равно': '=', 'плюс': '+', 'подчёркивание': '_',
-        'звёздочка': '*', 'умножить': '*', 'пробел': ' ', 
+        'звёздочка': '*', 'умножить': '*', 'пробел': ' ',
         'собака': '@', 'решётка': '#', 'номер': '№',
         'доллар': '$', 'евро': '€', 'рубль': '₽', 'градус': '°',
         'процент': '%', 'проценты': '%', 'апостроф': "'", 'амперсанд': '&',
@@ -652,7 +652,7 @@ function App() {
             });
 
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {
-                const cleanedTitle = aiResponse.text.replace(/[\"«»*.]/g, '').trim();
+                const cleanedTitle = aiResponse.text.replace(/["«»*.]/g, '').trim();
                 if (cleanedTitle) {
                     return cleanedTitle;
                 }
@@ -1148,13 +1148,6 @@ function App() {
                 handleSend('/auth_init_vk');
             }
         };
-
-        const handleTgAuth = () => {
-            const userId = localStorage.getItem('vk_user_id');
-            if (!userId || userId === 'null') {
-                window.dispatchEvent(new CustomEvent('sidebar-tg-auth'));
-            }
-        };
   
         const handleAdminPanel = () => {
           setShowAdminPanel(true);
@@ -1171,14 +1164,12 @@ function App() {
     
         window.addEventListener('sidebar-storage', handleOpenStorage);
         window.addEventListener('sidebar-vk-auth', handleVkAuth);
-        window.addEventListener('sidebar-tg-auth', handleTgAuth);
         window.addEventListener('sidebar-logout', handleLogout);
         window.addEventListener('sidebar-admin-panel', handleAdminPanel);
     
         return () => {
             window.removeEventListener('sidebar-storage', handleOpenStorage);
             window.removeEventListener('sidebar-vk-auth', handleVkAuth);
-            window.removeEventListener('sidebar-tg-auth', handleTgAuth);
             window.removeEventListener('sidebar-logout', handleLogout);
             window.removeEventListener('sidebar-admin-panel', handleAdminPanel);
         };
