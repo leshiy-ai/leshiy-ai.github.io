@@ -202,7 +202,7 @@ const handleMiniAppAuth = () => {
     // Вместо того чтобы гадать, есть там user или нет, 
     // делаем ровно то, что делает твоя Хранилка — редирект на проверку
     const returnTo = window.location.href.split('?')[0];
-    const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/tg?bot=gemini&return_to=${encodeURIComponent(returnTo)}`;
+    const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
     
     console.log("Mini App: Редирект на авто-авторизацию...");
     window.location.href = autoAuthUrl;
@@ -228,7 +228,7 @@ window.addEventListener('sidebar-tg-auth', () => {
   const tg = window.Telegram?.WebApp;
   if (tg && tg.initData && tg.initData.length > 0) {
       const returnTo = window.location.href.split('?')[0];
-      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/tg?bot=gemini&return_to=${encodeURIComponent(returnTo)}`;
+      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
       window.location.href = autoAuthUrl;
       return;
   }
