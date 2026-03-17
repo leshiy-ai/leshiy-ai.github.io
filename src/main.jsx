@@ -193,29 +193,23 @@ const TelegramAuthModal = ({ onClose }) => {
 
 const handleMiniAppAuth = () => {
   const tg = window.Telegram?.WebApp;
-  if (!tg) return;
   
-  tg.ready();
+  // 1. Обязательно сообщаем ТГ, что приложение готово, иначе initDataUnsafe будет пустым
+  if (tg) tg.ready();
 
-  // Если мы в Mini App и еще НЕ залогинены
-  if (tg.initData && tg.initData.length > 0 && !localStorage.getItem('vk_user_id')) {
-    // Вместо того чтобы гадать, есть там user или нет, 
-    // делаем ровно то, что делает твоя Хранилка — редирект на проверку
-    const returnTo = window.location.href.split('?')[0];
-    const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+  if (tg?.initDataUnsafe?.user && !localStorage.getItem('vk_user_id')) {
+    console.log("Mini App detected: Выполняю фоновый вход...");
+    const user = tg.initDataUnsafe.user;
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+
+    localStorage.setItem('vk_user_id', user.id.toString());
+    localStorage.setItem('vk_user_name', fullName);
+    localStorage.setItem('vk_user_photo', user.photo_url || '');
     
-    console.log("Mini App: Редирект на авто-авторизацию...");
-    window.location.href = autoAuthUrl;
-    return;
-  }
-
-  // Если мы уже залогинены, просто подтягиваем данные (на всякий случай)
-  if (tg.initDataUnsafe?.user && !localStorage.getItem('vk_user_id')) {
-     const user = tg.initDataUnsafe.user;
-     localStorage.setItem('vk_user_id', user.id.toString());
-     localStorage.setItem('vk_user_name', `${user.first_name || ''} ${user.last_name || ''}`.trim());
-     localStorage.setItem('vk_user_photo', user.photo_url || '');
-     window.dispatchEvent(new CustomEvent('user-profile-updated'));
+    // 2. Кидаем оба события: одно для чата, второе для Сайдбара (чтобы убрать Offline)
+    window.dispatchEvent(new CustomEvent('user-profile-updated'));
+    window.dispatchEvent(new CustomEvent('sidebar-storage'));
+    if (window.fetchUserStatus) window.fetchUserStatus(user.id.toString());
   }
 };
 
@@ -228,7 +222,7 @@ window.addEventListener('sidebar-tg-auth', () => {
   const tg = window.Telegram?.WebApp;
   if (tg && tg.initData && tg.initData.length > 0) {
       const returnTo = window.location.href.split('?')[0];
-      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/tg?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
       window.location.href = autoAuthUrl;
       return;
   }
