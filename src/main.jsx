@@ -191,6 +191,25 @@ const TelegramAuthModal = ({ onClose }) => {
   );
 };
 
+const handleMiniAppAuth = () => {
+  const tg = window.Telegram?.WebApp;
+  if (tg?.initDataUnsafe?.user && !localStorage.getItem('vk_user_id')) {
+    console.log("Mini App detected: Выполняю фоновый вход...");
+    const user = tg.initDataUnsafe.user;
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    
+    localStorage.setItem('vk_user_id', user.id.toString());
+    localStorage.setItem('vk_user_name', fullName);
+    localStorage.setItem('vk_user_photo', user.photo_url || '');
+    
+    window.dispatchEvent(new CustomEvent('user-profile-updated'));
+    if (window.fetchUserStatus) window.fetchUserStatus(user.id.toString());
+  }
+};
+
+// Просто запускаем её. Она проверит: если мы в ТГ и не залогинены — залогинит.
+handleMiniAppAuth();
+
 // Слушатель для вызова модального окна
 window.addEventListener('sidebar-tg-auth', () => {
   // Проверка на Mini App
