@@ -39,16 +39,33 @@ const Sidebar = ({
   }, [t]);
 
   useEffect(() => {
-    updateProfileData();
-    
-    window.addEventListener('user-profile-updated', updateProfileData);
-    window.addEventListener('storage', updateProfileData);
+    // 1. Сразу при загрузке проверяем URL на наличие данных от ВК или ТГ
+    const params = new URLSearchParams(window.location.search);
+    const vkId = params.get('vk_user_id');
+    const tgData = params.get('tg_data');
+
+    if (vkId || tgData) {
+      // Если пришли данные из URL — значит мы только что после редиректа.
+      // Вызываем обновление профиля, оно само всё распарсит и запишет.
+      updateProfileData();
+      
+      // Чистим URL, чтобы параметры не мозолили глаза и не вызывали циклов
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else {
+      // Если в URL пусто — просто грузим то, что уже было в localStorage
+      updateProfileData();
+    }
+
+    // 2. Слушаем событие обновления (чтобы аватарка менялась мгновенно)
+    const handleUpdate = () => updateProfileData();
+    window.addEventListener('user-profile-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate); // На случай изменений в других вкладках
 
     return () => {
-      window.removeEventListener('user-profile-updated', updateProfileData);
-      window.removeEventListener('storage', updateProfileData);
+      window.removeEventListener('user-profile-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
     };
-  }, [updateProfileData]);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
