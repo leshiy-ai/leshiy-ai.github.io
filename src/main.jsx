@@ -193,16 +193,22 @@ const TelegramAuthModal = ({ onClose }) => {
 
 const handleMiniAppAuth = () => {
   const tg = window.Telegram?.WebApp;
+  
+  // 1. Обязательно сообщаем ТГ, что приложение готово, иначе initDataUnsafe будет пустым
+  if (tg) tg.ready();
+
   if (tg?.initDataUnsafe?.user && !localStorage.getItem('vk_user_id')) {
     console.log("Mini App detected: Выполняю фоновый вход...");
     const user = tg.initDataUnsafe.user;
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-    
+
     localStorage.setItem('vk_user_id', user.id.toString());
     localStorage.setItem('vk_user_name', fullName);
     localStorage.setItem('vk_user_photo', user.photo_url || '');
     
+    // 2. Кидаем оба события: одно для чата, второе для Сайдбара (чтобы убрать Offline)
     window.dispatchEvent(new CustomEvent('user-profile-updated'));
+    window.dispatchEvent(new CustomEvent('sidebar-storage'));
     if (window.fetchUserStatus) window.fetchUserStatus(user.id.toString());
   }
 };
