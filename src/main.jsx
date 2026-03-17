@@ -191,6 +191,12 @@ const TelegramAuthModal = ({ onClose }) => {
   );
 };
 
+if (window.Telegram?.WebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
+
+/*
 const handleMiniAppAuth = () => {
   const tg = window.Telegram?.WebApp;
   
@@ -215,7 +221,7 @@ const handleMiniAppAuth = () => {
 
 // Просто запускаем её. Она проверит: если мы в ТГ и не залогинены — залогинит.
 handleMiniAppAuth();
-
+*/
 // Слушатель для вызова модального окна
 window.addEventListener('sidebar-tg-auth', () => {
   // Проверка на Mini App
