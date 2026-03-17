@@ -93,7 +93,7 @@ const fileToDataURL = (file) => {
     });
 };
 
-const Message = ({ message, onSwipe, onAction }) => {
+const Message = ({ message, onSwipe, onAction, userPhoto, userName }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
     const currentX = useRef(0);
@@ -157,19 +157,29 @@ const Message = ({ message, onSwipe, onAction }) => {
         );
     };
     
-    // ИСПРАВЛЕНИЕ: Делаем рендеринг более надежным, проверяя оба поля: .text и .content
     const textToRender = message.text || message.content;
+    const isUser = message.role === 'user';
+    const avatarUrl = isUser ? userPhoto : '/Gemini.png';
+    const showAvatar = !isUser || (isUser && !!userPhoto);
+    const name = isUser ? userName : 'Gemini-AI';
 
     return (
         <div ref={msgRef} className={`message-container ${message.role}`} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
             <div className="bubble">
-                {message.attachments && <div className="attachments-grid">{message.attachments.map((f, i) => renderFile(f, i))}</div>}
-                {textToRender ? <ReactMarkdown>{textToRender}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
-                {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
+                {showAvatar && <img src={avatarUrl} className="avatar" alt="avatar" />}
+                <div className="message-content">
+                    <div className="user-name">{name}</div>
+                    <div className="message-body">
+                        {message.attachments && <div className="attachments-grid">{message.attachments.map((f, i) => renderFile(f, i))}</div>}
+                        {textToRender ? <ReactMarkdown>{textToRender}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
+                        {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
+
 
 const makeSwipable = (panel, onRemove, useRotation = true) => {
     let startX = 0;
@@ -1160,10 +1170,10 @@ function App() {
         newLineCommands.forEach(cmd => {
             // Match the command surrounded by spaces
             const regex = new RegExp(` ${cmd} `, 'gi');
-            processedText = processedText.replace(regex, '\\n');
+            processedText = processedText.replace(regex, '\n');
         });
         // Clean up spaces around the generated newline and trim the result
-        return processedText.replace(/\s*\n\s*/g, '\\n');
+        return processedText.replace(/\s*\n\s*/g, '\n');
     }, [language]);
 
     useEffect(() => {
@@ -1353,7 +1363,7 @@ function App() {
                 const processedText = processChunk(sessionFinalTextRef.current);
                 if (processedText) {
                     // Add a space only if the text doesn't end with a newline
-                    baseTextRef.current += processedText + (processedText.endsWith('\\n') ? '' : ' ');
+                    baseTextRef.current += processedText + (processedText.endsWith('\n') ? '' : ' ');
                 }
                 sessionFinalTextRef.current = '';
             }
@@ -1551,9 +1561,9 @@ function App() {
                     </div>
                 )}
                 {messages.map((m) => (
-                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} />
+                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} userPhoto={userPhoto} userName={userName} />
                 ))}
-                {isLoading && !isFetchingMore && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
+                {isLoading && !isFetchingMore && <div className="message-container ai"><div className="bubble typing">⏳ Leshiy-AI думает...</div></div>}
                 <div ref={chatEndRef} />
             </div>
             
@@ -1609,7 +1619,7 @@ function App() {
                                         }}>Отменить</button>
 
                                         <button className="hint-btn" onClick={() => {
-                                            const newValue = input + '\\n';
+                                            const newValue = input + '\n';
                                             baseTextRef.current = newValue;
                                             setInput(newValue);
                                         }}>Новая строка</button>
