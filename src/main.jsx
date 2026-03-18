@@ -129,11 +129,11 @@ window.addEventListener('vk-auth-success', (event) => {
   console.log("Система: Получен ответ от VK:", response);
 
   // 1. Извлекаем данные (проверяем все возможные места вложенности)
-  const userId = response.user_id || 
-                 (response.data && response.data.auth_info && response.data.auth_info.user && response.data.auth_info.user.id) || 
-                 response.id;
-
-  const userData = (response.data && response.data.auth_info && response.data.auth_info.user) || {};
+  const userId = (typeof response === 'number' || typeof response === 'string') 
+                 ? response 
+                 : (response.user_id || 
+                    (response.data && response.data.auth_info && response.data.auth_info.user && response.data.auth_info.user.id) || 
+                    response.id);
 
   if (!userId) {
     console.error("VK Auth Success: 'user_id' не найден в ответе OAuth", response);
