@@ -1101,10 +1101,7 @@ function App() {
         if (currentUserId && currentUserId !== 'guest') {
             fetchChats();
         }
-
-        window.addEventListener('user-profile-updated', handleManualRefresh);
-        return () => window.removeEventListener('user-profile-updated', handleManualRefresh);
-
+        
     }, [fetchChats, currentUserId]); // Теперь он следит за ID!
 
     useEffect(() => {
