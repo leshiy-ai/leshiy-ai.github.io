@@ -125,11 +125,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Слушатель для OneTap кнопки VK
 window.addEventListener('vk-auth-success', (event) => {
-  const authData = event.detail;
-  const userId = authData.user_id;
+  const response = event.detail;
+  console.log("Система: Получен ответ от VK:", response);
+
+  // 1. Извлекаем данные (проверяем все возможные места вложенности)
+  const userId = response.user_id || 
+                 (response.data && response.data.auth_info && response.data.auth_info.user && response.data.auth_info.user.id) || 
+                 response.id;
+
+  const userData = (response.data && response.data.auth_info && response.data.auth_info.user) || {};
 
   if (!userId) {
-    console.error("VK Auth Success: 'user_id' не найден в ответе OAuth", authData);
+    console.error("VK Auth Success: 'user_id' не найден в ответе OAuth", response);
     return;
   }
   
