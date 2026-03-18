@@ -1097,8 +1097,15 @@ function App() {
     };
 
     useEffect(() => {
-        fetchChats();
-    }, [fetchChats]);
+        console.log("App: currentUserId изменился на:", currentUserId, "— запускаю fetchChats");
+        if (currentUserId && currentUserId !== 'guest') {
+            fetchChats();
+        }
+
+        window.addEventListener('user-profile-updated', handleManualRefresh);
+        return () => window.removeEventListener('user-profile-updated', handleManualRefresh);
+
+    }, [fetchChats, currentUserId]); // Теперь он следит за ID!
 
     useEffect(() => {
       const modalContent = document.querySelector('.storage-content');
