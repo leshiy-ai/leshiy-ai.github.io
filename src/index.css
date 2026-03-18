@@ -212,16 +212,15 @@ body.sidebar-collapsed #toggle-menu {
 
 /* --- ИСПРАВЛЕННЫЕ СТИЛИ ФРЕЙМА --- */
 .storage-modal {
-  position: fixed !important;
-  top: 50%; /* Центрируем */
-  left: 50%;
-  transform: translate(-50%, -50%); /* Точная центровка */
-  width: 95%; 
-  height: 90%; 
-  max-width: 500px; 
-  max-height: 700px; 
-  z-index: 2005 !important; 
+  position: fixed !important; 
+  top: 0 !important; 
+  left: 0 !important; 
+  width: 100vw !important; 
+  /* Используем dvh для мобильных браузеров, чтобы не залезало под панели */
+  height: 100vh !important;
+  height: 100dvh !important; 
   background: rgba(0,0,0,0.85) !important; 
+  z-index: 2002 !important; 
   margin: 0 !important; 
   padding: 0 !important;
 }
@@ -237,8 +236,6 @@ body.sidebar-collapsed #toggle-menu {
   transform: translate(-50%, -50%); /* Точная центровка */
   width: 95%; 
   height: 90%; 
-  max-width: 500px; 
-  max-height: 700px; 
   z-index: 2005 !important; 
   background: var(--main-bg); 
   border-radius: 24px; 
