@@ -217,11 +217,15 @@ body.sidebar-collapsed #toggle-menu {
   top: 0 !important; 
   left: 0 !important; 
   width: 100vw !important; 
-  height: 100vh !important; 
-  background: rgba(0,0,0,0.85) !important; 
-  z-index: 2002 !important; 
+  /* Используем dvh для мобильных браузеров, чтобы не залезало под панели */
+  height: 100vh !important;
+  height: 100dvh !important; 
+  background: rgba(0,0,0,0.8) !important; 
+  /* z-index меньше сайдбара (200), чтобы шторка была сверху */
+  z-index: 150 !important; 
   margin: 0 !important; 
   padding: 0 !important;
+  backdrop-filter: blur(4px); /* Добавит стиля как в нативных аппах */
 }
 
 .storage-modal.active {
@@ -229,22 +233,33 @@ body.sidebar-collapsed #toggle-menu {
 }
 
 .storage-content {
-  position: absolute; /* Абсолютное позиционирование */
-  top: 50%; /* Центрируем */
-  left: 50%;
-  transform: translate(-50%, -50%); /* Точная центровка */
-  width: 90vw; 
-  height: 90dvh; /* Используй dvh (Dynamic Viewport Height) */
-  max-width: 800px; 
-  max-height: 800px; 
+  position: fixed !important; /* Фиксируем относительно окна */
+  top: 50% !important;
+  left: 50% !important;
+  /* transform — единственный способ идеально отцентровать без учета сайдбара */
+  transform: translate(-50%, -50%) !important; 
+  
+  width: 90% !important; 
+  height: 85% !important; 
+  max-width: 500px !important; /* Делаем компактно как в ТГ */
+  max-height: 700px !important; 
+  
   background: var(--main-bg); 
-  border-radius: 20px; 
+  border-radius: 24px; /* Более мягкие углы */
   display: flex; 
   flex-direction: column; 
   overflow: hidden; 
   border: 1px solid var(--sidebar-border); 
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-  touch-action: none; /* Запрещаем браузеру перехватывать свайпы */
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+  touch-action: none;
+}
+
+/* Адаптация под очень маленькие экраны, чтобы не «душило» контент */
+@media (max-height: 600px) {
+  .storage-content {
+    height: 95% !important;
+    max-height: none !important;
+  }
 }
 
 #storage-frame { flex: 1; border: none; }
@@ -489,22 +504,4 @@ body.sidebar-collapsed .history-item {
 .profile-menu-item.vk-auth-btn .icon img {
   width: 25px; /* Увеличили на 5px */
   height: 25px;
-}
-
-@media (max-width: 768px) {
-  .storage-content {
-    width: 95vw;
-    height: 95dvh;
-    top: 0;
-    left: 0;
-    transform: none;
-    border-radius: 0;
-    max-width: none;
-    max-height: none;
-    border: none;
-  }
-
-  .storage-header {
-    border-radius: 0;
-  }
 }
