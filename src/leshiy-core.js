@@ -105,21 +105,20 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const storedIsAdmin = localStorage.getItem('isAdmin') === 'true';
         const userId = localStorage.getItem('vk_user_id') || 'Not Set';
         const userName = localStorage.getItem('vk_user_name') || 'Guest';
-        const authType = localStorage.getItem('vk_user_id') ? 'VK/TG' : 'Anonymous';
         const authProvider = localStorage.getItem('auth_provider') || 'Anonymous';
-        const debugData = {
-            platform: navigator.platform,
-            lastStatus: window.lastServerResponse?.status || 'Unknown' // Если ты сохраняешь ответ от get-status
-        };
+        const lastStatus = window.lastServerResponse?.status || 'Unknown' // Ответ от get-status
 
         const debugTemplate = `
     🛠 **DEBUG INFO**
     --------------------------
     🆔 **User ID:** \`${userId}\`
     👤 **User Name:** ${userName}
-    🔐 **Auth:** ${authProvider === 'Telegram' ? '🟩 Telegram' : '🟦 VKontakte'}
-    🌐 **Platform:** ${debugData.platform}
-    📡 **Server Status:** ${debugData.lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
+    🔐 **Auth:** ${
+        authProvider === 'Telegram' ? '🟩 Telegram' : 
+        authProvider === 'VK' ? '🟦 VKontakte' : 
+        '🟫 Anonymous'
+    }
+    📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
     📦 **Version:** v${currentVersion}

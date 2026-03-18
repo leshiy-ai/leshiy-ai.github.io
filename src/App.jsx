@@ -1191,6 +1191,8 @@ function App() {
             localStorage.removeItem('vk_user_name');
             localStorage.removeItem('vk_user_photo');
             localStorage.removeItem('last_chat_id');
+            localStorage.removeItem('isAdmin');
+            localStorage.removeItem('auth_provider');
             sessionStorage.clear();
             window.location.reload();
         };

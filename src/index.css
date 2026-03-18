@@ -219,7 +219,7 @@ body.sidebar-collapsed #toggle-menu {
   width: 100vw !important; 
   height: 100vh !important; 
   background: rgba(0,0,0,0.85) !important; 
-  z-index: 10001 !important; 
+  z-index: 2002 !important; 
   margin: 0 !important; 
   padding: 0 !important;
 }
@@ -233,9 +233,9 @@ body.sidebar-collapsed #toggle-menu {
   top: 50%; /* Центрируем */
   left: 50%;
   transform: translate(-50%, -50%); /* Точная центровка */
-  width: 95%; 
+  width: 90%; 
   height: 90%; 
-  max-width: 900px; 
+  max-width: 800px; 
   max-height: 800px; 
   background: var(--main-bg); 
   border-radius: 20px; 
