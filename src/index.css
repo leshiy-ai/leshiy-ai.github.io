@@ -281,6 +281,15 @@ body.sidebar-collapsed #toggle-menu {
   line-height: 1 !important;
 }
 
+@media (max-width: 768px) {
+  .storage-modal {
+    /* Сдвигаем подложку влево, чтобы она игнорировала padding-left у #root */
+    left: -72px !important; 
+    width: 100vw !important;
+    /* Если сайдбар схлопнут до 72px, это выровняет модалку по центру физического экрана */
+  }
+}
+
 .profile-menu-item .text {
   flex-grow: 1;
 }
