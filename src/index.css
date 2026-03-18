@@ -284,7 +284,7 @@ body.sidebar-collapsed #toggle-menu {
 @media (max-width: 768px) {
   .storage-modal {
     /* Сдвигаем подложку влево, чтобы она игнорировала padding-left у #root */
-    left: -76px !important; 
+    padding-left: 72px; 
     width: 100vw !important;
     /* Если сайдбар схлопнут до 72px, это выровняет модалку по центру физического экрана */
   }
