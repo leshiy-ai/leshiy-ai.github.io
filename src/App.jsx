@@ -1111,7 +1111,6 @@ function App() {
     };
 
     useEffect(() => {
-        console.log("App: currentUserId изменился на:", currentUserId, "— запускаю fetchChats");
         if (currentUserId && currentUserId !== 'guest') {
             fetchChats();
         }

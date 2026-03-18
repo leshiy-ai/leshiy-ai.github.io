@@ -1,4 +1,5 @@
 import { CONFIG } from './config';
+import { version } from '../package.json';
 import { AI_MODELS, loadActiveModelConfig } from './ai-config';
 import axios from 'axios'; // Добавляем axios для работы со шлюзом хранилища
 
@@ -15,7 +16,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     const SITE_APP_ID = "54467300"; // ID для авторизации на сайте
     const VK_MINI_APP_ID = "54419010"; // ID мини-приложения Хранилка
     const gateway = CONFIG.STORAGE_GATEWAY;
-    
+    const currentVersion = process.env.APP_VERSION;
+
     // Пытаемся достать ID из URL (например, при переходе по реф-ссылке)
     const params = new URLSearchParams(window.location.search);
     const urlId = params.get('user_id');
@@ -94,6 +96,39 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             };
         } catch (e) {
             return { type: 'menu', text: `⚠️ Ошибка связи с сервером.`, buttons: [{ text: '🔙 Назад', action: '/storage' }] };
+        }
+    }
+
+    // DEBUG INFO
+    if (lowerQuery === '/debug') {
+        // Собираем актуальные данные на лету
+        const storedIsAdmin = localStorage.getItem('isAdmin') === 'true';
+        const userId = localStorage.getItem('vk_user_id') || 'Not Set';
+        const userName = localStorage.getItem('vk_user_name') || 'Guest';
+        const authType = localStorage.getItem('vk_user_id') ? 'VK/TG' : 'Anonymous';
+        const debugData = {
+            platform: navigator.platform,
+            lastStatus: window.lastServerResponse?.status || 'Unknown' // Если ты сохраняешь ответ от get-status
+        };
+
+        const debugTemplate = `
+    🛠 **DEBUG INFO**
+    --------------------------
+    🆔 **User ID:** \`${userId}\`
+    👤 **User Name:** ${userName}
+    🔑 **Auth Type:** ${authType}
+    🌐 **Platform:** ${debugData.platform}
+    📡 **Server Status:** ${debugData.lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
+    🕒 **Server Time:** ${new Date().toLocaleTimeString()}
+    👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
+    📦 **Version:** v${currentVersion}
+            `.trim();
+
+        return {
+            id: Date.now(),
+            text: debugTemplate,
+            sender: 'bot',
+            type: 'system_debug'
         }
     }
 
