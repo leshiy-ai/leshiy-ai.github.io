@@ -452,7 +452,9 @@ function App() {
             const data = event.detail; 
             if (!data) return;
         
-            const userId = data.user_id || data.id;
+            // 1. Если пришло просто число/строка — берем как есть.
+            const userId = (typeof data === 'object') ? (data.user_id || data.id) : data;
+            console.log("App: Устанавливаю нормальный userId:", userId);
             setCurrentUserId(userId);
         
             if (window.handleStatusResponse) {
