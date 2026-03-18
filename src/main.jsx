@@ -98,9 +98,12 @@ window.fetchUserStatus = async () => {
       // ГЕНЕРИРУЕМ СОБЫТИЕ
       console.log("Main: Статус подтвержден, запрашиваю обновление чатов");
       window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: serverData }));
+      // Записываем статус в "глобальное окно"
+      window.lastServerResponse = { status: response.status };
     }
   } catch (error) {
     console.error("Ошибка при получении статуса пользователя от Хранилки:", error);
+    window.lastServerResponse = { status: 500 };
   }
 };
 
