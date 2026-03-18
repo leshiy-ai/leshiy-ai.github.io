@@ -130,7 +130,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                             // Бросаем событие для глобального стейта
                             window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: vkid }));
                             // Авто-переход в меню
-                            window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
+                            //window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
                         }
                     });
             });

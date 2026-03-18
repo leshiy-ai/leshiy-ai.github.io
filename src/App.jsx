@@ -455,8 +455,20 @@ function App() {
             // 1. Если пришло просто число/строка — берем как есть.
             const userId = (typeof data === 'object') ? (data.user_id || data.id) : data;
             console.log("App: Устанавливаю нормальный userId:", userId);
-            setCurrentUserId(userId);
+            if (userId) {
+                setCurrentUserId(String(userId));
+                
+                // 1. Сначала дергаем список чатов (чтобы Сайдбар ожил)
+                setTimeout(() => {
+                    if (typeof fetchChats === 'function') fetchChats();
+                }, 100);
         
+                // 2. ВОТ ТУТ ШЛЕМ КОМАНДУ (через 500мс, чтобы всё прогрузилось)
+                setTimeout(() => {
+                    console.log("App: Авто-команда для ТГ/ВК: /storage");
+                    window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
+                }, 500);
+            }
             if (window.handleStatusResponse) {
                 window.handleStatusResponse(data);
             }

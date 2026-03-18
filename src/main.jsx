@@ -154,9 +154,6 @@ window.addEventListener('tg-auth-success', (event) => {
   // 1. Закрываем модалку
   const overlay = document.getElementById('tg_auth_overlay');
   if (overlay) overlay.style.display = 'none';
-
-  // 3. Шлем команду показать диски Хранилки
-  window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
 });
 
 // Модальное окно Telegram-авторизации
