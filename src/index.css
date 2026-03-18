@@ -490,3 +490,21 @@ body.sidebar-collapsed .history-item {
   width: 25px; /* Увеличили на 5px */
   height: 25px;
 }
+
+@media (max-width: 768px) {
+  .storage-content {
+    width: 95vw;
+    height: 95dvh;
+    top: 0;
+    left: 0;
+    transform: none;
+    border-radius: 0;
+    max-width: none;
+    max-height: none;
+    border: none;
+  }
+
+  .storage-header {
+    border-radius: 0;
+  }
+}
