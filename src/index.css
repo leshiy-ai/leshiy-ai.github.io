@@ -212,16 +212,16 @@ body.sidebar-collapsed #toggle-menu {
 
 /* --- ИСПРАВЛЕННЫЕ СТИЛИ ФРЕЙМА --- */
 .storage-modal {
-  position: fixed !important; 
-  top: 0 !important; 
-  left: 72px !important; 
-  /* Вместо width: 100vw пишем расчет: */
-  width: calc(100vw - 72px) !important;
-  /* Используем dvh для мобильных браузеров, чтобы не залезало под панели */
-  height: 100vh !important;
-  height: 100dvh !important; 
+  position: fixed !important;
+  top: 50%; /* Центрируем */
+  left: 50%;
+  transform: translate(-50%, -50%); /* Точная центровка */
+  width: 95%; 
+  height: 90%; 
+  max-width: 500px; 
+  max-height: 700px; 
+  z-index: 2005 !important; 
   background: rgba(0,0,0,0.85) !important; 
-  z-index: 150 !important; 
   margin: 0 !important; 
   padding: 0 !important;
 }
@@ -239,7 +239,7 @@ body.sidebar-collapsed #toggle-menu {
   height: 90%; 
   max-width: 500px; 
   max-height: 700px; 
-  z-index: 151 !important; 
+  z-index: 2005 !important; 
   background: var(--main-bg); 
   border-radius: 24px; 
   display: flex; 
@@ -284,10 +284,7 @@ body.sidebar-collapsed #toggle-menu {
 
 @media (max-width: 768px) {
   .storage-modal {
-    /* Сдвигаем подложку влево, чтобы она игнорировала padding-left у #root */
-    padding-left: 76px; 
     width: 100vw !important;
-    /* Если сайдбар схлопнут до 72px, это выровняет модалку по центру физического экрана */
   }
 }
 
