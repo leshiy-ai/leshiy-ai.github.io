@@ -33,6 +33,7 @@ const handleTelegramRedirect = () => {
       window.history.replaceState({}, document.title, window.location.pathname);
 
       // БРОСАЕМ СОБЫТИЕ УСПЕХА
+      const userId = String(userData.id); // Сначала объявляем!
       console.log("Система: TG Auth Success для ID:", userId);
       window.dispatchEvent(new CustomEvent('tg-auth-success', { detail: String(userData.id) }));
       
@@ -147,11 +148,59 @@ window.addEventListener('tg-auth-success', (event) => {
   window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
 });
 
+// Модальное окно Telegram-авторизации
 const TelegramAuthModal = ({ onClose }) => {
   const containerRef = React.useRef(null);
 
   React.useEffect(() => {
-    // Чистим контейнер перед вставкой
+    // 1. Создаем глобальную функцию-коллбэк, которую вызовет виджет
+    window.onTelegramAuth = (user) => {
+      console.log("Widget success, sending to backend for verification:", user);
+
+      // Формируем тот самый URL, который вы указали
+      const returnTo = window.location.href.split('?')[0];
+      // Добавляем к данным от Telegram оригинальные параметры bot и return_to
+      const queryParams = new URLSearchParams();
+      for (const key in user) {
+          queryParams.append(key, user[key]);
+      }
+      queryParams.append('bot', 'gemini');
+      queryParams.append('return_to', returnTo);
+
+      const verificationUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?${queryParams.toString()}`;
+
+      // Вместо редиректа, делаем запрос в фоне
+      fetch(verificationUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Backend verification failed');
+            }
+            // Ожидаем, что бэкенд перенаправит нас, и ловим этот URL
+            if (response.redirected) {
+                const redirectUrl = new URL(response.url);
+                const tgData = redirectUrl.searchParams.get('tg_data');
+                if (tgData) {
+                    // Имитируем приход данных как через редирект
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tg_data', tgData);
+                    window.history.replaceState({}, '', url);
+
+                    // Закрываем окно и запускаем стандартную обработку
+                    onClose();
+                    handleTelegramRedirect();
+                } else {
+                    throw new Error('tg_data not found in backend redirect');
+                }
+            }
+        })
+        .catch(error => {
+            console.error("Telegram auth error:", error);
+            // Можно показать ошибку пользователю
+            onClose();
+        });
+    };
+  
+  // Чистим контейнер перед вставкой
     if (containerRef.current) {
         containerRef.current.innerHTML = '';
         const script = document.createElement('script');
@@ -159,13 +208,20 @@ const TelegramAuthModal = ({ onClose }) => {
         script.src = "https://telegram.org/js/telegram-widget.js?23";
         script.setAttribute('data-telegram-login', 'gemini_aitg_bot');
         script.setAttribute('data-size', 'large');
-        // Тот самый URL, что мы обсуждали:
-        script.setAttribute('data-auth-url', 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io');
         script.setAttribute('data-request-access', 'write');
+        // ДЛЯ МОБИЛЫ (Callback режим):
+        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        // ДЛЯ ПК (Redirect режим):
+        //script.setAttribute('data-auth-url', 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io');
         
         containerRef.current.appendChild(script);
     }
-  }, []);
+
+    return () => {
+        // Чистим за собой
+        delete window.onTelegramAuth;
+    };
+  }, [onClose]);
 
   return (
     /* Фон с блюром как у ВК */
