@@ -212,7 +212,6 @@ body.sidebar-collapsed #toggle-menu {
 
 /* --- ИСПРАВЛЕННЫЕ СТИЛИ ФРЕЙМА --- */
 .storage-modal {
-  display: none;
   position: fixed !important; 
   top: 0 !important; 
   left: 0 !important; 
@@ -220,12 +219,10 @@ body.sidebar-collapsed #toggle-menu {
   /* Используем dvh для мобильных браузеров, чтобы не залезало под панели */
   height: 100vh !important;
   height: 100dvh !important; 
-  background: rgba(0,0,0,0.8) !important; 
-  /* z-index меньше сайдбара (200), чтобы шторка была сверху */
-  z-index: 150 !important; 
+  background: rgba(0,0,0,0.85) !important; 
+  z-index: 2002 !important; 
   margin: 0 !important; 
   padding: 0 !important;
-  backdrop-filter: blur(4px); /* Добавит стиля как в нативных аппах */
 }
 
 .storage-modal.active {
@@ -233,33 +230,23 @@ body.sidebar-collapsed #toggle-menu {
 }
 
 .storage-content {
-  position: fixed !important; /* Фиксируем относительно окна */
-  top: 50% !important;
-  left: 50% !important;
-  /* transform — единственный способ идеально отцентровать без учета сайдбара */
-  transform: translate(-50%, -50%) !important; 
-  
-  width: 90% !important; 
-  height: 85% !important; 
-  max-width: 500px !important; /* Делаем компактно как в ТГ */
-  max-height: 700px !important; 
-  
+  position: fixed !important;
+  top: 50%; /* Центрируем */
+  left: 50%;
+  transform: translate(-50%, -50%); /* Точная центровка */
+  width: 95%; 
+  height: 90%; 
+  max-width: 500px; 
+  max-height: 700px; 
+  z-index: 2005 !important; 
   background: var(--main-bg); 
-  border-radius: 24px; /* Более мягкие углы */
+  border-radius: 24px; 
   display: flex; 
   flex-direction: column; 
   overflow: hidden; 
   border: 1px solid var(--sidebar-border); 
-  box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-  touch-action: none;
-}
-
-/* Адаптация под очень маленькие экраны, чтобы не «душило» контент */
-@media (max-height: 600px) {
-  .storage-content {
-    height: 95% !important;
-    max-height: none !important;
-  }
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  touch-action: none; /* Запрещаем браузеру перехватывать свайпы */
 }
 
 #storage-frame { flex: 1; border: none; }
