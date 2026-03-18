@@ -156,51 +156,25 @@ const TelegramAuthModal = ({ onClose }) => {
   React.useEffect(() => {
     // 1. Создаем глобальную функцию-коллбэк, которую вызовет виджет
     window.onTelegramAuth = (user) => {
-      console.log("Widget success, sending to backend for verification:", user);
-
-      // Формируем тот самый URL, который вы указали
-      const returnTo = window.location.href.split('?')[0];
-      // Добавляем к данным от Telegram оригинальные параметры bot и return_to
+      console.log("Widget success! Перенаправляю на бэкенд для проверки...");
+  
+      // 1. Собираем параметры из объекта user (id, hash, auth_date и т.д.)
       const queryParams = new URLSearchParams();
       for (const key in user) {
           queryParams.append(key, user[key]);
       }
+      
+      // 2. Добавляем твои обязательные параметры bot и return_to
       queryParams.append('bot', 'gemini');
-      queryParams.append('return_to', returnTo);
-
-      //const verificationUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?${queryParams.toString()}`;
-      const verificationUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io`;
-
-      // Вместо редиректа, делаем запрос в фоне
-      fetch(verificationUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Backend verification failed');
-            }
-            // Ожидаем, что бэкенд перенаправит нас, и ловим этот URL
-            if (response.redirected) {
-                const redirectUrl = new URL(response.url);
-                const tgData = redirectUrl.searchParams.get('tg_data');
-                if (tgData) {
-                    // Имитируем приход данных как через редирект
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('tg_data', tgData);
-                    window.history.replaceState({}, '', url);
-
-                    // Закрываем окно и запускаем стандартную обработку
-                    onClose();
-                    handleTelegramRedirect();
-                } else {
-                    throw new Error('tg_data not found in backend redirect');
-                }
-            }
-        })
-        .catch(error => {
-            console.error("Telegram auth error:", error);
-            // Можно показать ошибку пользователю
-            onClose();
-        });
-    };
+      queryParams.append('return_to', 'https://leshiy-ai.github.io');
+  
+      // 3. Формируем ТВОЮ длинную ссылку
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?${queryParams.toString()}`;
+  
+      // 4. Прямой редирект (вместо fetch)
+      // Это заставит бэкенд отработать, проверить хеш и вернуть нас назад с tg_data
+      window.location.href = authUrl;
+  };
   
   // Чистим контейнер перед вставкой
     if (containerRef.current) {
@@ -214,7 +188,7 @@ const TelegramAuthModal = ({ onClose }) => {
         // ДЛЯ МОБИЛЫ (Callback режим):
         script.setAttribute('data-onauth', 'onTelegramAuth(user)');
         // ДЛЯ ПК (Redirect режим):
-        //script.setAttribute('data-auth-url', 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io');
+        //script.setAttribute('data-auth-url', '${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io');
         
         containerRef.current.appendChild(script);
     }
@@ -293,7 +267,7 @@ window.addEventListener('sidebar-tg-auth', () => {
   const tg = window.Telegram?.WebApp;
   if (tg && tg.initData && tg.initData.length > 0) {
       const returnTo = window.location.href.split('?')[0];
-      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+      const autoAuthUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
       window.location.href = autoAuthUrl;
       return;
   }
