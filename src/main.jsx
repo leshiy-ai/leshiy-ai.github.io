@@ -36,9 +36,10 @@ const handleTelegramRedirect = () => {
       const userId = String(userData.id); // Сначала объявляем!
       console.log("Система: TG Auth Success для ID:", userId);
       window.dispatchEvent(new CustomEvent('tg-auth-success', { detail: String(userData.id) }));
-      
+      // ВЫЗЫВАЕМ СИНХРОНИЗАЦИЮ СТАТУСА
+      window.fetchUserStatus();
       // Обновляем UI, чтобы сразу показать пользователя
-      window.dispatchEvent(new CustomEvent('user-profile-updated'));
+      //window.dispatchEvent(new CustomEvent('user-profile-updated'));
 
     } catch (error) {
       console.error("Ошибка при обработке данных Telegram из URL:", error);
