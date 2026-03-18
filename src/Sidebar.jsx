@@ -39,33 +39,16 @@ const Sidebar = ({
   }, [t]);
 
   useEffect(() => {
-    // 1. Сразу при загрузке проверяем URL на наличие данных от ВК или ТГ
-    const params = new URLSearchParams(window.location.search);
-    const vkId = params.get('vk_user_id');
-    const tgData = params.get('tg_data');
-
-    if (vkId || tgData) {
-      // Если пришли данные из URL — значит мы только что после редиректа.
-      // Вызываем обновление профиля, оно само всё распарсит и запишет.
-      updateProfileData();
-      
-      // Чистим URL, чтобы параметры не мозолили глаза и не вызывали циклов
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else {
-      // Если в URL пусто — просто грузим то, что уже было в localStorage
-      updateProfileData();
-    }
-
-    // 2. Слушаем событие обновления (чтобы аватарка менялась мгновенно)
-    const handleUpdate = () => updateProfileData();
-    window.addEventListener('user-profile-updated', handleUpdate);
-    window.addEventListener('storage', handleUpdate); // На случай изменений в других вкладках
+    updateProfileData();
+    
+    window.addEventListener('user-profile-updated', updateProfileData);
+    window.addEventListener('storage', updateProfileData);
 
     return () => {
-      window.removeEventListener('user-profile-updated', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('user-profile-updated', updateProfileData);
+      window.removeEventListener('storage', updateProfileData);
     };
-  }, []);
+  }, [updateProfileData]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -86,10 +69,11 @@ const Sidebar = ({
   };
   const handleVkAuth = () => {
     setProfileMenuVisible(false);
+    console.log("Sidebar: Отправка события на открытие модалки VK");
     window.dispatchEvent(new CustomEvent('sidebar-vk-auth'));
   }
 
-  const onTgLoginClick = (e) => {
+  const handleTgAuth = (e) => {
     if (e) e.stopPropagation();
     setProfileMenuVisible(false); // Закрываем менюшку
     console.log("Sidebar: Отправка события на открытие модалки ТГ");
@@ -220,7 +204,7 @@ const Sidebar = ({
                 </div>
                 
                 {/* Добавлен класс tg-auth-btn */}
-                <div className="profile-menu-item tg-auth-btn" onClick={onTgLoginClick}>
+                <div className="profile-menu-item tg-auth-btn" onClick={handleTgAuth}>
                   <div className="icon">
                     <img src="/tg_logo.svg" alt="Telegram" />
                   </div>

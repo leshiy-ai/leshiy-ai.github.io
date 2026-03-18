@@ -499,6 +499,7 @@ function App() {
         };
 
         window.addEventListener('vk-auth-success', handleAuthSuccess);
+        window.addEventListener('tg-auth-success', handleAuthSuccess);
         window.addEventListener('send-bot-command', handleBotCommand);
         document.addEventListener('touchstart', hTS);
         document.addEventListener('touchend', hTE);
@@ -507,6 +508,7 @@ function App() {
 
         return () => {
             window.removeEventListener('vk-auth-success', handleAuthSuccess);
+            window.removeEventListener('tg-auth-success', handleAuthSuccess);
             window.removeEventListener('send-bot-command', handleBotCommand);
             document.removeEventListener('touchstart', hTS);
             document.removeEventListener('touchend', hTE);
@@ -522,7 +524,7 @@ function App() {
         
         if (lastId && !currentChatId) {
             onSelectChat(lastId);
-        } else if (!lastId) {
+        } else if (!lastId && !currentChatId) {
             onNewChatRequest();
         }
     
@@ -1148,6 +1150,20 @@ function App() {
                 handleSend('/auth_init_vk');
             }
         };
+
+        const handleTgAuth = () => {
+            const userId = localStorage.getItem('vk_user_id');
+            if (!userId || userId === 'null') {
+                const overlay_vk = document.getElementById('vk_auth_overlay');
+                const overlay_tg = document.getElementById('tg_auth_overlay');
+                
+                // ПРЯЧЕМ ВК, ПЕРЕД ТЕМ КАК ПОКАЗАТЬ ТГ
+                if (overlay_vk) overlay_vk.style.display = 'none';
+                if (overlay_tg) overlay_tg.style.display = 'flex';
+                
+                //handleSend('/auth_init_tg');
+            }
+        };
   
         const handleAdminPanel = () => {
           setShowAdminPanel(true);
@@ -1164,12 +1180,14 @@ function App() {
     
         window.addEventListener('sidebar-storage', handleOpenStorage);
         window.addEventListener('sidebar-vk-auth', handleVkAuth);
+        window.addEventListener('sidebar-tg-auth', handleTgAuth);
         window.addEventListener('sidebar-logout', handleLogout);
         window.addEventListener('sidebar-admin-panel', handleAdminPanel);
     
         return () => {
             window.removeEventListener('sidebar-storage', handleOpenStorage);
             window.removeEventListener('sidebar-vk-auth', handleVkAuth);
+            window.removeEventListener('sidebar-tg-auth', handleTgAuth);
             window.removeEventListener('sidebar-logout', handleLogout);
             window.removeEventListener('sidebar-admin-panel', handleAdminPanel);
         };

@@ -31,6 +31,10 @@ const handleTelegramRedirect = () => {
 
       // Очищаем URL, чтобы убрать данные и избежать повторной обработки
       window.history.replaceState({}, document.title, window.location.pathname);
+
+      // БРОСАЕМ СОБЫТИЕ УСПЕХА
+      console.log("Система: TG Auth Success для ID:", userId);
+      window.dispatchEvent(new CustomEvent('tg-auth-success', { detail: String(userData.id) }));
       
       // Обновляем UI, чтобы сразу показать пользователя
       window.dispatchEvent(new CustomEvent('user-profile-updated'));
@@ -133,6 +137,15 @@ window.addEventListener('vk-auth-success', (event) => {
   window.fetchUserStatus();
 });
 
+// Слушатель для Telegram-авторизации
+window.addEventListener('tg-auth-success', (event) => {
+  // 1. Закрываем модалку
+  const overlay = document.getElementById('tg_auth_overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // 3. Шлем команду показать диски Хранилки
+  window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
+});
 
 const TelegramAuthModal = ({ onClose }) => {
   const containerRef = React.useRef(null);
@@ -222,7 +235,7 @@ window.addEventListener('sidebar-tg-auth', () => {
   const tg = window.Telegram?.WebApp;
   if (tg && tg.initData && tg.initData.length > 0) {
       const returnTo = window.location.href.split('?')[0];
-      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/tg?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+      const autoAuthUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
       window.location.href = autoAuthUrl;
       return;
   }

@@ -54,7 +54,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 type: 'menu',
                 text: '🔐 **Вход в Хранилку**\n\nДля доступа к вашим файлам необходимо авторизоваться.',
                 buttons: [
-                    { text: '🆔 Войти через VK ID', action: '/auth_init_vk' }
+                    { text: '🆔 Войти через VK ID', action: '/auth_init_vk' },
+                    { text: '🆔 Войти через Telegram', action: '/auth_init_tg' }
                 ]
             };
         }
@@ -134,8 +135,19 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     });
             });
 
-            return { type: 'text', text: '⚡️ **Окно входа открыто!**' };
+            return { type: 'text', text: '⚡️ **Окно входа ВКонтакте открыто!**' };
         }
+    }
+
+    // НОВЫЙ ОБРАБОТЧИК: Инициализация Telegram OAUth по клику
+    if (lowerQuery === '/auth_init_tg') {
+        //const overlay = document.getElementById('tg_auth_overlay');
+        //const container = document.getElementById('tg_auth_container');
+        // Генерируем событие, чтобы TelegramAuthModal в main.jsx показал модальное окно
+        window.dispatchEvent(new CustomEvent('sidebar-tg-auth'));
+        // Возврат из handleTelegramRedirect в main.jsx для выполнения команды /storage
+        //window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
+        return { type: 'text', text: '⚡️ **Окно входа в Telegram открыто!**' };
     }
 
     // АВТОРИЗАЦИЯ ОБЛАКОВ (Выбор провайдера)
