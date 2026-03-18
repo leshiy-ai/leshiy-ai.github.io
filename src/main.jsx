@@ -39,7 +39,7 @@ const handleTelegramRedirect = () => {
       // ВЫЗЫВАЕМ СИНХРОНИЗАЦИЮ СТАТУСА
       window.fetchUserStatus();
       // Обновляем UI, чтобы сразу показать пользователя
-      //window.dispatchEvent(new CustomEvent('user-profile-updated'));
+      window.dispatchEvent(new CustomEvent('user-profile-updated'));
 
     } catch (error) {
       console.error("Ошибка при обработке данных Telegram из URL:", error);
@@ -168,7 +168,8 @@ const TelegramAuthModal = ({ onClose }) => {
       queryParams.append('bot', 'gemini');
       queryParams.append('return_to', returnTo);
 
-      const verificationUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?${queryParams.toString()}`;
+      //const verificationUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?${queryParams.toString()}`;
+      const verificationUrl = `https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io`;
 
       // Вместо редиректа, делаем запрос в фоне
       fetch(verificationUrl)
