@@ -35,6 +35,8 @@ const handleTelegramRedirect = () => {
       // БРОСАЕМ СОБЫТИЕ УСПЕХА
       const userId = String(userData.id); // Сначала объявляем!
       console.log("Система: TG Auth Success для ID:", userId);
+      // Когда ТГ вернул с редиректом:
+      localStorage.setItem('auth_provider', 'Telegram');
       window.dispatchEvent(new CustomEvent('tg-auth-success', { detail: String(userData.id) }));
       // ВЫЗЫВАЕМ СИНХРОНИЗАЦИЮ СТАТУСА
       window.fetchUserStatus();
@@ -147,7 +149,8 @@ window.addEventListener('vk-auth-success', (event) => {
   }
   
   console.log("Система: Получен VK User ID:", userId);
-
+  // Когда ВК отдал данные:
+  localStorage.setItem('auth_provider', 'VK');
   localStorage.setItem('vk_user_id', String(userId));
   window.fetchUserStatus();
 });

@@ -106,6 +106,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const userId = localStorage.getItem('vk_user_id') || 'Not Set';
         const userName = localStorage.getItem('vk_user_name') || 'Guest';
         const authType = localStorage.getItem('vk_user_id') ? 'VK/TG' : 'Anonymous';
+        const authProvider = localStorage.getItem('auth_provider') || 'Anonymous';
         const debugData = {
             platform: navigator.platform,
             lastStatus: window.lastServerResponse?.status || 'Unknown' // Если ты сохраняешь ответ от get-status
@@ -116,7 +117,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     --------------------------
     🆔 **User ID:** \`${userId}\`
     👤 **User Name:** ${userName}
-    🔑 **Auth Type:** ${authType}
+    🔐 **Auth:** ${authProvider === 'Telegram' ? '🟩 Telegram' : '🟦 VKontakte'}
     🌐 **Platform:** ${debugData.platform}
     📡 **Server Status:** ${debugData.lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
