@@ -233,8 +233,8 @@ body.sidebar-collapsed #toggle-menu {
   top: 50%; /* Центрируем */
   left: 50%;
   transform: translate(-50%, -50%); /* Точная центровка */
-  width: 90%; 
-  height: 90%; 
+  width: 90vw; 
+  height: 90dvh; /* Используй dvh (Dynamic Viewport Height) */
   max-width: 800px; 
   max-height: 800px; 
   background: var(--main-bg); 
