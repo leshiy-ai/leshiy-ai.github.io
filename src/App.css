@@ -334,6 +334,24 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .storage-header { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); font-weight: bold; }
 #storage-frame { flex-grow: 1; border: none; }
 
+.storage-header .close-btn {
+    background: transparent !important; 
+    border: none !important; 
+    color: var(--sidebar-text) !important; 
+    font-size: 28px !important; 
+    cursor: pointer !important; 
+    width: 36px !important; 
+    height: 36px !important; 
+    min-width: 36px !important; 
+    display: flex !important; 
+    align-items: center !important; 
+    justify-content: center !important; 
+    border-radius: 50% !important; 
+    transition: var(--sb-transition) !important; 
+    padding: 0 !important; 
+    line-height: 1 !important;
+  }
+  
 @media (min-width: 600px) { .app-header h1 { font-size: 1.5em; } }
 .chat-window::-webkit-scrollbar { width: 8px; }
 .chat-window::-webkit-scrollbar-track { background: transparent; }
