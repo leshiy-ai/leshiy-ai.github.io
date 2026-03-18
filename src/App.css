@@ -327,6 +327,13 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .admin-modal::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
 .admin-modal::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
+
+#storage-modal { z-index: 2000; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: none; align-items: center; justify-content: center; }
+#storage-modal.active { display: flex; }
+.storage-content { background: var(--panel-bg); width: 95%; height: 90%; max-width: 1200px; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); }
+.storage-header { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); font-weight: bold; }
+#storage-frame { flex-grow: 1; border: none; }
+
 @media (min-width: 600px) { .app-header h1 { font-size: 1.5em; } }
 .chat-window::-webkit-scrollbar { width: 8px; }
 .chat-window::-webkit-scrollbar-track { background: transparent; }
