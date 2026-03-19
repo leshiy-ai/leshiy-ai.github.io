@@ -16,6 +16,7 @@ const handleVKRedirect = () => {
   
   if (vkUserId) {
       localStorage.setItem('vk_user_id', vkUserId);
+      localStorage.setItem('auth_provider', 'VK');
       // Чистим URL, чтобы при обновлении страницы не висел ID
       const newUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
