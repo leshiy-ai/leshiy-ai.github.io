@@ -56,18 +56,14 @@ const tgAppAutoAuth = async () => {
   
   // Если нет объекта ТГ, выходим без алертов (чтобы не спамить в обычном браузере)
   if (!tg || !tg.initData) return;
+  // Сразу сообщаем ТГ, что мы готовы, и разворачиваем на весь экран
+  tg.ready();
+  tg.expand();
 
-  alert("Вхожу в функцию авто-авторизации...");
-
-  const isUserLoggedIn = !!localStorage.getItem('vk_user_id');
-  if (isUserLoggedIn) {
-      alert("Юзер уже залогинен: " + localStorage.getItem('vk_user_id'));
-      return;
-  }
+  // Если ID уже в памяти, авторизация не нужна
+  if (localStorage.getItem('vk_user_id')) return;
 
   try {
-      alert("Отправляю запрос на бэкенд...");
-      
       // Формируем URL. Убедись, что CONFIG.STORAGE_GATEWAY определен!
       const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&${tg.initData}`;
 
@@ -76,20 +72,15 @@ const tgAppAutoAuth = async () => {
           headers: { 'Accept': 'application/json' }
       });
 
-      alert("Ответ от бэкенда получен. Статус: " + response.status);
-
       const data = await response.json();
 
       if (data.user_id || data.id) {
           const id = data.user_id || data.id;
           localStorage.setItem('vk_user_id', id);
-          alert("УСПЕХ! Твой новый ID: " + id);
           if (window.fetchUserStatus) window.fetchUserStatus();
-      } else {
-          alert("ОШИБКА: Бэкенд не вернул ID. Ответ: " + JSON.stringify(data));
       }
   } catch (err) {
-      alert("КРИТИЧЕСКАЯ ОШИБКА: " + err.message);
+    console.error("Silent auth failed:", err);
   }
 };
 
@@ -155,16 +146,6 @@ window.fetchUserStatus = async () => {
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
-// САМАЯ ПЕРВАЯ ПРОВЕРКА
-alert("DOM готов. Ищу Telegram...");
-
-const tg = window.Telegram?.WebApp;
-if (tg) {
-  alert("Telegram найден! initData есть: " + (tg.initData ? "ДА" : "НЕТ"));
-} else {
-  alert("Telegram НЕ найден. Это не Mini App?");
-}
-
   // Сначала проверяем, не вернулся ли пользователь с авторизации
   handleTelegramRedirect();
   
