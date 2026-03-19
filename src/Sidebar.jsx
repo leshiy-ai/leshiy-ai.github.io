@@ -203,12 +203,9 @@ const Sidebar = ({
           
           {/* Улучшенный индикатор загрузки */}
           {visibleCount < sortedChats.length && (
-            <div className="history-item-loading">
-              {isSidebarCollapsed ? (
-                <span className="icon" title={t.tooltip_load_chat}>⏳</span>
-              ) : (
-                <span>⏳ Загрузка...</span>
-              )}
+            <div className="history-item history-item-loading">
+              <span className="icon" title={t.tooltip_load_chat}>⏳</span>
+              <span className="text">{t.tooltip_load_chat}</span>
             </div>
           )}
         </div>
