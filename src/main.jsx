@@ -49,6 +49,27 @@ const handleTelegramRedirect = () => {
   }
 };
 
+// --- АВТОМАТИЧЕСКАЯ АУТЕНТИФИКАЦИЯ ДЛЯ MINI APP ---
+// Выполняется при загрузке, если мы внутри ТГ и не авторизованы
+const tgAppAutoAuth = () => {
+  const tg = window.Telegram?.WebApp;
+  if (!tg || !tg.initData) return; // Выход, если это не Mini App
+  tg.ready(); // Сообщаем ТГ, что приложение готово
+  const isUserLoggedIn = !!localStorage.getItem('vk_user_id');
+  const hasRedirectData = new URLSearchParams(window.location.search).has('tg_data');
+  // Если мы в Mini App, юзер не залогинен и мы НЕ возвращаемся с редиректа,
+  // то запускаем безопасную аутентификацию.
+  if (!isUserLoggedIn && !hasRedirectData) {
+      console.log("Mini App: Обнаружен вход без авторизации. Запускаю безопасный редирект...");
+      
+      const returnTo = window.location.href.split('?')[0];
+      // Формируем URL для валидации на бэкенде
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+      
+      // Перенаправляем на бэкенд для проверки хеша
+      window.location.href = authUrl;
+  }
+};
 
 // --- ИНИЦИАЛИЗАЦИЯ REACT ---
 createRoot(document.getElementById('root')).render(
@@ -115,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Сначала проверяем, не вернулся ли пользователь с авторизации
   handleTelegramRedirect();
   
+  // Пытаемся автоматически залогинить пользователя, если это Mini App
+  tgAppAutoAuth();
+
   const currentTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
   
