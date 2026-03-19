@@ -728,7 +728,11 @@ function App() {
                 role: m.role,
                 content: m.text || m.content,
                 id: m.id,
-                attachments: [] // Добавляем вложения m.attachments
+                // Сохраняем только имена, чтобы в истории было видно, ЧТО прикрепляли
+                attachments: (m.attachments || []).map(a => ({
+                    name: a.name,
+                    type: a.type
+                }))
             }))
         };
 
@@ -893,19 +897,14 @@ function App() {
 
             const serverHasMore = res.data.hasMore;
     
-            const formattedMsgs = historyMessages.map(m => {
-                // Если контента нет, собираем имена файлов для отображения в пузыре/сайдбаре
-                const autoText = (m.attachments && m.attachments.length > 0) 
-                    ? m.attachments.map(a => a.name).join(', ') 
-                    : '';
-            
-                return {
-                    id: m.id || Date.now() + Math.random(),
-                    role: m.role,
-                    text: m.content || m.text || autoText, // Теперь пустоты не будет
-                    attachments: m.attachments || []
-                };
-            });
+            const formattedMsgs = historyMessages.map(m => ({
+                id: m.id || Date.now() + Math.random(),
+                role: m.role,
+                // Подхватываем текст (имена файлов там уже есть благодаря handleSend)
+                text: m.content || m.text,
+                // Прокидываем легкие аттачи, чтобы renderFile(f) видел объект с именем
+                attachments: m.attachments || []
+            }));
     
             if (isLoadMore) {
                 setMessages(prev => [...formattedMsgs, ...prev]);
