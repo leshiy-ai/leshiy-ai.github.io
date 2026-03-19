@@ -105,25 +105,43 @@ const vkAppAutoAuth = async () => {
   if (!bridge) return;
 
   try {
-    await bridge.send('VKWebAppInit');
+      // Инициализируем VK Bridge
+      await bridge.send('VKWebAppInit');
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has('vk_app_id')) return;
+      // Проверяем, есть ли параметры ВК в URL (признак, что мы внутри ВК)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has('vk_app_id')) return; // Мы не в ВК
 
-    // Если уже залогинены ИЛИ мы только что вернулись с ID в URL — стопаем, чтобы не было петли
-    if (localStorage.getItem('vk_user_id') || urlParams.has('vk_user_id')) return;
+      // Если уже залогинены в приложении — выходим
+      if (localStorage.getItem('vk_user_id')) return;
 
-    console.log("VK Mini App: Редирект на авторизацию...");
+      console.log("VK Mini App: Запуск фоновой авторизации...");
 
-    // Используем существующий конфиг. 
-    // window.location.search уже содержит "?", поэтому просто приклеиваем
-    const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/vk/callback${window.location.search}`;
+      // Отправляем все параметры запроса на бэкенд для проверки подписи (sign)
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/vk/callback?${window.location.search}`;
 
-    // Переходим. Бэкенд сделает свою магию и вернет нас с vk_user_id
-    window.location.replace(authUrl);
+      const response = await fetch(authUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+      });
 
+      if (response.ok) {
+          const data = await response.json();
+          const id = data.user_id || data.id;
+          
+          if (id) {
+              localStorage.setItem('vk_user_id', id);
+              console.log("VK Auth Success! ID:", id);
+              
+              // Скрываем модалку, если она была
+              const authOverlay = document.querySelector('.tg-auth-modal-overlay');
+              if (authOverlay) authOverlay.style.display = 'none';
+
+              if (window.fetchUserStatus) window.fetchUserStatus();
+          }
+      }
   } catch (err) {
-    console.error("VK Auth Error:", err);
+      console.error("VK Auth Error:", err);
   }
 };
 
