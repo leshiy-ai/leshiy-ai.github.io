@@ -197,9 +197,32 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 <div className="message-content">
                     <div className="user-name">{name}</div>
                     <div className="message-body">
-                        {message.attachments && <div className="attachments-grid">{message.attachments.map((f, i) => renderFile(f, i))}</div>}
-                        {textToRender ? <ReactMarkdown>{textToRender}</ReactMarkdown> : <p className="media-msg-label">Медиафайл</p>}
-                        {message.buttons && <div className="message-buttons">{message.buttons.map((btn, idx) => <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">{btn.text}</button>)}</div>}
+                        {/* Сначала рендерим вложения, если они есть */}
+                        {message.attachments && message.attachments.length > 0 && (
+                            <div className="attachments-grid">
+                                {message.attachments.map((f, i) => renderFile(f, i))}
+                            </div>
+                        )}
+
+                        {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
+                        {textToRender ? (
+                            <ReactMarkdown>{textToRender}</ReactMarkdown>
+                        ) : (
+                            (!message.attachments || message.attachments.length === 0) && (
+                                <p className="media-msg-label">Медиафайл</p>
+                            )
+                        )}
+
+                        {/* Кнопки действий */}
+                        {message.buttons && (
+                            <div className="message-buttons">
+                                {message.buttons.map((btn, idx) => (
+                                    <button key={idx} onClick={() => onAction(btn.action)} className="menu-btn">
+                                        {btn.text}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
                 {!isUser && textToRender && (
@@ -701,11 +724,11 @@ function App() {
         const payload = {
             userId: String(currentUserId),
             chatId: chatId,
-            // ИСПРАВЛЕНИЕ: Убеждаемся, что сохраняем текстовое содержимое независимо от формата
             messages: currentMessages.map(m => ({
                 role: m.role,
-                content: m.text || m.content, // <--- ГЛАВНЫЙ ФИКС
-                id: m.id
+                content: m.text || m.content,
+                id: m.id,
+                attachments: m.attachments || [] // Добавляем вложения
             }))
         };
 
@@ -749,26 +772,23 @@ function App() {
 
 
     const handleSend = useCallback(async (text) => {
-        const userMessageText = (typeof text === 'string' ? text : input).trim();
+        let userMessageText = (typeof text === 'string' ? text : input).trim();
+        const currentFiles = [...files];
 
-        if (userMessageText.toLowerCase() === '/admin') {
-            setShowAdminPanel(true);
-            setInput('');
-            return;
+        if (!userMessageText && currentFiles.length > 0) {
+            userMessageText = currentFiles.map(f => f.file.name).join(', ');
         }
 
-        if (!userMessageText && files.length === 0) return;
+        if (!userMessageText && currentFiles.length === 0) return;
 
         let chatId = currentChatId;
         if (!chatId) {
             chatId = `chat_${Date.now()}`;
             setCurrentChatId(chatId);
             localStorage.setItem('last_chat_id', chatId);
-            // Создаем новый чат в списке сразу
             setChatList(prev => [{ id: chatId, title: "Новый чат", lastUpdate: Date.now() }, ...prev]);
         }
 
-        const currentFiles = [...files];
         const userMsg = {
             id: Date.now(),
             role: 'user',
@@ -776,6 +796,7 @@ function App() {
             attachments: currentFiles.map(f => ({ 
                 preview: f.preview, 
                 name: f.file.name, 
+                url: f.url,
                 type: f.file.type 
             }))
         };
@@ -820,11 +841,11 @@ function App() {
             handleHistorySync(chatId, updatedMessages);
 
         } catch (err) {
-            console.error("Ошибка связи с Лешим:", err);
+            console.error("Ошибка связи с askLeshiy:", err);
             setMessages(prev => [...prev, {
                 id: Date.now(),
                 role: 'ai error',
-                text: 'Произошла ошибка при обращении к лешему.'
+                text: 'Произошла ошибка при обращении к ИИ.'
             }]);
         } finally {
             setIsLoading(false);
@@ -872,11 +893,19 @@ function App() {
 
             const serverHasMore = res.data.hasMore;
     
-            const formattedMsgs = historyMessages.map(m => ({
-                id: m.id || Date.now() + Math.random(),
-                role: m.role,
-                text: m.content || m.text // Тут уже было исправлено, оставляем как есть
-            }));
+            const formattedMsgs = historyMessages.map(m => {
+                // Если контента нет, собираем имена файлов для отображения в пузыре/сайдбаре
+                const autoText = (m.attachments && m.attachments.length > 0) 
+                    ? m.attachments.map(a => a.name).join(', ') 
+                    : '';
+            
+                return {
+                    id: m.id || Date.now() + Math.random(),
+                    role: m.role,
+                    text: m.content || m.text || autoText, // Теперь пустоты не будет
+                    attachments: m.attachments || []
+                };
+            });
     
             if (isLoadMore) {
                 setMessages(prev => [...formattedMsgs, ...prev]);
