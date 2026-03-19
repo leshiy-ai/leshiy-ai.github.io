@@ -107,8 +107,8 @@ const Sidebar = ({
   // Обработчик скролла для подгрузки чатов
   const handleScroll = (e) => {
       const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-      // Если до низа осталось меньше 50px и есть еще что загружать
-      if (scrollHeight - scrollTop < clientHeight + 50 && visibleCount < chatList.length) {
+      // Проверяем, что пользователь прокрутил почти до конца и есть что загружать
+      if (scrollHeight - scrollTop - clientHeight < 50 && visibleCount < chatList.length) {
           setVisibleCount(prevCount => prevCount + CHATS_PER_PAGE);
       }
   };
@@ -144,7 +144,8 @@ const Sidebar = ({
           </div>
         )}
 
-        <div className="sidebar-history" onScroll={handleScroll}>
+        {/* Контейнер чатов теперь имеет собственный скролл */}
+        <div className="sidebar-history" onScroll={handleScroll} style={{ overflowY: 'auto' }}>
           {sortedChats && sortedChats.length > 0 ? (
             sortedChats.slice(0, visibleCount).map((chat) => (
               <div 
@@ -200,10 +201,15 @@ const Sidebar = ({
           ) : (
             !collapsed && <div className="history-empty"></div>
           )}
-          {/* Индикатор загрузки, если есть что еще показать */}
-          {!collapsed && visibleCount < sortedChats.length && (
+          
+          {/* Улучшенный индикатор загрузки */}
+          {visibleCount < sortedChats.length && (
             <div className="history-item-loading">
-                <span>Загрузка...</span>
+              {!collapsed ? (
+                <span>⏳ Загрузка...</span>
+              ) : (
+                <span className="icon" title="Загрузка...">⏳</span>
+              )}
             </div>
           )}
         </div>
