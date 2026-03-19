@@ -54,22 +54,21 @@ const handleTelegramRedirect = () => {
 const tgAppAutoAuth = async () => {
   const tg = window.Telegram?.WebApp;
   
-  // 1. Проверка: мы вообще в Телеграме?
-  if (!tg || !tg.initData) {
-      console.log("Это не Mini App или initData пуст");
+  // Если нет объекта ТГ, выходим без алертов (чтобы не спамить в обычном браузере)
+  if (!tg || !tg.initData) return;
+
+  alert("Вхожу в функцию авто-авторизации...");
+
+  const isUserLoggedIn = !!localStorage.getItem('vk_user_id');
+  if (isUserLoggedIn) {
+      alert("Юзер уже залогинен: " + localStorage.getItem('vk_user_id'));
       return;
   }
 
-  tg.ready();
-
-  // 2. Если уже залогинены — ничего не делаем
-  if (localStorage.getItem('vk_user_id')) return;
-
   try {
-      console.log("Попытка авто-входа...");
+      alert("Отправляю запрос на бэкенд...");
       
-      // ВНИМАНИЕ: Отправляем initData как query-параметры, 
-      // так как твой бэкенд-callback скорее всего ждет GET запрос
+      // Формируем URL. Убедись, что CONFIG.STORAGE_GATEWAY определен!
       const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&${tg.initData}`;
 
       const response = await fetch(authUrl, {
@@ -77,23 +76,20 @@ const tgAppAutoAuth = async () => {
           headers: { 'Accept': 'application/json' }
       });
 
-      if (!response.ok) throw new Error(`Ошибка сети: ${response.status}`);
+      alert("Ответ от бэкенда получен. Статус: " + response.status);
 
       const data = await response.json();
 
       if (data.user_id || data.id) {
           const id = data.user_id || data.id;
           localStorage.setItem('vk_user_id', id);
-          console.log("Успешный вход, ID:", id);
-          // Перезагружаем статус, чтобы подтянулись данные
+          alert("УСПЕХ! Твой новый ID: " + id);
           if (window.fetchUserStatus) window.fetchUserStatus();
       } else {
-          console.error("Бэкенд не вернул ID пользователя", data);
+          alert("ОШИБКА: Бэкенд не вернул ID. Ответ: " + JSON.stringify(data));
       }
   } catch (err) {
-      console.error("Критическая ошибка авто-входа:", err);
-      // Если хочешь видеть ошибку прямо в приложении:
-      alert("Ошибка входа: " + err.message); 
+      alert("КРИТИЧЕСКАЯ ОШИБКА: " + err.message);
   }
 };
 
@@ -159,6 +155,16 @@ window.fetchUserStatus = async () => {
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
+// САМАЯ ПЕРВАЯ ПРОВЕРКА
+alert("DOM готов. Ищу Telegram...");
+
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  alert("Telegram найден! initData есть: " + (tg.initData ? "ДА" : "НЕТ"));
+} else {
+  alert("Telegram НЕ найден. Это не Mini App?");
+}
+
   // Сначала проверяем, не вернулся ли пользователь с авторизации
   handleTelegramRedirect();
   
