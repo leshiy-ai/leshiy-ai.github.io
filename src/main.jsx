@@ -92,6 +92,7 @@ const tgAppAutoAuth = async () => {
       if (data.user_id || data.id) {
           const id = data.user_id || data.id;
           localStorage.setItem('vk_user_id', id);
+          localStorage.setItem('auth_provider', 'Telegram');
           if (window.fetchUserStatus) window.fetchUserStatus();
       }
   } catch (err) {
@@ -132,6 +133,7 @@ const vkAppAutoAuth = async () => {
   
         if (idFromUrl) {
           localStorage.setItem('vk_user_id', idFromUrl);
+          localStorage.setItem('auth_provider', 'VK');
           console.log("VK Auth Success (from URL)! ID:", idFromUrl);
         } else {
           // 2. Если в URL нет ID, пробуем парсить как JSON (на случай, если бэкенд отдал JSON)

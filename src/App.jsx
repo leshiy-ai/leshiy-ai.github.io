@@ -166,8 +166,25 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const showAvatar = !isUser || (isUser && !!userPhoto);
     const name = isUser ? userName : 'Leshiy-AI';
 
-    const handleCopy = () => {
+    const handleCopy = async () => {
         if (!textToRender) return;
+        // 1. Проверяем, запущены ли мы в ВК (через наличие моста или параметров)
+    const isVK = !!window.vkBridge || window.location.search.includes('vk_app_id');
+
+    if (isVK && window.vkBridge) {
+        try {
+            await window.vkBridge.send('VKWebAppCopyText', { text: textToRender });
+            // Если ВК подтвердил копирование, ставим галочку
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+            return; // Выходим, так как ВК всё сделал
+        } catch (err) {
+            console.error('VK Copy Error:', err);
+            // Если в ВК что-то пошло не так, пробуем стандартный метод ниже
+        }
+    }
+
+    // 2. Стандартный метод (для браузера и Telegram)
         navigator.clipboard.writeText(textToRender).then(() => {
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
