@@ -51,37 +51,35 @@ const handleTelegramRedirect = () => {
 
 // --- АВТОМАТИЧЕСКАЯ АУТЕНТИФИКАЦИЯ ДЛЯ MINI APP ---
 // Выполняется при загрузке, если мы внутри ТГ и не авторизованы
-const tgAppAutoAuth = () => {
+const tgAppAutoAuth = async () => {
   const tg = window.Telegram?.WebApp;
-  
-  // 1. Сразу говорим ТГ, что мы живы, чтобы не было фризов
-  if (tg) tg.ready(); 
-
-  // Выход, если мы не в Mini App или данных инициализации нет
-  if (!tg || !tg.initData) return; 
+  if (!tg || !tg.initData) return;
 
   const isUserLoggedIn = !!localStorage.getItem('vk_user_id');
-  const urlParams = new URLSearchParams(window.location.search);
-  const hasRedirectData = urlParams.has('tg_data');
+  if (isUserLoggedIn) return;
 
-  if (!isUserLoggedIn && !hasRedirectData) {
-      console.log("Mini App: Запуск авторизации...");
-      
-      const returnTo = 'https://leshiy-ai.github.io';
-      
-      // Формируем параметры. 
-      // Важно: tg.initData передаем как отдельный параметр, чтобы бэкенд его распарсил
-      const params = new URLSearchParams({
-          bot: 'gemini',
-          return_to: returnTo,
-          // Передаем всю строку initData
-          init_data: tg.initData 
-      });
+  console.log("Mini App: Тихая авторизация...");
 
-      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?${params.toString()}`;
-      
-      // Редирект
-      window.location.replace(authUrl); // replace лучше, чтобы не забивать историю назад
+  try {
+    // Отправляем данные инициализации прямо на твой callback
+    const response = await fetch(`${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback`, {
+      method: 'POST', // Или GET, как настроен бэкенд
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        init_data: tg.initData,
+        bot: 'gemini'
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.user_id) {
+      localStorage.setItem('vk_user_id', data.user_id);
+      console.log("Авторизация успешна!");
+      window.fetchUserStatus(); // Обновляем статус пользователя
+    }
+  } catch (err) {
+    console.error("Ошибка авто-авторизации:", err);
   }
 };
 
