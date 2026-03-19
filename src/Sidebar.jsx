@@ -19,6 +19,10 @@ const Sidebar = ({
   const profileRef = useRef(null);
   const collapsed = isSidebarCollapsed;
 
+  // Состояние для "бесконечной" прокрутки
+  const [visibleCount, setVisibleCount] = useState(12);
+  const CHATS_PER_PAGE = 12;
+
   const updateProfileData = useCallback(() => {
     const id = localStorage.getItem('vk_user_id');
     const name = localStorage.getItem('vk_user_name');
@@ -60,6 +64,11 @@ const Sidebar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [profileRef]);
 
+  // Сбрасываем счетчик при изменении списка чатов (например, при поиске или удалении)
+  useEffect(() => {
+    setVisibleCount(CHATS_PER_PAGE);
+  }, [chatList]);
+
   const handleNewChat = () => window.dispatchEvent(new CustomEvent('sidebar-new-chat'));
   const handleStorage = () => window.dispatchEvent(new CustomEvent('sidebar-storage'));
   const handleAdminPanel = () => window.dispatchEvent(new CustomEvent('sidebar-admin-panel'));
@@ -95,6 +104,15 @@ const Sidebar = ({
     }
   };
 
+  // Обработчик скролла для подгрузки чатов
+  const handleScroll = (e) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+      // Если до низа осталось меньше 50px и есть еще что загружать
+      if (scrollHeight - scrollTop < clientHeight + 50 && visibleCount < chatList.length) {
+          setVisibleCount(prevCount => prevCount + CHATS_PER_PAGE);
+      }
+  };
+
   const sortedChats = [...chatList].sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
 
   return (
@@ -126,9 +144,9 @@ const Sidebar = ({
           </div>
         )}
 
-        <div className="sidebar-history">
+        <div className="sidebar-history" onScroll={handleScroll}>
           {sortedChats && sortedChats.length > 0 ? (
-            sortedChats.map((chat) => (
+            sortedChats.slice(0, visibleCount).map((chat) => (
               <div 
                 key={chat.id} 
                 className={`history-item ${currentChatId === chat.id ? 'active' : ''}`}
@@ -182,6 +200,12 @@ const Sidebar = ({
           ) : (
             !collapsed && <div className="history-empty"></div>
           )}
+          {/* Индикатор загрузки, если есть что еще показать */}
+          {!collapsed && visibleCount < sortedChats.length && (
+            <div className="history-item-loading">
+                <span>Загрузка...</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -195,7 +219,6 @@ const Sidebar = ({
               </div>
             ) : (
               <>
-                {/* Добавлен класс vk-auth-btn */}
                 <div className="profile-menu-item vk-auth-btn" onClick={handleVkAuth}>
                   <div className="icon">
                     <img src="/vk_logo.svg" alt="VK" />
@@ -203,7 +226,6 @@ const Sidebar = ({
                   <span className="text">Войти через VK</span>
                 </div>
                 
-                {/* Добавлен класс tg-auth-btn */}
                 <div className="profile-menu-item tg-auth-btn" onClick={handleTgAuth}>
                   <div className="icon">
                     <img src="/tg_logo.svg" alt="Telegram" />
