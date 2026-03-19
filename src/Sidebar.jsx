@@ -106,8 +106,8 @@ const Sidebar = ({
   // Обработчик скролла для подгрузки чатов
   const handleScroll = (e) => {
       const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-      // Если до низа осталось меньше 50px и есть еще что загружать
-      if (scrollHeight - scrollTop - clientHeight < 50 && visibleCount < chatList.length) {
+      // Если до низа осталось меньше 20px и есть еще что загружать
+      if (scrollHeight - scrollTop - clientHeight < 20 && visibleCount < chatList.length) {
           setVisibleCount(prevCount => prevCount + CHATS_PER_PAGE);
       }
   };
