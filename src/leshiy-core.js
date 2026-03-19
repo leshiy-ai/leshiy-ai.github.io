@@ -626,7 +626,19 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 currentUserParts.push({ text: prompt });
 
                 files.forEach(f => {
-                    if (f.base64) currentUserParts.push({ inlineData: { mimeType: f.mimeType, data: f.base64 } });
+                    if (f.base64) {
+                        // Убираем префикс "data:*/*;base64,", если он есть
+                        const cleanBase64 = f.base64.includes(',') 
+                            ? f.base64.split(',')[1] 
+                            : f.base64;
+                
+                        currentUserParts.push({ 
+                            inlineData: { 
+                                mimeType: f.mimeType || 'image/jpeg', // Gemini просит MIME
+                                data: cleanBase64 
+                            } 
+                        });
+                    }
                 });
 
                 const contents = [...geminiHistory, { role: 'user', parts: currentUserParts }];
@@ -647,10 +659,10 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     body = await firstFileData.file.arrayBuffer();
                     isRawBody = true;
                 } else if (serviceType.includes('IMAGE')) {
-                    const byteString = atob(firstFileData.base64);
+                    const byteString = atob(firstFileData.base64.split(',')[1] || firstFileData.base64);
                     const byteArray = new Uint8Array(byteString.length);
                     for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
-                    body = { image: Array.from(byteArray), prompt: text || "Опиши изображение" };
+                    body = { image: Array.from(byteArray), prompt: text || "Describe this image" };
                 } else {
                     const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
 

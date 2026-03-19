@@ -139,19 +139,21 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const renderFile = (file, i) => {
         const type = file.type || '';
         const name = file.name || '';
-        const isImg = type.startsWith('image/') || (file.preview && !type);
+        const isImg = type.startsWith('image/') || (file.preview && !type) && file.preview;
         const isVid = type.startsWith('video/');
         const isAud = type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.ogg') || name.endsWith('.wav');
         const isZip = name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z');
         const isDoc = name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf') || name.endsWith('.xls') || name.endsWith('.xlsx');
 
-        if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" />;
+        // Рисуем img только если есть живое превью
+        if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
         
         let icon = '📎'; let label = 'ФАЙЛ';
         if (isVid) { icon = '🎬'; label = 'ВИДЕО'; }
         else if (isAud) { icon = '🎵'; label = 'АУДИО'; }
         else if (isZip) { icon = '📦'; label = 'АРХИВ'; }
         else if (isDoc) { icon = '📄'; label = 'ДОК'; }
+        else if (type.startsWith('image/')) { icon = '🖼️'; label = 'ФОТО'; } // Фото из истории
 
         return (
             <div key={i} className={`file-badge ${label.toLowerCase()}`}>
