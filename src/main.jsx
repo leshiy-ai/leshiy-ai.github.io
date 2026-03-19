@@ -93,7 +93,7 @@ const tgAppAutoAuth = async () => {
   } catch (err) {
       console.error("Критическая ошибка авто-входа:", err);
       // Если хочешь видеть ошибку прямо в приложении:
-      // alert("Ошибка входа: " + err.message); 
+      alert("Ошибка входа: " + err.message); 
   }
 };
 
