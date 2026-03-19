@@ -77,7 +77,12 @@ const tgAppAutoAuth = async () => {
   tg.expand();
 
   // Если ID уже в памяти, авторизация не нужна
-  if (localStorage.getItem('vk_user_id')) return;
+  if (localStorage.getItem('vk_user_id')) {
+    if (!localStorage.getItem('auth_provider')) {
+        localStorage.setItem('auth_provider', 'Telegram');
+    }
+    return; 
+}
 
   try {
       // Формируем URL. Убедись, что CONFIG.STORAGE_GATEWAY определен!
