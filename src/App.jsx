@@ -728,7 +728,7 @@ function App() {
                 role: m.role,
                 content: m.text || m.content,
                 id: m.id,
-                attachments: m.attachments || [] // Добавляем вложения
+                attachments: [] // Добавляем вложения m.attachments
             }))
         };
 
