@@ -139,7 +139,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const renderFile = (file, i) => {
         const type = file.type || '';
         const name = file.name || '';
-        const isImg = type.startsWith('image/') || (file.preview && !type) && file.preview;
+        const isImg = (type.startsWith('image/') || (file.preview && !type)) && file.preview;
         const isVid = type.startsWith('video/');
         const isAud = type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.ogg') || name.endsWith('.wav');
         const isZip = name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z');
