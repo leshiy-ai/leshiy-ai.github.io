@@ -168,19 +168,18 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
     const handleCopy = () => {
         if (!textToRender) return;
-        // Дорисовываем поддержку ВК
-        const isVK = !!window.vkBridge || window.location.search.includes('vk_app_id');
-        
-        if (isVK && window.vkBridge) {
+    
+        // Поддержка ВК Мини Апп
+        if (window.vkBridge && window.location.search.includes('vk_app_id')) {
             window.vkBridge.send('VKWebAppCopyText', { text: textToRender })
                 .then(() => {
                     setIsCopied(true);
                     setTimeout(() => setIsCopied(false), 2000);
-                })
-                .catch(err => console.error('VK Copy Error:', err));
-            return; // Выходим, чтобы не запускать стандартный метод
+                });
+            return; 
         }
-        
+    
+        // Твой оригинальный код без изменений
         navigator.clipboard.writeText(textToRender).then(() => {
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
