@@ -7,8 +7,23 @@ import { CONFIG } from './config';
 import React from 'react';
 let modalRoot = null;
 
-// --- ОБРАБОТЧИК РЕДИРЕКТА TELEGRAM ---
-// Выполняется один раз при загрузке страницы
+// --- ОБРАБОТЧИКИ РЕДИРЕКТА 
+
+// --- Возврат из ВК --- Выполняется один раз при загрузке страницы
+const handleVKRedirect = () => {
+  const params = new URLSearchParams(window.location.search);
+  const vkUserId = params.get('vk_user_id');
+  
+  if (vkUserId) {
+      localStorage.setItem('vk_user_id', vkUserId);
+      // Чистим URL, чтобы при обновлении страницы не висел ID
+      const newUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      console.log("VK ID сохранен из редиректа:", vkUserId);
+  }
+};
+
+// --- Возврат из TELEGRAM --- Выполняется один раз при загрузке страницы
 const handleTelegramRedirect = () => {
   const params = new URLSearchParams(window.location.search);
   const tgData = params.get('tg_data');
@@ -49,7 +64,7 @@ const handleTelegramRedirect = () => {
   }
 };
 
-// --- АВТОМАТИЧЕСКАЯ АУТЕНТИФИКАЦИЯ ДЛЯ MINI APP ---
+// --- АВТОМАТИЧЕСКАЯ АУТЕНТИФИКАЦИЯ ДЛЯ TELEGRAM APP ---
 // Выполняется при загрузке, если мы внутри ТГ и не авторизованы
 const tgAppAutoAuth = async () => {
   const tg = window.Telegram?.WebApp;
@@ -81,6 +96,52 @@ const tgAppAutoAuth = async () => {
       }
   } catch (err) {
     console.error("Silent auth failed:", err);
+  }
+};
+
+// --- АВТОМАТИЧЕСКАЯ АУТЕНТИФИКАЦИЯ ДЛЯ VK MINI APP ---
+const vkAppAutoAuth = async () => {
+  const bridge = window.vkBridge;
+  if (!bridge) return;
+
+  try {
+      // Инициализируем VK Bridge
+      await bridge.send('VKWebAppInit');
+
+      // Проверяем, есть ли параметры ВК в URL (признак, что мы внутри ВК)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (!urlParams.has('vk_app_id')) return; // Мы не в ВК
+
+      // Если уже залогинены в приложении — выходим
+      if (localStorage.getItem('vk_user_id')) return;
+
+      console.log("VK Mini App: Запуск фоновой авторизации...");
+
+      // Отправляем все параметры запроса на бэкенд для проверки подписи (sign)
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/vk/callback?${window.location.search}`;
+
+      const response = await fetch(authUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+      });
+
+      if (response.ok) {
+          const data = await response.json();
+          const id = data.user_id || data.id;
+          
+          if (id) {
+              localStorage.setItem('vk_user_id', id);
+              console.log("VK Auth Success! ID:", id);
+              
+              // Скрываем модалку, если она была
+              const authOverlay = document.querySelector('.tg-auth-modal-overlay');
+              if (authOverlay) authOverlay.style.display = 'none';
+
+              if (window.fetchUserStatus) window.fetchUserStatus();
+          }
+      }
+  } catch (err) {
+      console.error("VK Auth Error:", err);
   }
 };
 
@@ -150,7 +211,14 @@ document.addEventListener('DOMContentLoaded', () => {
   handleTelegramRedirect();
   
   // Пытаемся автоматически залогинить пользователя, если это Mini App
-  tgAppAutoAuth();
+  // Проверка для Телеграм
+  if (window.Telegram?.WebApp?.initData) {
+    tgAppAutoAuth();
+  } 
+  // Проверка для ВК (ищем vk_app_id в URL)
+  else if (window.location.search.includes('vk_app_id')) {
+      vkAppAutoAuth();
+  }
 
   const currentTheme = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
