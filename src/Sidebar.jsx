@@ -136,7 +136,7 @@ const Sidebar = ({
             </div>
           )}
         </div>
-        <div className="sidebar-history-container" onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="sidebar-history-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {!isSidebarCollapsed && (
           <div className="history-section-header">
             <span className="text">💬 Чаты</span>
@@ -144,7 +144,7 @@ const Sidebar = ({
         )}
 
         {/* Контейнер чатов теперь имеет собственный скролл */}
-        <div className="sidebar-history" >
+        <div className="sidebar-history" onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto' }}>
           {sortedChats && sortedChats.length > 0 ? (
             sortedChats.slice(0, visibleCount).map((chat) => (
               <div 
