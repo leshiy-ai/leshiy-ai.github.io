@@ -17,7 +17,6 @@ const Sidebar = ({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(localStorage.getItem('isAdmin') === 'true');
   const profileRef = useRef(null);
-  const collapsed = isSidebarCollapsed;
 
   // Состояние для "бесконечной" прокрутки
   const [visibleCount, setVisibleCount] = useState(12);
@@ -107,7 +106,7 @@ const Sidebar = ({
   // Обработчик скролла для подгрузки чатов
   const handleScroll = (e) => {
       const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-      // Проверяем, что пользователь прокрутил почти до конца и есть что загружать
+      // Если до низа осталось меньше 50px и есть еще что загружать
       if (scrollHeight - scrollTop - clientHeight < 50 && visibleCount < chatList.length) {
           setVisibleCount(prevCount => prevCount + CHATS_PER_PAGE);
       }
@@ -137,15 +136,15 @@ const Sidebar = ({
             </div>
           )}
         </div>
-        <div className="sidebar-history-container">
-        {!collapsed && (
+        <div className="sidebar-history-container" onScroll={handleScroll} style={{ flex: 1, overflowY: 'auto' }}>
+        {!isSidebarCollapsed && (
           <div className="history-section-header">
             <span className="text">💬 Чаты</span>
           </div>
         )}
 
         {/* Контейнер чатов теперь имеет собственный скролл */}
-        <div className="sidebar-history" onScroll={handleScroll} style={{ overflowY: 'auto' }}>
+        <div className="sidebar-history" >
           {sortedChats && sortedChats.length > 0 ? (
             sortedChats.slice(0, visibleCount).map((chat) => (
               <div 
@@ -156,7 +155,7 @@ const Sidebar = ({
               >
                 <div className="icon">💭</div>
 
-                {!collapsed && (
+                {!isSidebarCollapsed && (
                   <>
                     <div className="history-text">
                       <span className="chat-title">{chat.title}</span>
@@ -199,16 +198,16 @@ const Sidebar = ({
               </div>
             ))
           ) : (
-            !collapsed && <div className="history-empty"></div>
+            !isSidebarCollapsed && <div className="history-empty"></div>
           )}
           
           {/* Улучшенный индикатор загрузки */}
           {visibleCount < sortedChats.length && (
             <div className="history-item-loading">
-              {!collapsed ? (
-                <span>⏳ Загрузка...</span>
+              {isSidebarCollapsed ? (
+                <span className="icon" title={t.tooltip_load_chat}>⏳</span>
               ) : (
-                <span className="icon" title="Загрузка...">⏳</span>
+                <span>⏳ Загрузка...</span>
               )}
             </div>
           )}

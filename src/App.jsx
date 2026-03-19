@@ -49,6 +49,7 @@ const TRANSLATIONS = {
         tooltip_delete_chat: "Удалить чат",
         tooltip_auto_rename: "Автоматически переименовать чат",
         tooltip_copy_text: "Копировать текст",
+        tooltip_load_chat: "Загрузка...",
     },
     en: {
         title: 'Leshiy-AI',
@@ -83,6 +84,7 @@ const TRANSLATIONS = {
         tooltip_delete_chat: "Delete chat",
         tooltip_auto_rename: "Automatically rename chat",
         tooltip_copy_text: "Copy text",
+        tooltip_load_chat: "Loading...",
     }
 };
 
