@@ -317,6 +317,7 @@ function App() {
     const textCaseModeRef = useRef(textCaseMode);
 
     const t = useMemo(() => TRANSLATIONS[language], [language]);
+    const isVK = useMemo(() => window.location.search.includes('vk_app_id'), []);
 
     const punctuationMap = useMemo(() => ({
         'тчк': '.', 'точка': '.', 'зпт': ',', 'запятая': ',', 'точка с запятой': ';',
@@ -1566,6 +1567,8 @@ function App() {
             isLoggedIn={isLoggedIn}
             userPhoto={userPhoto}
             isAdmin={isAdmin}
+            isVK={isVK}
+            fetchChats={fetchChats}
             />,
             document.getElementById('sidebar')
           )}

@@ -7,7 +7,9 @@ const Sidebar = ({
   onSelectChat, 
   onDeleteChat, 
   onRenameChat,
-  onAutoRenameChat
+  onAutoRenameChat,
+  isVK,
+  fetchChats
 }) => {
 
   const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
@@ -198,12 +200,18 @@ const Sidebar = ({
               </div>
             ))
           ) : (
-            !isSidebarCollapsed && <div className="history-empty"></div>
+            /* Если список пуст и это ВК — показываем кнопку инициации загрузки */
+            isVK && !isSidebarCollapsed && (
+              <div className="history-item history-item-loading" onClick={fetchChats} style={{cursor: 'pointer'}}>
+                <span className="icon" title={t.tooltip_load_chat}>⏳</span>
+                <span className="text">{t.tooltip_load_chat}</span>
+              </div>
+            )
           )}
           
           {/* Улучшенный индикатор загрузки */}
-          {visibleCount < sortedChats.length && (
-            <div className="history-item history-item-loading">
+          {sortedChats.length > 0 && visibleCount < sortedChats.length && (
+            <div className="history-item history-item-loading" onClick={() => setVisibleCount(prev => prev + CHATS_PER_PAGE)}>
               <span className="icon" title={t.tooltip_load_chat}>⏳</span>
               <span className="text">{t.tooltip_load_chat}</span>
             </div>
