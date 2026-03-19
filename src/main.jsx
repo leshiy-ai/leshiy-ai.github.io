@@ -53,21 +53,35 @@ const handleTelegramRedirect = () => {
 // Выполняется при загрузке, если мы внутри ТГ и не авторизованы
 const tgAppAutoAuth = () => {
   const tg = window.Telegram?.WebApp;
-  if (!tg || !tg.initData) return; // Выход, если это не Mini App
-  tg.ready(); // Сообщаем ТГ, что приложение готово
+  
+  // 1. Сразу говорим ТГ, что мы живы, чтобы не было фризов
+  if (tg) tg.ready(); 
+
+  // Выход, если мы не в Mini App или данных инициализации нет
+  if (!tg || !tg.initData) return; 
+
   const isUserLoggedIn = !!localStorage.getItem('vk_user_id');
-  const hasRedirectData = new URLSearchParams(window.location.search).has('tg_data');
-  // Если мы в Mini App, юзер не залогинен и мы НЕ возвращаемся с редиректа,
-  // то запускаем безопасную аутентификацию.
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasRedirectData = urlParams.has('tg_data');
+
   if (!isUserLoggedIn && !hasRedirectData) {
-      console.log("Mini App: Обнаружен вход без авторизации. Запускаю безопасный редирект...");
+      console.log("Mini App: Запуск авторизации...");
       
-      const returnTo = window.location.href.split('?')[0];
-      // Формируем URL для валидации на бэкенде
-      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+      const returnTo = 'https://leshiy-ai.github.io';
       
-      // Перенаправляем на бэкенд для проверки хеша
-      window.location.href = authUrl;
+      // Формируем параметры. 
+      // Важно: tg.initData передаем как отдельный параметр, чтобы бэкенд его распарсил
+      const params = new URLSearchParams({
+          bot: 'gemini',
+          return_to: returnTo,
+          // Передаем всю строку initData
+          init_data: tg.initData 
+      });
+
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?${params.toString()}`;
+      
+      // Редирект
+      window.location.replace(authUrl); // replace лучше, чтобы не забивать историю назад
   }
 };
 
