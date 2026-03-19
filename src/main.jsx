@@ -126,23 +126,37 @@ const vkAppAutoAuth = async () => {
       });
 
       if (response.ok) {
-          const data = await response.json();
-          const id = data.user_id || data.id;
-          
-          if (id) {
+        // 1. Проверяем URL, на который нас в итоге привел fetch после всех редиректов
+        const finalUrl = new URL(response.url);
+        const idFromUrl = finalUrl.searchParams.get('vk_user_id');
+  
+        if (idFromUrl) {
+          localStorage.setItem('vk_user_id', idFromUrl);
+          console.log("VK Auth Success (from URL)! ID:", idFromUrl);
+        } else {
+          // 2. Если в URL нет ID, пробуем парсить как JSON (на случай, если бэкенд отдал JSON)
+          try {
+            const data = await response.json();
+            const id = data.user_id || data.id || data.vk_user_id;
+            if (id) {
               localStorage.setItem('vk_user_id', id);
-              console.log("VK Auth Success! ID:", id);
-              
-              // Скрываем модалку, если она была
-              const authOverlay = document.querySelector('.tg-auth-modal-overlay');
-              if (authOverlay) authOverlay.style.display = 'none';
-
-              if (window.fetchUserStatus) window.fetchUserStatus();
+              console.log("VK Auth Success (from JSON)! ID:", id);
+            }
+          } catch (e) {
+            console.log("Response was not JSON, and no ID in URL");
           }
+        }
+  
+        // Если в итоге ID в памяти появился — чистим интерфейс
+        if (localStorage.getItem('vk_user_id')) {
+          const authOverlay = document.querySelector('.tg-auth-modal-overlay');
+          if (authOverlay) authOverlay.style.display = 'none';
+          if (window.fetchUserStatus) window.fetchUserStatus();
+        }
       }
-  } catch (err) {
+    } catch (err) {
       console.error("VK Auth Error:", err);
-  }
+    }
 };
 
 // --- ИНИЦИАЛИЗАЦИЯ REACT ---
