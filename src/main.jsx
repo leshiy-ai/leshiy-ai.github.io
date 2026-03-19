@@ -53,33 +53,47 @@ const handleTelegramRedirect = () => {
 // Выполняется при загрузке, если мы внутри ТГ и не авторизованы
 const tgAppAutoAuth = async () => {
   const tg = window.Telegram?.WebApp;
-  if (!tg || !tg.initData) return;
+  
+  // 1. Проверка: мы вообще в Телеграме?
+  if (!tg || !tg.initData) {
+      console.log("Это не Mini App или initData пуст");
+      return;
+  }
 
-  const isUserLoggedIn = !!localStorage.getItem('vk_user_id');
-  if (isUserLoggedIn) return;
+  tg.ready();
 
-  console.log("Mini App: Тихая авторизация...");
+  // 2. Если уже залогинены — ничего не делаем
+  if (localStorage.getItem('vk_user_id')) return;
 
   try {
-    // Отправляем данные инициализации прямо на твой callback
-    const response = await fetch(`${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback`, {
-      method: 'POST', // Или GET, как настроен бэкенд
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        init_data: tg.initData,
-        bot: 'gemini'
-      })
-    });
+      console.log("Попытка авто-входа...");
+      
+      // ВНИМАНИЕ: Отправляем initData как query-параметры, 
+      // так как твой бэкенд-callback скорее всего ждет GET запрос
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&${tg.initData}`;
 
-    const data = await response.json();
+      const response = await fetch(authUrl, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+      });
 
-    if (data.user_id) {
-      localStorage.setItem('vk_user_id', data.user_id);
-      console.log("Авторизация успешна!");
-      window.fetchUserStatus(); // Обновляем статус пользователя
-    }
+      if (!response.ok) throw new Error(`Ошибка сети: ${response.status}`);
+
+      const data = await response.json();
+
+      if (data.user_id || data.id) {
+          const id = data.user_id || data.id;
+          localStorage.setItem('vk_user_id', id);
+          console.log("Успешный вход, ID:", id);
+          // Перезагружаем статус, чтобы подтянулись данные
+          if (window.fetchUserStatus) window.fetchUserStatus();
+      } else {
+          console.error("Бэкенд не вернул ID пользователя", data);
+      }
   } catch (err) {
-    console.error("Ошибка авто-авторизации:", err);
+      console.error("Критическая ошибка авто-входа:", err);
+      // Если хочешь видеть ошибку прямо в приложении:
+      // alert("Ошибка входа: " + err.message); 
   }
 };
 
