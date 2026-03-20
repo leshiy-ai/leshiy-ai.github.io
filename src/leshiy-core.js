@@ -839,8 +839,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
         if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
-        else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') resultText = data.result?.response || data.result?.text;
-
+        else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') resultText = data.result?.response || data.result?.description || data.result?.text || data.result;
+        else if (config.SERVICE === 'DEEPSEEK') resultText = data.choices?.[0]?.message?.content;
         return { type: 'text', text: resultText || "Получен пустой ответ от AI." };
 
     } catch (error) {
