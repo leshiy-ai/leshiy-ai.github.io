@@ -13,16 +13,19 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     const hasFiles = files.length > 0;
 
     // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа ---
-    if (hasFiles && !userQuery) {
+    if (hasFiles) {
         const firstFile = files[0];
-        if (firstFile.file.type.startsWith('image/')) {
-            userQuery = "Опиши это изображение";
-        } else if (firstFile.file.type.startsWith('audio/')) {
-            userQuery = "Расшифруй это аудио";
-        } else if (firstFile.file.type.startsWith('video/')) {
-            userQuery = "Что на этом видео?";
+        // Если текста нет ИЛИ текст — это просто имя файла
+        if (!userQuery || userQuery === firstFile.file.name) {
+            if (firstFile.file.type.startsWith('image/')) {
+                userQuery = "Опиши это изображение";
+            } else if (firstFile.file.type.startsWith('audio/')) {
+                userQuery = "Расшифруй это аудио";
+            } else if (firstFile.file.type.startsWith('video/')) {
+                userQuery = "Что на этом видео?";
+            }
+            lowerQuery = userQuery.toLowerCase(); // Обновляем lowerQuery
         }
-        lowerQuery = userQuery.toLowerCase(); // Обновляем lowerQuery
     }
     
     // 1. ПЕРЕМЕННЫЕ
@@ -830,6 +833,9 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // --- ОБРАБОТКА ФИНАЛЬНОГО РЕЗУЛЬТАТА ---
         const data = await response.json();
         let resultText = "Не удалось разобрать ответ.";
+
+        // Логирование ответа от прокси и ИИ
+        console.log("DEBUG RECEIVED PROXY:", data);
 
         if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
