@@ -877,7 +877,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
                     'Content-Type': 'application/json'
                 };
-                if (authHeader) proxyHeaders['X-Proxy-Authorization'] = authHeader;
+                if (authHeader) translateHeaders['X-Proxy-Authorization'] = authHeader;
 
                 const translateResponse = await fetch(CONFIG.FALLBACK_PROXY, {
                     method: 'POST',
