@@ -649,10 +649,10 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         const cleanBase64 = f.base64.includes(',') 
                             ? f.base64.split(',')[1] 
                             : f.base64;
-                
+                        const mime = f.mimeType || 'image/jpeg';
                         currentUserParts.push({ 
                             inlineData: { 
-                                mimeType: f.mimeType || 'image/jpeg', // Gemini просит MIME
+                                mimeType: mime, // Gemini просит MIME
                                 data: cleanBase64 
                             } 
                         });
@@ -663,7 +663,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
                 body = { 
                     contents,
-                    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] }
+                    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                    generationConfig: {
+                        maxOutputTokens: 2048,
+                        temperature: 0.4
+                    }
                 };
                 break;
 
