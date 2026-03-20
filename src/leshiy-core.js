@@ -5,7 +5,7 @@ import axios from 'axios'; // Добавляем axios для работы со 
 
 const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент Gemini AI от Leshiy, отвечающий на русском языке.
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
-Ответы должны быть информативными и доброжелательными со смайликами.`;
+Ответы должны быть информативными и доброжелательными со смайликами и на русском языке.`;
 
 export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false }) => {
     let userQuery = text?.trim() || "";
@@ -18,11 +18,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // Если текста нет ИЛИ текст — это просто имя файла
         if (!userQuery || userQuery === firstFile.file.name) {
             if (firstFile.file.type.startsWith('image/')) {
-                userQuery = "Опиши это изображение";
+                userQuery = "Опиши это изображение подробно на русском языке.";
             } else if (firstFile.file.type.startsWith('audio/')) {
-                userQuery = "Расшифруй это аудио";
+                userQuery = "Расшифруй это аудио подробно на русском языке.";
             } else if (firstFile.file.type.startsWith('video/')) {
-                userQuery = "Что на этом видео?";
+                userQuery = "Что на этом видео? Ответь подробно на русском языке.";
             }
             lowerQuery = userQuery.toLowerCase(); // Обновляем lowerQuery
         }
@@ -678,6 +678,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     body = await firstFileData.file.arrayBuffer();
                     isRawBody = true;
                 } else if (serviceType.includes('IMAGE')) {
+                    userQuery += " (ответь на русском языке)";
                     const byteString = atob(firstFileData.base64.split(',')[1] || firstFileData.base64);
                     const byteArray = new Uint8Array(byteString.length);
                     for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
