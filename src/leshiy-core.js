@@ -855,7 +855,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 if (!englishDesc) throw new Error("Vision модель не дала описания");
 
                 // Используем ту же самую инфраструктуру Cloudflare, но другую модель (текстовую)
-                const translateModel = '@cf/meta/llama-2-7b-chat-int8'; // Модель-переводчик gemma-2b-it
+                const translateModel = '@cf/google/gemma-3-12b-it'; // Модель-переводчик - @cf/google/gemma-3-12b-it
                 const translateUrl = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${translateModel}`;
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                 
