@@ -850,23 +850,29 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             resultText = data.result?.response || data.result?.description || data.result?.text || data.result;
 
             if (serviceType === 'IMAGE_TO_TEXT') {
-                const englishDesc = data.result?.description || data.result?.response || "";
-
-                if (!englishDesc) throw new Error("Vision модель не дала описания");
                 // ВТОРОЙ ЗАПРОС (Перевод на лету)
+                const englishDesc = data.result?.description || data.result?.response || "";
+                if (!englishDesc) throw new Error("Vision модель не дала описания");
+
                 // Используем ту же самую инфраструктуру Cloudflare, но другую модель (текстовую)
+                const translateUrl = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/google/gemma-2b-it`; // Модель-переводчик gemma-2b-it
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                
                 console.log("🔄 Перевожу описание на русский...");
                 
-                const translateUrl = url.replace(config.MODEL, "@cf/google/gemma-2b-it"); // Модель-переводчик gemma-2b-it
                 const translateBody = {
                     messages: [
-                        { role: "system", content: "Translate the following text into Russian. Respond ONLY with the translation, no extra comments." },
-                        { role: "user", content: resultText }
+                        { 
+                            role: "system", 
+                            content: "You are a professional translator. Translate the text to Russian. Output ONLY the translation. No explanations." 
+                        },
+                        { role: "user", content: String(englishDesc) }
                     ],
-                    stream: false
+                    stream: false,
+                    max_tokens: 512
                 };
                 // Общие заголовки для Cloudflare
-                const proxyHeaders = {
+                const translateHeaders = {
                     'X-Target-URL': translateUrl,
                     'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
                     'Content-Type': 'application/json'
@@ -876,12 +882,19 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 const translateResponse = await fetch(CONFIG.FALLBACK_PROXY, {
                     method: 'POST',
                     mode: 'cors',
-                    headers: proxyHeaders,
+                    headers: translateHeaders,
                     body: JSON.stringify(translateBody)
                 });
+
+                if (!translateResponse.ok) {
+                    const errText = await translateResponse.text();
+                    throw new Error(`Translation Proxy Error: ${translateResponse.status} ${errText}`);
+                }
+
                 const translateData = await translateResponse.json();
+                console.log("DEBUG TRANSLATION RECEIVED:", translateData);
                 const russianText = translateData.result?.response || translateData.result;
-                resultText = russianText || englishDesc; // Если перевод сдох, отдаем англ.
+                resultText = (russianText && typeof russianText === 'string') ? russianText.trim() : englishDesc; // Если перевод сдох, отдаем англ.
             }
         }
         else if (config.SERVICE === 'DEEPSEEK') resultText = data.choices?.[0]?.message?.content;
