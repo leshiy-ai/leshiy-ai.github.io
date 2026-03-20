@@ -848,7 +848,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
         else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
             resultText = data.result?.response || data.result?.description || data.result?.text || data.result;
-
+            
+            if (serviceType === 'IMAGE_TO_TEXT') {
+                const englishDesc = data.result?.response || data.result?.description || data.result?.text || data.result;
+                // Вызываем перевод с английского на русский
+                resultText = await translateLeshiy(englishDesc, 'ru');
+            }
+            /*
             if (serviceType === 'IMAGE_TO_TEXT') {
                 // ВТОРОЙ ЗАПРОС (Перевод на лету)
                 const englishDesc = data.result?.description || data.result?.response || "";
@@ -904,7 +910,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 console.log("DEBUG TRANSLATION RECEIVED:", translateData);
                 const russianText = translateData.result?.response || translateData.result;
                 resultText = (russianText && typeof russianText === 'string') ? russianText.trim() : englishDesc; // Если перевод сдох, отдаем англ.
-            }
+            }*/
         }
         else if (config.SERVICE === 'DEEPSEEK') resultText = data.choices?.[0]?.message?.content;
         return { type: 'text', text: resultText || "Получен пустой ответ от AI." };
@@ -955,3 +961,73 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     }
 
 };
+
+async function translateLeshiy(text, targetLang = "ru") {
+    // Принудительно используем Cloudflare для перевода.
+    const config = AI_MODELS['TEXT_TO_TEXT_CLOUDFLARE']; 
+
+    if (!text || typeof text !== 'string') return text;
+    // 1. ДИНАМИЧЕСКИ ОПРЕДЕЛЯЕМ ПРОМПТ
+    let systemPrompt;
+    if (targetLang === 'en') {
+        systemPrompt = "You are a professional translator. Translate the following image generation prompt into professional English, suitable for text-to-image AI. Keep all descriptive and technical terms. Respond ONLY with the translated text, nothing else.";
+    } else if (targetLang === 'ru') {
+        systemPrompt = "You are a professional translator. Translate the following image generation prompt into clear Russian, suitable for user editing. Keep all descriptive and technical terms. Respond ONLY with the translated text, nothing else.";
+    } else {
+        return text; // Запасной вариант
+    }
+    try {
+        console.log(`🔄 [translateLeshiy] Перевожу: Target: ${targetLang} | Text snippet: "${text.substring(0, 200)}..."`);
+        // Используем ту же самую инфраструктуру Cloudflare, но другую модель (текстовую)
+        const translateModel = '@cf/google/gemma-3-12b-it'; // Модель-переводчик - @cf/google/gemma-3-12b-it
+        const translateUrl = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${translateModel}`;
+
+        // --- ЛОГ: Какая модель для перевода ---
+        console.log(`🧠 AI-Модель для перевода: ${translateModel}`);
+
+        const translateBody = {
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: text }
+            ],
+            stream: false,
+            max_tokens: 512
+        };
+        // Общие заголовки для Cloudflare
+        const translateHeaders = {
+            'X-Target-URL': translateUrl,
+            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+            'X-Proxy-Authorization': `Bearer ${CONFIG[config.API_KEY]}`,
+            'Content-Type': 'application/json'
+        };
+
+        // --- БЛОК ДЕБАГА ПЕРЕД ОТПРАВКОЙ ---
+        console.log("DEBUG SEND TRANSLATION:", {
+            url: CONFIG.PROXY_URL,
+            target: translateUrl,
+            body: JSON.stringify(translateBody)
+        });
+        // -----------------------------------
+        
+        const translateResponse = await fetch(CONFIG.PROXY_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: translateHeaders,
+            body: JSON.stringify(translateBody)
+        });
+
+        if (!translateResponse.ok) {
+            const errText = await translateResponse.text();
+            throw new Error(`Translation Proxy Error: ${translateResponse.status} ${errText}`);
+        }
+
+        const translateData = await translateResponse.json();
+        console.log("DEBUG TRANSLATION RECEIVED:", translateData);
+        const resultText = translateData.result?.response || translateData.result;
+        return (resultText && typeof resultText === 'string') ? resultText.trim() : text; // Если перевод сдох, отдаем ориг.
+
+    } catch (error) {
+        console.error("❌ [translateLeshiy] Ошибка:", error);
+        return text; // Если всё упало, возвращаем оригинал
+    }
+}
