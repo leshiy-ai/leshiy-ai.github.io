@@ -854,63 +854,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 // Вызываем перевод с английского на русский
                 resultText = await translateLeshiy(englishDesc, 'ru');
             }
-            /*
-            if (serviceType === 'IMAGE_TO_TEXT') {
-                // ВТОРОЙ ЗАПРОС (Перевод на лету)
-                const englishDesc = data.result?.description || data.result?.response || "";
-                if (!englishDesc) throw new Error("Vision модель не дала описания");
-
-                // Используем ту же самую инфраструктуру Cloudflare, но другую модель (текстовую)
-                const translateModel = '@cf/google/gemma-3-12b-it'; // Модель-переводчик - @cf/google/gemma-3-12b-it
-                const translateUrl = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${translateModel}`;
-                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-                
-                console.log("🔄 Перевожу описание на русский...");
-                
-                const translateBody = {
-                    messages: [
-                        { 
-                            role: "system", 
-                            content: "You are a professional translator. Translate the text to Russian. Output ONLY the translation. No explanations." 
-                        },
-                        { role: "user", content: String(englishDesc) }
-                    ],
-                    stream: false,
-                    max_tokens: 512
-                };
-                // Общие заголовки для Cloudflare
-                const translateHeaders = {
-                    'X-Target-URL': translateUrl,
-                    'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-                    'Content-Type': 'application/json'
-                };
-                if (authHeader) translateHeaders['X-Proxy-Authorization'] = authHeader;
-
-                // --- БЛОК ДЕБАГА ПЕРЕД ОТПРАВКОЙ ---
-                console.log("DEBUG SEND TRANSLATION:", {
-                    url: CONFIG.PROXY_URL,
-                    target: translateUrl,
-                    body: isBinary ? body : JSON.stringify(translateBody)
-                });
-                // -----------------------------------
-                
-                const translateResponse = await fetch(CONFIG.PROXY_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: translateHeaders,
-                    body: isBinary ? body : JSON.stringify(translateBody)
-                });
-
-                if (!translateResponse.ok) {
-                    const errText = await translateResponse.text();
-                    throw new Error(`Translation Proxy Error: ${translateResponse.status} ${errText}`);
-                }
-
-                const translateData = await translateResponse.json();
-                console.log("DEBUG TRANSLATION RECEIVED:", translateData);
-                const russianText = translateData.result?.response || translateData.result;
-                resultText = (russianText && typeof russianText === 'string') ? russianText.trim() : englishDesc; // Если перевод сдох, отдаем англ.
-            }*/
         }
         else if (config.SERVICE === 'DEEPSEEK') resultText = data.choices?.[0]?.message?.content;
         return { type: 'text', text: resultText || "Получен пустой ответ от AI." };
@@ -977,13 +920,13 @@ async function translateLeshiy(text, targetLang = "ru") {
         return text; // Запасной вариант
     }
     try {
-        console.log(`🔄 [translateLeshiy] Перевожу: Target: ${targetLang} | Text snippet: "${text.substring(0, 200)}..."`);
-        // Используем ту же самую инфраструктуру Cloudflare, но другую модель (текстовую)
+        // Используем ту же самую инфраструктуру Cloudflare, но другую модель (переводчик)
         const translateModel = '@cf/google/gemma-3-12b-it'; // Модель-переводчик - @cf/google/gemma-3-12b-it
         const translateUrl = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${translateModel}`;
 
-        // --- ЛОГ: Какая модель для перевода ---
+        // --- ЛОГ: Модель для перевода ---
         console.log(`🧠 AI-Модель для перевода: ${translateModel}`);
+        console.log(`🔄 [translateLeshiy] Перевожу: Target: ${targetLang} | Text snippet: "${text.substring(0, 97)}..."`);
 
         const translateBody = {
             messages: [
