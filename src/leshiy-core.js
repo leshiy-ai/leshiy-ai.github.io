@@ -18,11 +18,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // Если текста нет ИЛИ текст — это просто имя файла
         if (!userQuery || userQuery === firstFile.file.name) {
             if (firstFile.file.type.startsWith('image/')) {
-                userQuery = "Опиши это изображение подробно на русском языке.";
+                userQuery = "Опиши это изображение.";
             } else if (firstFile.file.type.startsWith('audio/')) {
-                userQuery = "Расшифруй это аудио подробно на русском языке.";
+                userQuery = "Расшифруй это аудио.";
             } else if (firstFile.file.type.startsWith('video/')) {
-                userQuery = "Что на этом видео? Ответь подробно на русском языке.";
+                userQuery = "Что на этом видео?";
             }
             lowerQuery = userQuery.toLowerCase(); // Обновляем lowerQuery
         }
@@ -674,15 +674,22 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                 const firstFileData = files[0];
 
-                if (serviceType.includes('AUDIO') || serviceType.includes('VIDEO')) {
+                if (serviceType.includes('AUDIO')) {
+                    // Транскрибирует аудиофайл (ArrayBuffer), используя Workers AI (Whisper).
+                    body = await firstFileData.file.arrayBuffer();
+                    isRawBody = true;
+                } else if (serviceType.includes('VIDEO')) {
+                    // Транскрибирует видеофайл (ArrayBuffer), используя Workers AI (Whisper).
                     body = await firstFileData.file.arrayBuffer();
                     isRawBody = true;
                 } else if (serviceType.includes('IMAGE')) {
-                    userQuery += " (ответь на русском языке)";
+                    // Распознавание картинки (Vision), используя Workers AI (Uform).
                     const byteString = atob(firstFileData.base64.split(',')[1] || firstFileData.base64);
                     const byteArray = new Uint8Array(byteString.length);
                     for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
-                    body = { image: Array.from(byteArray), prompt: userQuery };
+                    // Промпт на английском (так Vision-модель поймет лучше всего)
+                    const visionPrompt = `Instruction: ${userQuery}. (Task: Analyze the image and respond to the user's request in detail. Provide the description in English for further translation.)`;
+                    body = { image: Array.from(byteArray), prompt: visionPrompt };
                 } else {
                     const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
 
@@ -840,7 +847,36 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
         if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
-        else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') resultText = data.result?.response || data.result?.description || data.result?.text || data.result;
+        else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
+            resultText = data.result?.response || data.result?.description || data.result?.text || data.result;
+
+            if (serviceType === 'IMAGE_TO_TEXT') {
+                const englishDesc = data.result?.description || data.result?.response || "";
+
+                if (!englishDesc) throw new Error("Vision модель не дала описания");
+                // ВТОРОЙ ЗАПРОС (Перевод на лету)
+                // Используем ту же самую инфраструктуру Cloudflare, но другую модель (текстовую)
+                console.log("🔄 Перевожу описание на русский...");
+                
+                const translateUrl = url.replace(config.MODEL, "@cf/google/gemma-2b-it"); // Модель-переводчик gemma-2b-it
+                const translateBody = {
+                    messages: [
+                        { role: "system", content: "Translate the following text into Russian. Respond ONLY with the translation, no extra comments." },
+                        { role: "user", content: resultText }
+                    ],
+                    stream: false
+                };
+
+                const translateResponse = await fetch(CONFIG.FALLBACK_PROXY, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Target-URL': translateUrl, 'X-Auth-Token': authHeader },
+                    body: JSON.stringify(translateBody)
+                });
+                const translateData = await translateResponse.json();
+                const russianText = translateData.result?.response || translateData.result;
+                resultText = russianText || englishDesc; // Если перевод сдох, отдаем англ.
+            }
+        }
         else if (config.SERVICE === 'DEEPSEEK') resultText = data.choices?.[0]?.message?.content;
         return { type: 'text', text: resultText || "Получен пустой ответ от AI." };
 
