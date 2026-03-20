@@ -879,7 +879,14 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 };
                 if (authHeader) translateHeaders['X-Proxy-Authorization'] = authHeader;
 
-                const translateResponse = await fetch(CONFIG.FALLBACK_PROXY, {
+                // --- БЛОК ДЕБАГА ПЕРЕД ОТПРАВКОЙ ---
+                console.log("DEBUG SEND TRANSLATION:", {
+                    translateUrl,
+                    body: JSON.parse(JSON.stringify(translateBody))
+                });
+                // -----------------------------------
+                
+                const translateResponse = await fetch(CONFIG.PROXY_URL, {
                     method: 'POST',
                     mode: 'cors',
                     headers: translateHeaders,
