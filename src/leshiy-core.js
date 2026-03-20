@@ -11,6 +11,19 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     let userQuery = text?.trim() || "";
     let lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
+
+    // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа ---
+    if (hasFiles && !userQuery) {
+        const firstFile = files[0];
+        if (firstFile.file.type.startsWith('image/')) {
+            userQuery = "Опиши это изображение";
+        } else if (firstFile.file.type.startsWith('audio/')) {
+            userQuery = "Расшифруй это аудио";
+        } else if (firstFile.file.type.startsWith('video/')) {
+            userQuery = "Что на этом видео?";
+        }
+        lowerQuery = userQuery.toLowerCase(); // Обновляем lowerQuery
+    }
     
     // 1. ПЕРЕМЕННЫЕ
     const SITE_APP_ID = "54467300"; // ID для авторизации на сайте
@@ -612,6 +625,10 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         config = loadActiveModelConfig(serviceType);
         if (!config) return { type: 'error', text: `Модель для ${serviceType} не настроена` };
 
+        // --- ЛОГ: Какая модель выбрана ---
+        const friendlyModelName = `${config.SERVICE} (${config.MODEL})`;
+        console.log(`🧠 AI-Модель для ${serviceType}: ${friendlyModelName}`);
+
         // ==========================================================
         // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА
         // ==========================================================
@@ -622,8 +639,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 const geminiHistory = history || [];
                 const currentUserParts = [];
 
-                const prompt = text || (hasFiles ? "Проанализируй эти файлы" : "Привет");
-                currentUserParts.push({ text: prompt });
+                currentUserParts.push({ text: userQuery });
 
                 files.forEach(f => {
                     if (f.base64) {
@@ -662,7 +678,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     const byteString = atob(firstFileData.base64.split(',')[1] || firstFileData.base64);
                     const byteArray = new Uint8Array(byteString.length);
                     for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
-                    body = { image: Array.from(byteArray), prompt: text || "Describe this image" };
+                    body = { image: Array.from(byteArray), prompt: userQuery };
                 } else {
                     const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
 
@@ -675,7 +691,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         });
                     }
                     
-                    messages.push({ role: 'user', content: text });
+                    messages.push({ role: 'user', content: userQuery });
                     body = { messages, stream: false };
                 }
                 break;
@@ -695,7 +711,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     });
                 }
                 
-                const userContent = [{ type: 'text', text: text || "Опиши это" }];
+                const userContent = [{ type: 'text', text: userQuery }];
                 files.forEach(f => {
                     if (f.base64) userContent.push({ type: 'image_url', image_url: { url: `data:${f.mimeType};base64,${f.base64}` } });
                 });
@@ -719,7 +735,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     });
                 }
                 
-                deepseekMessages.push({ role: 'user', content: text || "Привет" });
+                deepseekMessages.push({ role: 'user', content: userQuery });
                 
                 body = {
                     model: config.MODEL,
@@ -744,6 +760,14 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             'Content-Type': isBinary ? 'application/octet-stream' : 'application/json'
         };
         if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
+
+        // --- БЛОК ДЕБАГА ПЕРЕД ОТПРАВКОЙ ---
+        console.log("DEBUG SEND PROXY:", {
+            url,
+            isBinary: isBinary,
+            body: isBinary ? "binary/string" : JSON.parse(JSON.stringify(body))
+        });
+        // -----------------------------------
     
         // --- ПОПЫТКА 1: Яндекс Прокси ---
         try {
