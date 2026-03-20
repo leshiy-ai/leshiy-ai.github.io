@@ -865,10 +865,18 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     ],
                     stream: false
                 };
+                // Общие заголовки для Cloudflare
+                const proxyHeaders = {
+                    'X-Target-URL': translateUrl,
+                    'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+                    'Content-Type': 'application/json'
+                };
+                if (authHeader) proxyHeaders['X-Proxy-Authorization'] = authHeader;
 
                 const translateResponse = await fetch(CONFIG.FALLBACK_PROXY, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Target-URL': translateUrl, 'X-Auth-Token': authHeader },
+                    mode: 'cors',
+                    headers: proxyHeaders,
                     body: JSON.stringify(translateBody)
                 });
                 const translateData = await translateResponse.json();
