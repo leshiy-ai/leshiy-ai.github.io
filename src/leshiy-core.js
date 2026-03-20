@@ -855,7 +855,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 if (!englishDesc) throw new Error("Vision модель не дала описания");
 
                 // Используем ту же самую инфраструктуру Cloudflare, но другую модель (текстовую)
-                const translateUrl = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/@cf/google/gemma-2b-it`; // Модель-переводчик gemma-2b-it
+                const translateModel = '@cf/meta/llama-2-7b-chat-int8'; // Модель-переводчик gemma-2b-it
+                const translateUrl = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${translateModel}`;
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                 
                 console.log("🔄 Перевожу описание на русский...");
@@ -881,8 +882,9 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
                 // --- БЛОК ДЕБАГА ПЕРЕД ОТПРАВКОЙ ---
                 console.log("DEBUG SEND TRANSLATION:", {
-                    translateUrl,
-                    body: JSON.parse(JSON.stringify(translateBody))
+                    url: CONFIG.PROXY_URL,
+                    target: translateUrl,
+                    body: isBinary ? body : JSON.stringify(translateBody)
                 });
                 // -----------------------------------
                 
@@ -890,7 +892,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     method: 'POST',
                     mode: 'cors',
                     headers: translateHeaders,
-                    body: JSON.stringify(translateBody)
+                    body: isBinary ? body : JSON.stringify(translateBody)
                 });
 
                 if (!translateResponse.ok) {
