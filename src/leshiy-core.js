@@ -586,6 +586,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     let url, body, authHeader;
     let isRawBody = false;
     let config;
+    let serviceType = 'TEXT_TO_TEXT';
 
     if (isSystemTask) {
         // Принудительно используем Cloudflare для системных задач, как и было указано.
@@ -616,8 +617,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         };
         
     } else {
-        let serviceType = 'TEXT_TO_TEXT';
-
         const firstFileObj = hasFiles ? files[0].file : null;
         if (firstFileObj) {
             if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
