@@ -646,25 +646,25 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 const geminiHistory = history || [];
                 let cleanBase64 = "";
 
-                /// 1. КОНВЕРТАЦИЯ: Если есть файл, но нет Base64 — достаем его
+                // 1. КОНВЕРТАЦИЯ: Если есть файл, но нет Base64 — достаем его
                 if (firstFileObj) {
                     if (files[0].base64) {
                         const raw = files[0].base64;
                         cleanBase64 = raw.includes(',') ? raw.split(',')[1] : raw;
                     } else {
-                        // Если в files[0] пусто, конвертим ArrayBuffer файла в Base64 (синхронно через бинарную строку)
+                        // ЧИТАЕМ БЫСТРО И АСИНХРОННО
                         try {
-                            // Предполагаем, что данные файла доступны. 
-                            // Если нет, это единственный момент, где может понадобиться await file.arrayBuffer()
-                            const buffer = await firstFileObj.arrayBuffer();
-                            const bytes = new Uint8Array(buffer);
-                            let binary = '';
-                            for (let i = 0; i < bytes.byteLength; i++) {
-                                binary += String.fromCharCode(bytes[i]);
-                            }
-                            cleanBase64 = btoa(binary);
+                            cleanBase64 = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    const res = reader.result;
+                                    resolve(res.split(',')[1]); // Сразу отрезаем заголовок
+                                };
+                                reader.onerror = reject;
+                                reader.readAsDataURL(firstFileObj); // Это ОЧЕНЬ быстро
+                            });
                         } catch (e) {
-                            console.error("❌ Ошибка конвертации в Base64 для Gemini:", e);
+                            console.error("❌ Ошибка FileReader:", e);
                         }
                     }
                 }
@@ -707,7 +707,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         contents: [{ role: 'user', parts: currentUserParts }],
                         generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
                     };
-                    console.log("📂 Gemini: Режим VISION (Image)");
+                    console.log("👁 Gemini: Режим VISION (Image)");
 
                 } else {
                     // --- ОБЫЧНЫЙ ЧАТ ---
