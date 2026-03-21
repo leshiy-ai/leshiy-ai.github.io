@@ -630,7 +630,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // --- ЛОГ: Какая модель выбрана ---
         const friendlyModelName = `${config.SERVICE} (${config.MODEL})`;
         console.log(`🧠 AI-Модель для ${serviceType}: ${friendlyModelName}`);
-
+        console.log("🧩 [DEBUG] Файл определен:", {
+            name: firstFileObj?.name,
+            type: firstFileObj?.type,
+            size: firstFileObj?.size
+        });
         // ==========================================================
         // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА
         // ==========================================================
@@ -638,37 +642,81 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             case 'GEMINI':
                 url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
 
+                // 1. Предварительная подготовка данных
                 const geminiHistory = history || [];
-                const currentUserParts = [];
+                let cleanBase64 = "";
 
-                currentUserParts.push({ text: userQuery });
-
-                files.forEach(f => {
-                    if (f.base64) {
-                        // Убираем префикс "data:*/*;base64,", если он есть
-                        const cleanBase64 = f.base64.includes(',') 
-                            ? f.base64.split(',')[1] 
-                            : f.base64;
-                        const mime = f.mimeType || 'image/jpeg';
-                        currentUserParts.push({ 
-                            inlineData: { 
-                                mimeType: mime, // Gemini просит MIME
-                                data: cleanBase64 
-                            } 
-                        });
+                /// 1. КОНВЕРТАЦИЯ: Если есть файл, но нет Base64 — достаем его
+                if (firstFileObj) {
+                    if (files[0].base64) {
+                        const raw = files[0].base64;
+                        cleanBase64 = raw.includes(',') ? raw.split(',')[1] : raw;
+                    } else {
+                        // Если в files[0] пусто, конвертим ArrayBuffer файла в Base64 (синхронно через бинарную строку)
+                        try {
+                            // Предполагаем, что данные файла доступны. 
+                            // Если нет, это единственный момент, где может понадобиться await file.arrayBuffer()
+                            const buffer = await firstFileObj.arrayBuffer();
+                            const bytes = new Uint8Array(buffer);
+                            let binary = '';
+                            for (let i = 0; i < bytes.byteLength; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            cleanBase64 = btoa(binary);
+                        } catch (e) {
+                            console.error("❌ Ошибка конвертации в Base64 для Gemini:", e);
+                        }
                     }
-                });
+                }
+                
+                // 2. Формируем части сообщения (текст пользователя)
+                let currentUserParts = [];
+                if (userQuery) currentUserParts.push({ text: userQuery });
 
-                const contents = [...geminiHistory, { role: 'user', parts: currentUserParts }];
+                // 3. Распределяем логику по типу сервиса
+                if (firstFileObj && (serviceType.includes('AUDIO') || serviceType.includes('VIDEO'))) {
+                    const isVideo = serviceType.includes('VIDEO');
+                    const systemPrompt = `РОЛЬ: Ты эксперт по распознаванию речи. ТВОЯ ЦЕЛЬ: Транскрибировать ${isVideo ? 'видео' : 'аудио'} файл СТРОГО на РУССКОМ языке. Верни ТОЛЬКО текст.`;
 
-                body = { 
-                    contents,
-                    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                    generationConfig: {
-                        maxOutputTokens: 2048,
-                        temperature: 0.4
-                    }
-                };
+                    body = {
+                        system_instruction: { parts: [{ text: systemPrompt }] },
+                        contents: [{
+                            role: 'user',
+                            parts: [
+                                { text: `Транскрибируй этот ${isVideo ? 'видео' : 'аудио'} файл.` },
+                                { 
+                                    inlineData: { 
+                                        mimeType: firstFileObj.type, // Тот самый из твоего дебага
+                                        data: cleanBase64 
+                                    } 
+                                }
+                            ]
+                        }],
+                        generationConfig: { temperature: 0.1 }
+                    };
+                    console.log(`📡 [GEMINI] AUDIO_TO_TEXT: ${firstFileObj.name} (${cleanBase64.length} симв.)`);
+
+                } else if (firstFileObj && serviceType.includes('IMAGE')) {
+                    // Добавляем картинку в части сообщения
+                    currentUserParts.push({ 
+                        inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } 
+                    });
+
+                    body = { 
+                        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                        contents: [{ role: 'user', parts: currentUserParts }],
+                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
+                    };
+                    console.log("📂 Gemini: Режим VISION (Image)");
+
+                } else {
+                    // --- ОБЫЧНЫЙ ЧАТ ---
+                    body = { 
+                        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                        contents: [...geminiHistory, { role: 'user', parts: currentUserParts }],
+                    };
+                    console.log("💬 Gemini: Режим обычного диалога");
+                }
                 break;
 
             case 'CLOUDFLARE':
