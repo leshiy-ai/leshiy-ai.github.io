@@ -209,7 +209,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            <div className="bubble">
+            <div className="bubble" style={isUser ? { justifyContent: 'flex-start' } : {}}>
+
                 {showAvatar && <img src={avatarUrl} className="avatar" alt="avatar" />}
                 <div className="message-content">
                     <div className="user-name">{name}</div>
