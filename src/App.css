@@ -938,7 +938,7 @@ body.sidebar-collapsed .history-item .icon {
 
 /* Если меню режимов прижато вправо */
 .mode-switcher-container {
-    margin-right: 10px; /* Тот самый сдвиг на 10px вправо */
+    margin-right: 25px; /* Тот самый сдвиг на 25px вправо */
     display: flex;
     align-items: center;
     gap: 8px;
