@@ -43,6 +43,7 @@ const TRANSLATIONS = {
         tooltip_toggle_theme: "Сменить тему",
         tooltip_reload: "Обновить чат",
         tooltip_close: "Закрыть чат",
+        tooltip_select_mode: "Выбрать режим",
         tooltip_select_model: "Выбрать модель",
         tooltip_toggle_menu: "Открыть/закрыть меню",
         tooltip_new_chat: "Начать новый чат",
@@ -78,6 +79,7 @@ const TRANSLATIONS = {
         tooltip_toggle_theme: "Change theme",
         tooltip_reload: "Reload chat",
         tooltip_close: "Close chat",
+        tooltip_select_mode: "Select mode",
         tooltip_select_model: "Select model",
         tooltip_toggle_menu: "Toggle menu",
         tooltip_new_chat: "Start new chat",
@@ -485,7 +487,6 @@ function App() {
 
             // --- 3. Сайдбар ---
             const sidebarElem = document.getElementById('sidebar');
-
             // Если сайдбар открыт (нет класса 'sidebar-collapsed') и клик был за его пределами
             if (sidebarElem && 
                 !document.body.classList.contains('sidebar-collapsed') && 
@@ -1606,6 +1607,7 @@ function App() {
         };
     }, [language, processNewLineCommands, applyPunctuation, convertWordsToNumbers, applyCaseMode]);       
 
+    // --- Speech Media Recording --------------------- //
     const handleMicClick = () => {
         if (blockClickRef.current) return; // Если сработал стоп лонгпресса — игнорируем этот клик!
     
@@ -1637,7 +1639,6 @@ function App() {
             }
         }
     };
-    // --- Speech Media Recording --------------------- //
 
     // СТАРТ ДОЛГОГО НАЖАТИЯ (Запись файла + переключение режима)
     const startVoiceLongPress = (e) => {
@@ -1702,8 +1703,6 @@ function App() {
             // ВКЛЮЧАЕМ БЛОКИРОВКУ: говорим клику, что мы только что закончили лонгпресс
             blockClickRef.current = true;
             setTimeout(() => { blockClickRef.current = false; }, 300); // через 300мс разблокируем
-            
-            console.log("📝 Запись завершена");
         }
     };
     // ------------------------ //
@@ -2011,7 +2010,7 @@ function App() {
                             onMouseLeave={stopLongPress}
                             onTouchStart={startLongPress}
                             onTouchEnd={stopLongPress}
-                            title="Клик — переключить режим, Зажать — меню выбора режима"
+                            title={t.tooltip_select_mode}
                             style={{ fontSize: '1.2rem' }}
                         >
                             {LESHIY_MODES.find(m => m.id === currentMode)?.icon}
