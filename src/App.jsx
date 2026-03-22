@@ -453,28 +453,46 @@ function App() {
 
     useEffect(() => {
         function handleClickOutside(event) {
-            // 1. Закрываем подменю режимов (1,2,3,4)
-            // Используем closest, чтобы клики ВНУТРИ меню его не закрывали
-            if (isModeMenuOpen && !event.target.closest('.model-selector-container')) {
-                setIsModeMenuOpen(false);
-            }
-            // --- 2. Селектор моделей (Gemini/Cloudflare) ---
-            if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
-                setIsModelSelectorOpen(false);
-            }
-            // --- 3. Сайдбар ---
-            // 3. САЙДБАР (через DOM, чтобы App не ругался)
-            const sidebarElem = document.getElementById('sidebar');
-            // Если у body НЕТ класса 'sidebar-collapsed', значит он РАЗВЕРНУТ
-            const isExpanded = !document.body.classList.contains('sidebar-collapsed');
+            // --- 1. Логика для меню РЕЖИМОВ (1, 2, 3, 4) ---
+            const modeBtn = event.target.closest('.mode-switcher-container'); // кнопка вызова режимов
+            const modeMenu = event.target.closest('.model-selector-container'); // само меню режимов
 
-            if (isExpanded && sidebarElem) {
-                // Если кликнули ВНЕ сайдбара и НЕ по кнопке открытия
-                if (!sidebarElem.contains(event.target) && !event.target.closest('.menu-btn')) {
-                    // Имитируем клик по кнопке закрытия, чтобы сработал внутренний стейт Сайдбара
-                    const toggleBtn = document.getElementById('toggle-menu');
-                    if (toggleBtn) toggleBtn.click();
+            if (isModeMenuOpen) {
+                // Если кликнули мимо меню режимов
+                if (!modeMenu && !modeBtn) {
+                    setIsModeMenuOpen(false);
                 }
+                // ФИКС: Если кликнули по кнопке выбора МОДЕЛЕЙ (*), закрываем РЕЖИМЫ принудительно
+                if (event.target.closest('.model-selector-btn')) {
+                    setIsModeMenuOpen(false);
+                }
+            }
+
+            // --- 2. Логика для селектора МОДЕЛЕЙ (*) ---
+            const modelBtn = event.target.closest('.model-selector-btn'); // кнопка звезды
+            const modelMenu = modelSelectorRef.current && modelSelectorRef.current.contains(event.target);
+
+            if (isModelSelectorOpen) {
+                // Если кликнули мимо меню моделей
+                if (!modelMenu && !modelBtn) {
+                    setIsModelSelectorOpen(false);
+                }
+                // ФИКС: Если кликнули по кнопке РЕЖИМОВ, закрываем МОДЕЛИ принудительно
+                if (event.target.closest('.mode-switcher-container')) {
+                    setIsModelSelectorOpen(false);
+                }
+            }
+
+            // --- 3. Сайдбар ---
+            const sidebarElem = document.getElementById('sidebar');
+
+            // Если сайдбар открыт (нет класса 'sidebar-collapsed') и клик был за его пределами
+            if (sidebarElem && 
+                !document.body.classList.contains('sidebar-collapsed') && 
+                !sidebarElem.contains(event.target)) 
+            {
+                // Прямо и надежно закрываем сайдбар
+                document.body.classList.add('sidebar-collapsed');
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
@@ -1193,7 +1211,6 @@ function App() {
         const currentY = e.touches[0].pageY;
         const diff = currentY - startY.current;
         if (diff > 0) {
-            e.preventDefault();
             const pullDistance = Math.pow(diff, 0.8);
             if (appContainerRef.current) {
                 appContainerRef.current.style.transform = `translateY(${pullDistance}px)`;
