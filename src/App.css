@@ -95,14 +95,14 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     touch-action: auto !important;
     transition: transform 0.3s;
     display: flex;
-    align-items: flex-start;
+    align-items: flex-end;
     gap: 12px;
 }
 .message-container.user .bubble { 
     background: var(--user-bubble-bg);
     border-color: var(--user-bubble-bg);
-    display: 'inline-flex';
     flex-direction: row-reverse; 
+    display: inline-flex;
 }
 [data-theme="dark"] .message-container.user .bubble {
      color: white; 
