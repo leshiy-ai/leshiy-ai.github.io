@@ -1119,8 +1119,17 @@ function App() {
     };
 
     const handleSwipeMessage = useCallback((messageId) => {
-        setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
-    }, []);
+        // Создаем новый массив, отфильтровав удаленное сообщение
+        const updatedMessages = messages.filter(msg => msg.id !== messageId);
+        
+        // 1. Обновляем UI, чтобы пользователь сразу увидел результат
+        setMessages(updatedMessages);
+
+        // 2. Отправляем обновленный (уже без сообщения) массив на сервер
+        if (currentChatId) {
+            syncChatHistory(currentChatId, updatedMessages);
+        }
+    }, [messages, currentChatId, syncChatHistory]); // Добавляем нужные зависимости
 
     const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
     const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
