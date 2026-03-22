@@ -92,7 +92,6 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     background: var(--bubble-bg);
     border: 1px solid var(--border-color);
     position: relative;
-    touch-action: pan-y;
     transition: transform 0.3s;
     display: flex;
     align-items: flex-start;
