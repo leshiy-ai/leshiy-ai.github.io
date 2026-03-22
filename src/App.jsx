@@ -203,8 +203,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         <div 
             ref={msgRef} 
             className={`message-container ${message.role}`}
-            /* Убрали всё лишнее, оставили только стандартное поведение */
-            style={{ cursor: 'text', userSelect: 'text' }} 
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             <div className="bubble">
                 {showAvatar && <img src={avatarUrl} className="avatar" alt="avatar" />}
