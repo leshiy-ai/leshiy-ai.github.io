@@ -101,6 +101,7 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .message-container.user .bubble { 
     background: var(--user-bubble-bg);
     border-color: var(--user-bubble-bg);
+    display: 'inline-flex';
     flex-direction: row-reverse; 
 }
 [data-theme="dark"] .message-container.user .bubble {
