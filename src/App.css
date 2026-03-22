@@ -404,6 +404,10 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
     .sidebar-history {
         padding-right: 0;
     }
+    .message-container.user .message-content {
+        align-items: flex-end;
+        padding-left: 5px; /* Дополнительный зазор */
+    }
 }
 
 /* --- SIDEBAR AND HISTORY STYLES --- */
