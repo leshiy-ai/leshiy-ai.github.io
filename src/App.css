@@ -782,6 +782,28 @@ body.sidebar-collapsed .history-item .icon {
     align-items: flex-end;
 }
 
+
+.drag-drop-zone-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(46, 204, 113, 0.1); /* Легкий зеленый оттенок */
+    border: 4px dashed #2ecc71; /* Пунктирная рамка */
+    z-index: 10000; /* Поверх всего */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none; /* КРИТИЧНО: чтобы не мешать событию Drop */
+    transition: all 0.3s ease;
+}
+
+.drag-drop-message {
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    text-align: center;
+}
+
 .user-name {
     font-weight: bold;
     font-size: 0.9em;
@@ -825,4 +847,76 @@ body.sidebar-collapsed .history-item .icon {
 
 .copy-btn svg {
     display: block;
+}
+/* Контейнер превью */
+.files-list-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 10px;
+}
+
+/* Общий стиль карточки файла */
+.file-preview-item {
+    position: relative;
+    background: #252525;
+    border-radius: 8px;
+    padding: 8px;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #333;
+}
+
+/* Тот самый плеер - делаем его узким и инвертируем цвета, чтобы видеть кнопки */
+.audio-preview-content audio {
+    width: 70px; /* Узкий, чтобы влез в квадрат */
+    height: 30px;
+    filter: invert(1) hue-rotate(180deg) brightness(1.5); /* Делает плеер видимым на темном */
+}
+
+/* Мигающий индикатор записи */
+.recording-status {
+    border: 1px solid #ff4444 !important;
+    background: rgba(255, 68, 68, 0.1) !important;
+}
+
+.rec-dot-blink {
+    color: #ff4444;
+    font-size: 20px;
+    animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-red {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Скрываем лишние кнопки плеера, если они вылезают */
+/* Прячем всё, кроме кнопки Play в маленьком превью */
+.audio-preview-content audio::-webkit-media-controls-timeline,
+.audio-preview-content audio::-webkit-media-controls-current-time-display,
+.audio-preview-content audio::-webkit-media-controls-time-remaining-display,
+.audio-preview-content audio::-webkit-media-controls-volume-slider,
+.audio-preview-content audio::-webkit-media-controls-mute-button {
+    display: none !important;
+}
+
+/* Заставляем панель быть прозрачной, чтобы не было белых рамок */
+.audio-preview-content audio::-webkit-media-controls-panel {
+    background-color: transparent !important;
+    padding: 0 !important;
+}
+
+/* Растягиваем саму кнопку Play на весь доступный размер */
+.audio-preview-content audio::-webkit-media-controls-play-button {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    cursor: pointer;
 }

@@ -7,10 +7,22 @@ const SYSTEM_PROMPT = `Ты — многофункциональный AI-асс
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 Ответы должны быть информативными и доброжелательными со смайликами и на русском языке.`;
 
-export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false }) => {
+export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false, currentMode = 1 }) => {
     let userQuery = text?.trim() || "";
     let lowerQuery = userQuery.toLowerCase();
     const hasFiles = files.length > 0;
+
+    // --- НОВАЯ ЛОГИКА РЕЖИМОВ ---
+    if (!isSystemTask) { // Системные задачи (типа заголовков) не трогаем
+        if (currentMode === 2) {
+            console.log("Движок: Генерация фото");
+            // Тут позже прикрутим вызов генератора картинок
+        } else if (currentMode === 3) {
+            console.log("Движок: Генерация аудио");
+        } else if (currentMode === 4) {
+            console.log("Движок: Генерация видео");
+        }
+    }
 
     // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа ---
     if (hasFiles) {
@@ -622,6 +634,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
             else if (firstFileObj.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
             else if (firstFileObj.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
+            console.log("🧩 [DEBUG] Файл определен:", {
+                name: firstFileObj?.name,
+                type: firstFileObj?.type,
+                size: firstFileObj?.size
+            });
         }
 
         config = loadActiveModelConfig(serviceType);
@@ -630,11 +647,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // --- ЛОГ: Какая модель выбрана ---
         const friendlyModelName = `${config.SERVICE} (${config.MODEL})`;
         console.log(`🧠 AI-Модель для ${serviceType}: ${friendlyModelName}`);
-        console.log("🧩 [DEBUG] Файл определен:", {
-            name: firstFileObj?.name,
-            type: firstFileObj?.type,
-            size: firstFileObj?.size
-        });
+        
         // ==========================================================
         // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА
         // ==========================================================
@@ -1025,4 +1038,49 @@ async function translateLeshiy(text, targetLang = "ru") {
         console.error("❌ [translateLeshiy] Ошибка:", error);
         return text; // Если всё упало, возвращаем оригинал
     }
+}
+
+/**
+ * ГЕНЕРАТОР ЛЕШИЙ: Единая точка входа для всех типов контента
+ * @param {Object} params - Объект с данными (текст, файлы, режим)
+ */
+export const generateLeshiy = async ({ text, files = [], history = [], currentMode = 1 }) => {
+    const prompt = text?.trim() || "";
+
+    // Логика выбора режима
+    switch (Number(currentMode)) {
+        case 1: // ОБЩЕНИЕ (Твой текущий askLeshiy)
+            return await askLeshiy({ text: prompt, files, history });
+
+        case 2: // ФОТО (Nano Banana 2)
+            console.log("Режим: Генерация изображения");
+            return await generateImageNano(prompt, files);
+
+        case 3: // ГОЛОС (Lyria 3 / TTS)
+            console.log("Режим: Генерация аудио");
+            return await generateAudioLyria(prompt);
+
+        case 4: // ВИДЕО (Veo)
+            console.log("Режим: Генерация видео");
+            return await generateVideoVeo(prompt, files);
+
+        default:
+            return await askLeshiy({ text: prompt, files, history });
+    }
+};
+
+// Вспомогательные функции (заглушки, которые мы наполним API-логикой)
+async function generateImageNano(prompt, files) {
+    // Здесь пойдет вызов модели Nano Banana 2
+    return { type: 'system', text: `🎨 Генерирую фото по запросу: "${prompt}"...` };
+}
+
+async function generateAudioLyria(prompt) {
+    // Здесь пойдет вызов Lyria 3
+    return { type: 'system', text: `🎵 Создаю аудио по запросу: "${prompt}"...` };
+}
+
+async function generateVideoVeo(prompt, files) {
+    // Здесь пойдет вызов Veo
+    return { type: 'system', text: `🎬 Начинаю рендер видео: "${prompt}"...` };
 }

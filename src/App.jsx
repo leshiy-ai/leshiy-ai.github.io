@@ -9,6 +9,13 @@ import Sidebar from './Sidebar';
 import './App.css';
 
 // --- КОНСТАНТЫ ---
+const LESHIY_MODES = [
+    { id: 1, name: 'Общение', icon: '1️⃣' },
+    { id: 2, name: 'Генерация фото', icon: '2️⃣' },
+    { id: 3, name: 'Работа с аудио', icon: '3️⃣' },
+    { id: 4, name: 'Работа с видео', icon: '4️⃣' }
+];
+
 const TEXT_TO_TEXT_MODELS_SELECTOR = [
     { key: 'TEXT_TO_TEXT_CLOUDFLARE', name: 'Базовая модель', icon: '✳️' },
     { key: 'TEXT_TO_TEXT_GEMINI', name: 'Умная модель', icon: '✨' },
@@ -103,7 +110,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const currentX = useRef(0);
     const isDragging = useRef(false);
     const [isCopied, setIsCopied] = useState(false);
-
+    
     const handleTouchStart = (e) => {
         startX.current = e.touches[0].clientX;
         isDragging.current = true;
@@ -193,7 +200,12 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     };
 
     return (
-        <div ref={msgRef} className={`message-container ${message.role}`} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+        <div 
+            ref={msgRef} 
+            className={`message-container ${message.role}`}
+            /* Убрали всё лишнее, оставили только стандартное поведение */
+            style={{ cursor: 'text', userSelect: 'text' }} 
+        >
             <div className="bubble">
                 {showAvatar && <img src={avatarUrl} className="avatar" alt="avatar" />}
                 <div className="message-content">
@@ -241,7 +253,6 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         </div>
     );
 };
-
 
 const makeSwipable = (panel, onRemove, useRotation = true) => {
     let startX = 0;
@@ -308,9 +319,12 @@ function App() {
     const [isStorageVisible, setStorageVisible] = useState(false);
     const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
+    const [isRecordingFile, setIsRecordingFile] = useState(false);
     const [isNumberMode, setIsNumberMode] = useState(false);
+    const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
     const [textCaseMode, setTextCaseMode] = useState('normal');
-    
+    const [currentMode, setCurrentMode] = useState(1);    
+
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
     const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('vk_user_id'));
@@ -324,6 +338,9 @@ function App() {
     const fileInputRef = useRef(null);
     const chatWindowRef = useRef(null);
     const appContainerRef = useRef(null);
+    const longPressTimer = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
     const startY = useRef(0);
     const isPulled = useRef(false);
     const welcomeMessageIdRef = useRef(null);
@@ -336,6 +353,7 @@ function App() {
     const wasManuallyStoppedRef = useRef(false);
     const shouldSendOnEndRef = useRef(false);
     const isSendingRef = useRef(false);
+    const blockClickRef = useRef(false);
     const baseTextRef = useRef('');
     const sessionFinalTextRef = useRef('');
     const isNumberModeRef = useRef(isNumberMode);
@@ -434,15 +452,38 @@ function App() {
 
     useEffect(() => {
         function handleClickOutside(event) {
+            // 1. Закрываем подменю режимов (1,2,3,4)
+            // Используем closest, чтобы клики ВНУТРИ меню его не закрывали
+            if (isModeMenuOpen && !event.target.closest('.model-selector-container')) {
+                setIsModeMenuOpen(false);
+            }
+            // --- 2. Селектор моделей (Gemini/Cloudflare) ---
             if (modelSelectorRef.current && !modelSelectorRef.current.contains(event.target)) {
                 setIsModelSelectorOpen(false);
             }
+            // --- 3. Сайдбар ---
+            // 3. САЙДБАР (через DOM, чтобы App не ругался)
+            const sidebarElem = document.getElementById('sidebar');
+            // Если у body НЕТ класса 'sidebar-collapsed', значит он РАЗВЕРНУТ
+            const isExpanded = !document.body.classList.contains('sidebar-collapsed');
+
+            if (isExpanded && sidebarElem) {
+                // Если кликнули ВНЕ сайдбара и НЕ по кнопке открытия
+                if (!sidebarElem.contains(event.target) && !event.target.closest('.menu-btn')) {
+                    // Имитируем клик по кнопке закрытия, чтобы сработал внутренний стейт Сайдбара
+                    const toggleBtn = document.getElementById('toggle-menu');
+                    if (toggleBtn) toggleBtn.click();
+                }
+            }
         }
         document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside); // Для мобилок
+
         return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
         };
-    }, []);
+    }, [isModeMenuOpen, isModelSelectorOpen]);
 
     const fetchChats = useCallback(async () => {
         if (currentUserId && currentUserId !== "guest") {
@@ -776,6 +817,42 @@ function App() {
         await syncChatHistory(chatId, updatedMessages, currentTitle);
     }, [chatList, generateSmartTitle, syncChatHistory, currentUserId]);
 
+    const handleModeButtonClick = (e) => {
+        // 1. Если это был лонг-пресс (меню только что открылось от долгого нажатия)
+        // Мы предотвращаем срабатывание клика сразу после появления меню
+        if (isLongPressActive.current) {
+            isLongPressActive.current = false;
+            return;
+        }
+
+        // Считаем количество режимов прямо из массива констант
+        const totalModes = LESHIY_MODES.length;
+        // 2. Переключаем режим (теперь это происходит всегда при обычном клике)
+        const nextMode = currentMode < totalModes ? currentMode + 1 : 1;
+        setCurrentMode(nextMode);
+    
+        // 3. Если меню было открыто — закрываем его после переключения
+        //if (isModeMenuOpen) {
+        //    setIsModeMenuOpen(false);
+        //}
+    };
+    
+    const isLongPressActive = useRef(null); // Предохранитель
+
+    const startLongPress = () => {
+        isLongPressActive.current = false; // Сбрасываем при каждом нажатии
+        longPressTimer.current = setTimeout(() => {
+            setIsModeMenuOpen(true);
+            isLongPressActive.current = true; // Помечаем, что это БЫЛ долгий тап
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 600);
+    };
+    
+    const stopLongPress = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+        }
+    };
 
     const handleSend = useCallback(async (text) => {
         let userMessageText = (typeof text === 'string' ? text : input).trim();
@@ -1503,8 +1580,22 @@ function App() {
     }, [language, processNewLineCommands, applyPunctuation, convertWordsToNumbers, applyCaseMode]);       
 
     const handleMicClick = () => {
+        if (blockClickRef.current) return; // Если сработал стоп лонгпресса — игнорируем этот клик!
+    
+        // СРАЗУ чистим таймер лонгпресса, чтобы не запустилась вторая запись!
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    
+        if (currentMode === 3) {
+            if (isRecordingFile) {
+                stopVoiceLongPress();
+            } else {
+                // Пишем файл без лишних сущностей
+                startFileRecordingLogic(); 
+            }
+            return;
+        }
+    
         if (!recognitionRef.current) return;
-
         if (isRecording) {
             if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
             wasManuallyStoppedRef.current = true;
@@ -1517,6 +1608,75 @@ function App() {
                 console.error("Не удалось начать распознавание:", e);
                 setIsRecording(false);
             }
+        }
+    };
+    // --- Speech Media Recording --------------------- //
+
+    // СТАРТ ДОЛГОГО НАЖАТИЯ (Запись файла + переключение режима)
+    const startVoiceLongPress = (e) => {
+        if (e.type === 'touchstart') e.preventDefault();
+    
+        // Очистка на всякий случай перед стартом нового таймера
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    
+        longPressTimer.current = setTimeout(() => {
+            setCurrentMode(3);
+            startFileRecordingLogic(); // Используем ту же логику
+        }, 500);
+    };
+    
+    // ВЫНОСИМ ЛОГИКУ В ОДНО МЕСТО, ЧТОБЫ НЕ ДУБЛИРОВАТЬ ВНУТРИ
+    const startFileRecordingLogic = async () => {
+        // 1. МГНОВЕННО КРАСНЕЕМ (до await!)
+        setIsRecordingFile(true); 
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            audioChunksRef.current = [];
+    
+            mediaRecorderRef.current.ondataavailable = (event) => {
+                if (event.data.size > 0) audioChunksRef.current.push(event.data);
+            };
+    
+            mediaRecorderRef.current.onstop = () => {
+                // Проверка: если чанки пустые (плевок), не создаем файл
+                if (audioChunksRef.current.length === 0) return;
+    
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+                const audioFile = new File([audioBlob], `voice_${Date.now()}.wav`, { type: 'audio/wav' });
+                
+                setFiles(prev => [...prev, {
+                    id: Date.now(),
+                    file: audioFile,
+                    preview: null
+                }]);
+    
+                setIsRecordingFile(false);
+                stream.getTracks().forEach(track => track.stop());
+            };
+    
+            mediaRecorderRef.current.start();
+        } catch (err) {
+            console.error("Ошибка микрофона:", err);
+            setIsRecordingFile(false);
+        }
+    };
+    
+    const stopVoiceLongPress = () => {
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+            mediaRecorderRef.current.stop();
+            setIsRecordingFile(false);
+            setIsRecording(false);
+            
+            // ВКЛЮЧАЕМ БЛОКИРОВКУ: говорим клику, что мы только что закончили лонгпресс
+            blockClickRef.current = true;
+            setTimeout(() => { blockClickRef.current = false; }, 300); // через 300мс разблокируем
+            
+            console.log("📝 Запись завершена");
         }
     };
     // ------------------------ //
@@ -1641,6 +1801,16 @@ function App() {
                 <span id="ptr-text">Потяните для обновления</span>
             </div>
 
+            {/* Оверлей подсветки, который виден только при драге файла */}
+            {isDragging && (
+                <div className="drag-drop-zone-overlay">
+                    <div className="drag-drop-message">
+                        <div className="drag-icon">📥</div>
+                        <p>Бросайте файлы сюда</p>
+                    </div>
+                </div>
+            )}
+
             <header className="top">
                 <img src="/Gemini.png" alt="Gemini AI" className="logo" />
                 <h1>{t.title} <span>ECOSYSTEM</span></h1>
@@ -1669,32 +1839,26 @@ function App() {
 
                 <div className="input-area">
                     {/* ЛОГИКА ГОЛОСОВЫХ КОМАНД ИЛИ ПРЕВЬЮ ФАЙЛОВ */}
-                    {(isRecording || files.length > 0) && (
+                    {(isRecording || isRecordingFile || files.length > 0) && (
                         <div className="file-preview-container">
-                            {isRecording ? (
-                                // Показываем команды, когда микрофон включен
+                            {/* Показываем команды, когда идет STT (диктовка текста) */}
+                            {isRecording && (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') ? (
                                 <div className="voice-commands-hints">
                                     <div className="rec-indicator">
                                         <span className="rec-dot"></span>
                                         <span className="rec-label">REC</span>
                                     </div>
                                     <div className="hints-scroll">
-                                        <button 
-                                            className="hint-btn" 
-                                            onClick={() => {
-                                                const modes = ['normal', 'upper', 'lower'];
-                                                const nextIndex = (modes.indexOf(textCaseMode) + 1) % modes.length;
-                                                setTextCaseMode(modes[nextIndex]);
-                                            }}
-                                        >
+                                        <button className="hint-btn" onClick={() => {
+                                            const modes = ['normal', 'upper', 'lower'];
+                                            const nextIndex = (modes.indexOf(textCaseMode) + 1) % modes.length;
+                                            setTextCaseMode(modes[nextIndex]);
+                                        }}>
                                             {textCaseMode === 'normal' && '🔤 Aa (Норм)'}
                                             {textCaseMode === 'upper' && '🔠 AA (ВЕРХ)'}
                                             {textCaseMode === 'lower' && '🔡 aa (низ)'}
                                         </button>
-                                        <button 
-                                            className={`hint-btn ${isNumberMode ? 'active-mode' : ''}`} 
-                                            onClick={() => setIsNumberMode(prev => !prev)}
-                                        >
+                                        <button className={`hint-btn ${isNumberMode ? 'active-mode' : ''}`} onClick={() => setIsNumberMode(prev => !prev)}>
                                             {isNumberMode ? '🔢 Цифрами' : '🔣 Буквами'}
                                         </button>
                                         <button className="hint-btn" onClick={() => {
@@ -1703,29 +1867,22 @@ function App() {
                                             wasManuallyStoppedRef.current = true;
                                             recognitionRef.current?.stop();
                                         }}>🆗 Отправить</button>
-
                                         <button className="hint-btn" onClick={() => {
                                             const currentInput = input.trim();
                                             const match = currentInput.match(/\S+$/);
                                             const correctedText = match ? currentInput.substring(0, match.index).trim() : '';
                                             baseTextRef.current = correctedText ? correctedText + ' ' : '';
-                                            sessionFinalTextRef.current = '';
                                             setInput(baseTextRef.current);
-                                            if (recognitionRef.current && isRecording) {
-                                                recognitionRef.current.stop();
-                                            }
+                                            if (recognitionRef.current && isRecording) recognitionRef.current.stop();
                                         }}>Отменить</button>
-
                                         <button className="hint-btn" onClick={() => {
                                             const newValue = input + '\n';
                                             baseTextRef.current = newValue;
                                             setInput(newValue);
                                         }}>Новая строка</button>
-
                                         <button className="hint-btn" onClick={() => {
                                             if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
                                             baseTextRef.current = '';
-                                            sessionFinalTextRef.current = '';
                                             setInput('');
                                             wasManuallyStoppedRef.current = true;
                                             recognitionRef.current?.stop();
@@ -1733,28 +1890,72 @@ function App() {
                                     </div>
                                 </div>
                             ) : (
-                                // Твой стандартный рендер файлов
-                                files.map(file => {
-                                    const type = file.file.type;
-                                    const name = file.file.name;
-                                    let icon = '📎';
-                                    if (type.startsWith('video/')) icon = '🎬';
-                                    else if (type.startsWith('audio/') || name.endsWith('.mp3')) icon = '🎵';
-                                    else if (name.endsWith('.zip') || name.endsWith('.rar')) icon = '📦';
-                                    else if (name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx')) icon = '📄';
-
-                                    return (
-                                        <div key={file.id} className="file-preview-item">
-                                            {file.preview ? (
-                                                <img src={file.preview} className="image-preview" alt="preview" />
-                                            ) : (
-                                                <div className="file-preview-icon">{icon}</div>
-                                            )}
-                                            <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
-                                            <span className="file-preview-name">{name}</span>
+                                /* Этот DIV — тот самый "родитель", которого не хватает */
+                                <div className="files-list-wrapper">
+                                    {/* Индикатор REC - мигает пока идет физическая запись файла */}
+                                    {isRecordingFile && (
+                                        <div className="file-preview-item recording-status">
+                                            <div className="rec-dot-blink">🔴</div>
+                                            <span className="file-preview-name" style={{color: '#ff4444', fontSize: '10px'}}>REC</span>
                                         </div>
-                                    );
-                                })
+                                    )}
+                                    {/* 2. Стандартный рендер файлов */}
+                                    {files.map(file => {
+                                        const type = file.file.type || '';
+                                        const name = file.file.name || '';
+                                        
+                                        // Если это только что записанное аудио, у него может быть audioUrl
+                                        // Если это загруженный файл, создаем URL из Blob
+                                        const fileUrl = file.audioUrl || (file.file instanceof Blob ? URL.createObjectURL(file.file) : file.preview);
+                                        
+                                        const isImage = type.startsWith('image/');
+                                        const isVideo = type.startsWith('video/');
+                                        const isAudio = type.startsWith('audio/') || name.endsWith('.wav') || name.endsWith('.mp3');
+                                        
+                                        return (
+                                            <div key={file.id} className="file-preview-item" style={{ position: 'relative' }}>
+                                                {isImage && (
+                                                    <img 
+                                                        src={fileUrl} 
+                                                        className="image-preview" 
+                                                        alt="preview" 
+                                                        onClick={() => {
+                                                            const a = document.createElement('a');
+                                                            a.href = fileUrl;
+                                                            a.target = '_blank';
+                                                            a.click();
+                                                        }}
+                                                        style={{ cursor: 'zoom-in', width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px' }}
+                                                    />
+                                                )}
+                            
+                                                {isVideo && (
+                                                    <video 
+                                                        src={fileUrl} 
+                                                        className="video-preview" 
+                                                        controls 
+                                                        style={{ width: '120px', borderRadius: '8px', maxHeight: '80px' }}
+                                                    />
+                                                )}
+                                                {isAudio && (
+                                                    <div className="audio-preview-content">
+                                                        {/* key={fileUrl} заставляет плеер обновиться и подхватить звук */}
+                                                        <audio key={fileUrl} src={fileUrl} controls />
+                                                    </div>
+                                                )}
+                                                {!isImage && !isVideo && !isAudio && (
+                                                    <div className="file-preview-icon">
+                                                        {name.endsWith('.zip') || name.endsWith('.rar') ? '📦' : 
+                                                         name.endsWith('.pdf') || name.endsWith('.doc') ? '📄' : '📎'}
+                                                    </div>
+                                                )}
+                            
+                                                <button onClick={() => removeFile(file.id)} className="clear-file-btn">✕</button>
+                                                <span className="file-preview-name" title={name}>{name}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div> /* Закрытие родительского DIV */
                             )}
                         </div>
                     )}
@@ -1774,6 +1975,40 @@ function App() {
                         }}
                         placeholder={t.placeholder(files)}
                     />
+                    <div className="model-selector-container" style={{ position: 'relative' }}>
+                        <button 
+                            className={`tool-btn ${isModeMenuOpen ? 'active' : ''}`}
+                            onClick={handleModeButtonClick}
+                            onMouseDown={startLongPress}
+                            onMouseUp={stopLongPress}
+                            onMouseLeave={stopLongPress}
+                            onTouchStart={startLongPress}
+                            onTouchEnd={stopLongPress}
+                            title="Клик — переключить режим, Зажать — меню выбора режима"
+                            style={{ fontSize: '1.2rem' }}
+                        >
+                            {LESHIY_MODES.find(m => m.id === currentMode)?.icon}
+                        </button>
+
+                        {/* ПОДМЕНЮ ВЫБОРА РЕЖИМА */}
+                        {isModeMenuOpen && (
+                            <div className="model-selector-dropdown" style={{ bottom: '100%', left: 0, display: 'block' }}>
+                                {LESHIY_MODES.map(mode => (
+                                    <button
+                                        key={mode.id}
+                                        className={`model-option ${currentMode === mode.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            setCurrentMode(mode.id);
+                                            setIsModeMenuOpen(false);
+                                        }}
+                                    >
+                                        <span className="model-option-icon">{mode.icon}</span>
+                                        <span className="model-option-name">{mode.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <div className="model-selector-container" ref={modelSelectorRef}>
                         <button id="input-model-selector" className="tool-btn model-selector-btn" title={t.tooltip_select_model} onClick={() => setIsModelSelectorOpen(prev => !prev)}>
                            {activeTttModel.icon}
@@ -1793,8 +2028,20 @@ function App() {
                             </div>
                         )}
                     </div>
-                     <button id="input-mic-btn" className={`tool-btn ${isRecording ? 'recording' : ''}`} title={t.tooltip_record_voice} onClick={handleMicClick}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg>
+                     <button 
+                        id="input-mic-btn" 
+                        className={`tool-btn ${isRecording || isRecordingFile ? 'recording' : ''}`} 
+                        title={t.tooltip_record_voice} 
+                        onClick={handleMicClick} // Обычный клик работает как раньше
+                        onMouseDown={startVoiceLongPress}
+                        onMouseUp={stopVoiceLongPress}
+                        onMouseLeave={stopVoiceLongPress}
+                        onTouchStart={startVoiceLongPress}
+                        onTouchEnd={stopVoiceLongPress}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/>
+                        </svg>
                     </button>
                     <button className="send-btn" title={t.tooltip_send} onClick={() => handleSend(input)} disabled={isLoading || (!input.trim() && files.length === 0)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
