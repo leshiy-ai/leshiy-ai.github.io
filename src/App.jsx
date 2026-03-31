@@ -487,13 +487,20 @@ function App() {
 
             // --- 3. Сайдбар ---
             const sidebarElem = document.getElementById('sidebar');
-            // Если сайдбар открыт (нет класса 'sidebar-collapsed') и клик был за его пределами
-            if (sidebarElem && 
-                !document.body.classList.contains('sidebar-collapsed') && 
-                !sidebarElem.contains(event.target)) 
-            {
-                // Прямо и надежно закрываем сайдбар
-                document.body.classList.add('sidebar-collapsed');
+            const toggleBtn = document.getElementById('toggle-menu'); // Добавляем ссылку на кнопку
+
+            // Если сайдбар открыт
+            if (sidebarElem && !document.body.classList.contains('sidebar-collapsed')) {
+                
+                // ПРОВЕРКА: Если клик был НЕ по сайдбару И НЕ по кнопке открытия
+                const isClickInsideSidebar = sidebarElem.contains(event.target);
+                const isClickOnToggleButton = toggleBtn && toggleBtn.contains(event.target);
+
+                if (!isClickInsideSidebar && !isClickOnToggleButton) {
+                    // Только тогда закрываем
+                    document.body.classList.add('sidebar-collapsed');
+                    console.log("App: Сайдбар закрыт автоматическим кликом вне области");
+                }
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
