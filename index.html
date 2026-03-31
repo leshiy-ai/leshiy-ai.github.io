@@ -45,6 +45,21 @@
     <script src="https://vk.com/js/api/openapi.js?169" type="text/javascript" defer></script>
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" defer></script>
     <script>
+      // 1. Создаем "заглушку" немедленно
+      window.Telegram = window.Telegram || {};
+      window.Telegram.WebApp = window.Telegram.WebApp || {
+        ready: function() {},
+        close: function() {},
+        expand: function() {},
+        isExpanded: false,
+        initData: "",
+        initDataUnsafe: {},
+        MainButton: { show: function() {}, hide: function() {} },
+        SettingsButton: { show: function() {}, hide: function() {} },
+        onEvent: function() {},
+        offEvent: function() {},
+        sendData: function() {}
+      };
       (function loadTelegram() {
         try {
           // Старая команда для справки (разрезана, чтобы не закрыть тег раньше времени):
@@ -52,6 +67,7 @@
           var script = document.createElement('script');
           script.src = "https://telegram.org/js/telegram-web-app.js";
           script.async = true;
+          script.timeout = 3000; // Установим внутренний лимит ожидания
           script.onerror = function() {
             console.warn("Telegram SDK не загрузился, работаем без него.");
           };
