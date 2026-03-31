@@ -61,12 +61,6 @@
         sendData: function() {}
       };
       (function loadTelegram() {
-        const isVK = window.location.search.includes('vk_') || window.name.includes('fXD');
-    
-        if (isVK) {
-            console.log("Detected VK environment. Skipping Telegram SDK.");
-            return; // Выходим, ничего не грузим
-        }
         try {
           // Старая команда для справки (разрезана, чтобы не закрыть тег раньше времени):
           // <script src="https://telegram.org/js/telegram-web-app.js"></scr_ipt>
