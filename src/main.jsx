@@ -247,15 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Затем, как обычно, запрашиваем статус (возможно, он только что был установлен)
   window.fetchUserStatus();
-
-  const toggleBtn = document.getElementById('toggle-menu');
-  if (toggleBtn) {
-    toggleBtn.onclick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      document.body.classList.toggle('sidebar-collapsed');
-    };
-  }
 });
 
 // Слушатель для OneTap кнопки VK
