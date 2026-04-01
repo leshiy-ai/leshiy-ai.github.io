@@ -85,14 +85,16 @@ const tgAppAutoAuth = async () => {
 }
 
   try {
-      // Формируем URL. Убедись, что CONFIG.STORAGE_GATEWAY определен!
-      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&${tg.initData}`;
-
+      // Формируем URL
+      const returnTo = window.location.origin + window.location.pathname;
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=${encodeURIComponent(returnTo)}&${tg.initData}`;
+      window.location.href = authUrl;
+      /*
       const response = await fetch(authUrl, {
           method: 'GET',
           headers: { 'Accept': 'application/json' }
       });
-
+      
       const data = await response.json();
 
       if (data.user_id || data.id) {
@@ -100,7 +102,7 @@ const tgAppAutoAuth = async () => {
           localStorage.setItem('vk_user_id', id);
           localStorage.setItem('auth_provider', 'Telegram');
           if (window.fetchUserStatus) window.fetchUserStatus();
-      }
+      }*/
   } catch (err) {
     console.error("Silent auth failed:", err);
   }
