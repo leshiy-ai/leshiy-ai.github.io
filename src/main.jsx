@@ -319,7 +319,7 @@ const TelegramAuthModal = ({ onClose }) => {
         // ДЛЯ МОБИЛЫ (Callback режим):
         script.setAttribute('data-onauth', 'onTelegramAuth(user)');
         // ДЛЯ ПК (Redirect режим):
-        script.setAttribute('data-auth-url', '${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io');
+        script.setAttribute('data-auth-url', `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io`);
         
         containerRef.current.appendChild(script);
     }
