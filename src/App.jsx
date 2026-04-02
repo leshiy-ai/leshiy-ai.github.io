@@ -198,12 +198,26 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             const pointY = touch.clientY;
             const dropZoneRect = dropZone.getBoundingClientRect();
             
-            if (pointY > dropZoneRect.top && pointX > dropZoneRect.left && pointX < dropZoneRect.right) {
+            // ИСПРАВЛЕНО: Добавлена проверка на нижнюю границу (dropZoneRect.bottom)
+            const isOverDropZone = 
+            pointY > dropZoneRect.top && 
+            pointY < dropZoneRect.bottom && 
+            pointX > dropZoneRect.left && 
+            pointX < dropZoneRect.right;
+
+            if (isOverDropZone) {
+                if (window.draggedFile) {
+                   const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
+                   window.dispatchEvent(dropEvent);
+                }
+            }
+
+            /*if (pointY > dropZoneRect.top && pointX > dropZoneRect.left && pointX < dropZoneRect.right) {
                 if (window.draggedFile) {
                     const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
                     window.dispatchEvent(dropEvent);
                 }
-            }
+            }*/
         }
         // Если это был просто долгий тап без движения, isFileDragging будет false,
         // и этот код не выполнится, позволяя браузеру показать контекстное меню.
@@ -225,7 +239,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         // который позволит функции handleMobileDragMove начать перетаскивание.
         longPressTimer.current = setTimeout(() => {
             isLongPress.current = true;
-        }, 350); // Задержка для долгого нажатия
+        }, 400); // Задержка для долгого нажатия
 
         // Вешаем слушатели на все окно, чтобы ловить движение где угодно
         window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
