@@ -2209,24 +2209,26 @@ function App() {
                             )}
                         </div>
                     )}
-                    <div className="voice-selector-container">
-                        {currentMode === 3 && availableVoices.length > 0 && (
+                    
+                    {currentMode === 3 && availableVoices.length > 0 && (
+                        <div className="voice-selector-container">
                             <>
-                                <p className="voice-selector-title">Выберите голос для озвучивания:</p>
-                                <div className="hints-scroll">
-                                    {availableVoices.map(voice => (
-                                        <button 
-                                            key={voice.id} 
-                                            className={`hint-btn ${currentVoiceId === voice.id ? 'active-mode' : ''}`}
-                                            onClick={() => setCurrentVoiceId(voice.id)}
-                                        >
-                                            {voice.icon} {voice.name}
-                                        </button>
-                                    ))}
-                                </div>
+                            <p className="voice-selector-title">Выберите голос для озвучивания:</p>
+                            <div className="hints-scroll">
+                                {availableVoices.map(voice => (
+                                    <button 
+                                        key={voice.id} 
+                                        className={`hint-btn ${currentVoiceId === voice.id ? 'active-mode' : ''}`}
+                                        onClick={() => setCurrentVoiceId(voice.id)}
+                                    >
+                                        {voice.icon} {voice.name}
+                                    </button>
+                                ))}
+                            </div>
                             </>
-                        )}
-                    </div>
+                        </div>
+                    )}
+                    
                     <button id="input-add-btn" className="tool-btn" title={t.tooltip_add_file} onClick={() => fileInputRef.current.click()}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>
                     </button>
