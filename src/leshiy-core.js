@@ -1076,8 +1076,146 @@ async function generateImageNano(prompt, files) {
 }
 
 async function generateAudioLyria(prompt) {
-    // Здесь пойдет вызов Lyria 3
-    return { type: 'system', text: `🎵 Создаю аудио по запросу: "${prompt}"...` };
+    // Генерация аудио из текста (Text-to-Speech)
+    const config = loadActiveModelConfig('TEXT_TO_AUDIO');
+    if (!config) return { type: 'error', text: 'Модель TEXT_TO_AUDIO не настроена' };
+    
+    console.log(`🎵 [AUDIO_GEN] Модель: ${config.SERVICE} (${config.MODEL})`);
+    
+    try {
+        let url, authHeader, body, isRawBody = false;
+        
+        switch (config.SERVICE) {
+            case 'GEMINI':
+                // Gemini TTS через generativelanguage API
+                url = `${config.BASE_URL}/models/${config.MODEL}:streamGenerateContent?key=${CONFIG[config.API_KEY]}&alt=sse`;
+                body = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: { 
+                                prebuiltVoiceConfig: { 
+                                    voiceName: "Kore" 
+                                } 
+                            }
+                        }
+                    }
+                };
+                break;
+                
+            case 'CLOUDFLARE':
+                // Cloudflare Deepgram Aura TTS
+                url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                body = {
+                    input: prompt,
+                    voice: "aura-asteria-en" // Можно добавить выбор голоса
+                };
+                break;
+                
+            case 'BOTHUB':
+                // OpenAI-compatible TTS API
+                url = `${config.BASE_URL}/audio/speech`;
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                body = {
+                    model: config.MODEL,
+                    input: prompt,
+                    voice: "alloy",
+                    response_format: "mp3"
+                };
+                isRawBody = true; // TTS возвращает бинарные данные
+                break;
+                
+            case 'VOICERSS':
+                // VoiceRSS API
+                url = `${config.BASE_URL}?${config.MODEL}&key=${CONFIG[config.API_KEY]}&src=${encodeURIComponent(prompt)}`;
+                isRawBody = true;
+                break;
+                
+            default:
+                return { type: 'error', text: `Неподдерживаемый сервис для TTS: ${config.SERVICE}` };
+        }
+        
+        // Отправка запроса через прокси
+        const commonProxyHeaders = {
+            'X-Target-URL': url,
+            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+            'Content-Type': 'application/json'
+        };
+        if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
+        
+        let response;
+        try {
+            response = await fetch(CONFIG.PROXY_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: isRawBody && config.SERVICE !== 'VOICERSS' ? 
+                    { ...commonProxyHeaders, 'Accept': 'audio/mpeg' } : 
+                    commonProxyHeaders,
+                body: isRawBody && config.SERVICE !== 'VOICERSS' ? JSON.stringify(body) : JSON.stringify(body)
+            });
+            
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`TTS Proxy Error: ${response.status} ${errText}`);
+            }
+        } catch (proxyError) {
+            // Пытаем fallback прокси
+            console.warn("Main proxy failed, trying fallback...");
+            response = await fetch(CONFIG.FALLBACK_PROXY, {
+                method: 'POST',
+                mode: 'cors',
+                headers: commonProxyHeaders,
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) throw proxyError;
+        }
+        
+        // Обработка ответа
+        let audioUrl;
+        if (config.SERVICE === 'GEMINI') {
+            // Gemini возвращает SSE с аудио данными
+            const reader = response.body.getReader();
+            const chunks = [];
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+            }
+            const blob = new Blob(chunks, { type: 'audio/wav' });
+            audioUrl = URL.createObjectURL(blob);
+        } else if (config.SERVICE === 'CLOUDFLARE') {
+            const data = await response.json();
+            if (data.result?.audio) {
+                const binaryStr = atob(data.result.audio);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) {
+                    bytes[i] = binaryStr.charCodeAt(i);
+                }
+                const blob = new Blob([bytes], { type: 'audio/wav' });
+                audioUrl = URL.createObjectURL(blob);
+            } else {
+                throw new Error('Нет аудио данных в ответе Cloudflare');
+            }
+        } else if (config.SERVICE === 'BOTHUB' || config.SERVICE === 'VOICERSS') {
+            // Прямой бинарный ответ
+            const blob = await response.blob();
+            audioUrl = URL.createObjectURL(blob);
+        }
+        
+        if (!audioUrl) throw new Error('Не удалось получить аудио URL');
+        
+        return { 
+            type: 'audio', 
+            text: `🎵 Аудио сгенерировано по запросу: "${prompt}"`,
+            audioUrl: audioUrl
+        };
+        
+    } catch (error) {
+        console.error("❌ [generateAudioLyria] Ошибка:", error);
+        return { type: 'error', text: `❌ Ошибка генерации аудио: ${error.message}` };
+    }
 }
 
 async function generateVideoVeo(prompt, files) {
