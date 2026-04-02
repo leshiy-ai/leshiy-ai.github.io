@@ -137,8 +137,10 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const longPressTimer = useRef(null);
     const isFileDragging = useRef(false);
     const dragGhostRef = useRef(null);
+    const touchStartCoords = useRef({x: 0, y: 0});
 
-    // --- Логика для Mobile Touch-n-Drag (Long Press) ---
+
+    // --- УЛУЧШЕННАЯ ЛОГИКА для Mobile Touch-n-Drag (Long Press + Drag) ---
     const cleanupMobileDrag = () => {
         clearTimeout(longPressTimer.current);
         if (dragGhostRef.current) {
@@ -146,61 +148,80 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             dragGhostRef.current = null;
         }
         isFileDragging.current = false;
+        // Удаляем глобальные слушатели
         window.removeEventListener('touchmove', handleMobileDragMove);
-        window.removeEventListener('touchend', cleanupMobileDrag);
+        window.removeEventListener('touchend', handleMobileDragEndAndDrop);
     };
 
     const handleMobileDragMove = (e) => {
-        if (isFileDragging.current && dragGhostRef.current) {
-            e.preventDefault();
-            const touch = e.touches[0];
+        const touch = e.touches[0];
+        const movedDistance = Math.abs(touch.clientX - touchStartCoords.current.x) + Math.abs(touch.clientY - touchStartCoords.current.y);
+
+        // Если таймер ЕЩЕ НЕ сработал, а палец уже сдвинулся, значит это скролл.
+        // Отменяем все.
+        if (!isFileDragging.current && movedDistance > 15) {
+            cleanupMobileDrag();
+            return;
+        }
+
+        // Если таймер СРАБОТАЛ, и мы двигаем палец, значит это перетаскивание.
+        if (isFileDragging.current) {
+            e.preventDefault(); // Блокируем скролл ТОЛЬКО ВО ВРЕМЯ ПЕРЕТАСКИВАНИЯ
+            
+            // Если "призрака" еще нет, создаем его.
+            if (!dragGhostRef.current) {
+                const ghost = document.createElement('div');
+                ghost.className = 'drag-ghost';
+                ghost.innerHTML = `📎 ${window.draggedFile.name}`;
+                document.body.appendChild(ghost);
+                dragGhostRef.current = ghost;
+            }
+            
+            // Двигаем "призрака"
             dragGhostRef.current.style.left = `${touch.clientX - 30}px`;
             dragGhostRef.current.style.top = `${touch.clientY - 15}px`;
         }
     };
 
     const handleMobileDragEndAndDrop = () => {
-        if (!isFileDragging.current) {
-            cleanupMobileDrag();
-            return;
-        }
-        if (dragGhostRef.current) {
+        // Если перетаскивание было активно (т.е. был и долгий тап, и движение)
+        if (isFileDragging.current && dragGhostRef.current) {
             const dropZone = document.querySelector('.input-area-container');
             const ghostRect = dragGhostRef.current.getBoundingClientRect();
             const dropZoneRect = dropZone.getBoundingClientRect();
+
             if (ghostRect.top < dropZoneRect.bottom && ghostRect.left < dropZoneRect.right && ghostRect.right > dropZoneRect.left) {
                 if (window.draggedFile) {
-                    // Генерируем событие, которое ловит App.jsx
                     const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
                     window.dispatchEvent(dropEvent);
                 }
             }
         }
+        // Если isFileDragging.current === false, это был просто долгий тап без движения.
+        // Мы ничего не делали, и браузер должен показать свое контекстное меню.
+        
         cleanupMobileDrag();
     };
 
     const handleTouchStartOnDraggable = (e, fileToDrag) => {
-        if (isDragging.current) return; // Не начинаем, если уже идет свайп сообщения
+        // Не даем `handleSwipeTouchStart` сработать на этом же событии
+        e.stopPropagation(); 
+        if (isDragging.current) return;
+
+        touchStartCoords.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         window.draggedFile = fileToDrag;
         
+        // Запускаем таймер. Он взведет флаг isFileDragging.current,
+        // который позволит функции handleMobileDragMove начать перетаскивание.
         longPressTimer.current = setTimeout(() => {
-            if (isDragging.current) return;
             isFileDragging.current = true;
-            
-            const ghost = document.createElement('div');
-            ghost.className = 'drag-ghost';
-            ghost.innerHTML = `📎 ${fileToDrag.name}`;
-            document.body.appendChild(ghost);
-            dragGhostRef.current = ghost;
-
-            const touch = e.touches[0];
-            ghost.style.left = `${touch.clientX - 30}px`;
-            ghost.style.top = `${touch.clientY - 15}px`;
-
-            window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
-            window.addEventListener('touchend', handleMobileDragEndAndDrop, { passive: false });
         }, 400); // Задержка для долгого нажатия
+
+        // Вешаем слушатели на все окно, чтобы ловить движение где угодно
+        window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
+        window.addEventListener('touchend', handleMobileDragEndAndDrop, { once: true });
     };
+
 
     const handleTouchStart = (e) => {
         // ИЗМЕНЕНИЕ: Не начинаем свайп, если касание на файле.
@@ -217,9 +238,10 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         clearTimeout(longPressTimer.current); 
         if (!isDragging.current || isFileDragging.current) return;
         currentX.current = e.touches[0].clientX - startX.current;
-        if ((message.role === 'user' && currentX.current < 0) || (message.role === 'ai' && currentX.current > 0)) {
-            currentX.current = 0;
-        }
+    
+        if ((message.role === 'user' && currentX.current < 0) || (message.role.startsWith('ai') && currentX.current > 0)) {
+                currentX.current = 0;
+            }
         if (msgRef.current) msgRef.current.style.transform = `translateX(${currentX.current}px)`;
     };
 
