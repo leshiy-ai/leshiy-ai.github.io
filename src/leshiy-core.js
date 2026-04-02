@@ -1109,7 +1109,7 @@ async function generateAudioLyria(prompt) {
                 url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                 body = {
-                    input: prompt,
+                    text: prompt,  // Исправлено: было "input", нужно "text"
                     voice: "aura-asteria-en" // Можно добавить выбор голоса
                 };
                 break;
