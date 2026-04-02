@@ -980,7 +980,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
     } catch (error) {
         console.error("AI request failed:", error);
-
+        /*
         let friendlyMessage = "Произошла неизвестная ошибка.";
         const originalMessage = error.message || "";
 
@@ -1018,9 +1018,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 // 3. Если ничего не подошло, выводим как есть
                 friendlyMessage = originalMessage;
             }
-        }
+        }*/
 
-        return { type: 'error', text: `❌ Ошибка: ${friendlyMessage}` };
+        //return { type: 'error', text: `❌ Ошибка: ${friendlyMessage}` };
+        // ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ ПРОВЕРКИ ОШИБОК
+        return handleAiError(error);
     }
 
 };
@@ -1126,6 +1128,55 @@ async function sendAIRequest(config, url, body, authHeader, isRawBody = false) {
         // Пробрасываем ошибку выше, чтобы ее обработал вызывающий код (askLeshiy или generateAudio)
         throw error;
     }
+}
+
+// =================================================================
+// SECTION: Универсальный обработчик ошибок AI
+// =================================================================
+/**
+ * Обрабатывает ошибки от AI-сервисов и возвращает понятное сообщение.
+ * @param {Error} error - Объект ошибки.
+ * @returns {{type: string, text: string}} - Объект ошибки для отображения в чате.
+ */
+function handleAiError(error) {
+    console.error("AI request failed:", error);
+    let friendlyMessage = "Произошла неизвестная ошибка.";
+    const originalMessage = (error && error.message) ? String(error.message) : "";
+    // 1. Проверяем на самые частые и понятные ошибки по ключевым словам
+    if (originalMessage.includes('quota') || originalMessage.includes('429')) {
+        friendlyMessage = 'Исчерпан лимит запросов к этой модели. Попробуйте снова позже или выберите другую модель.';
+    } else if (originalMessage.includes('Insufficient Balance') || originalMessage.includes('402')) {
+        friendlyMessage = 'Закончились средства на балансе этой AI-модели. Пожалуйста, пополните баланс в личном кабинете провайдера.';
+    } else if (originalMessage.includes('User location is not supported')) {
+        friendlyMessage = 'Доступ к этой модели ограничен в вашем регионе. Резервный прокси не смог помочь.';
+    } else if (originalMessage.includes('API key')) {
+        friendlyMessage = 'Ключ API недействителен или отсутствует. Проверьте настройки.';
+    } else if (originalMessage.includes('Failed to fetch') || originalMessage.includes('network error')) {
+        friendlyMessage = 'Сетевая ошибка. Проверьте подключение к интернету или работу прокси-сервера.';
+    } else {
+        // 2. Если не нашли, пытаемся вытащить сообщение из JSON-ответа в тексте ошибки
+        const jsonMatch = originalMessage.match(/(\{.*\})/s);
+        if (jsonMatch && jsonMatch[1]) {
+            try {
+                const errorJson = JSON.parse(jsonMatch[1]);
+                const message = errorJson.error?.message || errorJson.message;
+                if (message && typeof message === 'string') {
+                    // Берем только первую, самую информативную часть сообщения
+                    friendlyMessage = message.split(/[\\.|\\n]/)[0];
+                } else {
+                    const prefix = originalMessage.substring(0, originalMessage.indexOf('{')).trim();
+                    friendlyMessage = prefix || originalMessage;
+                }
+            } catch (e) {
+                const prefix = originalMessage.substring(0, originalMessage.indexOf('{')).trim();
+                friendlyMessage = prefix || originalMessage;
+            }
+        } else {
+            // 3. Если ничего не подошло, выводим как есть
+            friendlyMessage = originalMessage;
+        }
+    }
+    return { type: 'error', text: `❌ Ошибка: ${friendlyMessage}` };
 }
 
 async function translateLeshiy(text, targetLang = "ru") {
@@ -1358,7 +1409,7 @@ async function generateAudio(prompt, voiceId) {
         
     } catch (error) {
         console.error("❌ [generateAudio] Ошибка:", error);
-        return { type: 'error', text: `❌ Ошибка генерации аудио: ${error.message}` };
+        return handleAiError(error);
     }
 }
 
