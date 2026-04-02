@@ -162,6 +162,13 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         const movedY = Math.abs(touch.clientY - touchStartCoords.current.y);
         const movedDistance = movedX + movedY;
     
+        // Если палец сдвинулся до того, как сработал таймер долгого нажатия,
+        // значит это скролл страницы. Отменяем все.
+        if (movedDistance > 15 && !isLongPress.current) {
+            cleanupMobileDrag();
+            return;
+        }
+        
         // Если таймер долгого нажатия сработал И мы начали двигать палец,
         // то это официальное начало перетаскивания.
         if (isLongPress.current && movedDistance > 10 && !isFileDragging.current) {
@@ -183,51 +190,41 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 dragGhostRef.current.style.top = `${touch.clientY - 15}px`;
             }
         } 
-        // Если пользователь начал двигать палец ДО срабатывания таймера, это скролл. Отменяем всё.
-        else if (movedDistance > 10) {
-            clearTimeout(longPressTimer.current);
-        }
     };
 
-    const handleMobileDragEndAndDrop = () => {
-        // "Бросаем" файл, только если перетаскивание было полностью активировано.
-        if (isFileDragging.current) {
-            const dropZone = document.querySelector('.input-area-container');
-            const touch = e.changedTouches[0];
-            const pointX = touch.clientX;
-            const pointY = touch.clientY;
-            const dropZoneRect = dropZone.getBoundingClientRect();
+    const handleMobileDragEndAndDrop = (e) => {
+        // "Бросаем" файл, только если перетаскивание было активно
+        if (isFileDragging.current && dragGhostRef.current) {
             
-            // ИСПРАВЛЕНО: Добавлена проверка на нижнюю границу (dropZoneRect.bottom)
-            const isOverDropZone = 
-            pointY > dropZoneRect.top && 
-            pointY < dropZoneRect.bottom && 
-            pointX > dropZoneRect.left && 
-            pointX < dropZoneRect.right;
-
-            if (isOverDropZone) {
-                if (window.draggedFile) {
-                   const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
-                   window.dispatchEvent(dropEvent);
-                }
-            }
-
-            /*if (pointY > dropZoneRect.top && pointX > dropZoneRect.left && pointX < dropZoneRect.right) {
-                if (window.draggedFile) {
+            // Прячем "призрак", чтобы он не мешал определить, что под ним
+            dragGhostRef.current.style.display = 'none';
+    
+            const touch = e.changedTouches[0];
+            // Находим самый верхний элемент под пальцем в момент отпускания
+            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            // Показываем "призрак" обратно на мгновение
+            dragGhostRef.current.style.display = '';
+    
+            const dropZone = document.querySelector('.input-area-container');
+    
+            // Проверяем, находится ли элемент под пальцем ВНУТРИ зоны для "падения"
+            if (dropZone && dropZone.contains(elementAtPoint)) {
+                 if (window.draggedFile) {
                     const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
                     window.dispatchEvent(dropEvent);
-                }
-            }*/
+                 }
+            }
         }
-        // Если это был просто долгий тап без движения, isFileDragging будет false,
-        // и этот код не выполнится, позволяя браузеру показать контекстное меню.
+        // Если это был просто долгий тап без движения, isFileDragging будет false.
+        // Этот блок не сработает, и браузер покажет стандартное контекстное меню.
         
         cleanupMobileDrag();
     };
 
     const handleTouchStartOnDraggable = (e, fileToDrag) => {
         // Не даем `handleSwipeTouchStart` сработать на этом же событии
-        //e.stopPropagation(); 
+        e.stopPropagation(); 
         if (isDragging.current) return;
 
         touchStartCoords.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
