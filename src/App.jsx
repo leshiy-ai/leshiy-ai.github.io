@@ -227,7 +227,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
     const handleTouchStartOnDraggable = (e, fileToDrag) => {
         // Не даем `handleSwipeTouchStart` сработать на этом же событии
-        e.stopPropagation(); 
+        //e.stopPropagation(); 
         if (isDragging.current) return;
 
         touchStartCoords.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
