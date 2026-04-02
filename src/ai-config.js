@@ -245,7 +245,6 @@ export const AI_MODELS = {
         API_KEY: 'VOICERSS_API_KEY', 
         BASE_URL: 'http://api.voicerss.org',
         voices: [
-            { id: 'Dmitry', name: 'Дмитрий', icon: '👨' },
             { id: 'Peter', name: 'Пётр', icon: '👨' },
             { id: 'Marina', name: 'Марина', icon: '👩' },
             { id: 'Olga', name: 'Ольга', icon: '👩' }

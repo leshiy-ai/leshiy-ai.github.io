@@ -826,8 +826,12 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     // ==========================================================
     try {
         const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array);
-        let response;
+        //let response;
     
+        // Используем единую функцию для отправки запроса
+        const response = await sendAIRequest(config, url, body, authHeader, isRawBody);
+
+        /*
         // Общие заголовки для Яндекса и Cloudflare
         const commonProxyHeaders = {
             'X-Target-URL': url,
@@ -900,7 +904,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     throw new Error(`Cloudflare Proxy также вернул ошибку: ${status2} ${errorText2}`);
                 }
             }
-        }
+        }*/
     
         // --- ОБРАБОТКА ФИНАЛЬНОГО РЕЗУЛЬТАТА ---
         const data = await response.json();
@@ -969,6 +973,106 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     }
 
 };
+
+async function sendAIRequest(config, url, body, authHeader, isRawBody = false) {
+    try {
+        const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array || body === null);
+        let response;
+
+        // Формируем заголовки для прокси
+        const commonProxyHeaders = {
+            'X-Target-URL': url,
+            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+            // Для бинарных запросов тип контента либо уже задан, либо не нужен (как для VoiceRSS)
+            'Content-Type': isBinary ? (body ? 'application/octet-stream' : 'text/plain') : 'application/json'
+        };
+        // Добавляем авторизацию, если она нужна для целевого API
+        if (authHeader) {
+            commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
+        }
+        
+        // Для запросов, где тело не нужно (например, GET-запросы, обернутые в POST)
+        const requestBody = body === null ? null : (isBinary ? body : JSON.stringify(body));
+
+        console.log("DEBUG AI REQUEST:", {
+            proxy: CONFIG.PROXY_URL,
+            target: url,
+            isBinary,
+            hasBody: requestBody !== null,
+            headers: commonProxyHeaders
+        });
+
+        // --- ПОПЫТКА 1: Основной прокси (Яндекс) ---
+        try {
+            response = await fetch(CONFIG.PROXY_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: commonProxyHeaders,
+                body: requestBody
+            });
+            if (!response.ok) {
+                 const errorText = await response.text();
+                 throw new Error(`[Proxy 1] ${response.status}: ${errorText}`);
+            }
+        } catch (error1) {
+            console.warn(`Основной прокси не удался: ${error1.message}. Пробую резервный...`);
+
+            // --- ПОПЫТКА 2: Резервный прокси (Cloudflare) ---
+            try {
+                response = await fetch(CONFIG.FALLBACK_PROXY, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: commonProxyHeaders,
+                    body: requestBody
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`[Proxy 2] ${response.status}: ${errorText}`);
+                }
+            } catch (error2) {
+                 console.warn(`Резервный прокси не удался: ${error2.message}.`);
+
+                // --- ПОПЫТКА 3: Выделенный прокси для Gemini (если применимо) ---
+                if (config.SERVICE === 'GEMINI') {
+                    console.log("Активирую персональный прокси для Gemini...");
+                    try {
+                        const geminiProxyUrl = url.replace(new URL(url).origin, CONFIG.GEMINI_PROXY);
+                        
+                        response = await fetch(geminiProxyUrl, {
+                            method: 'POST',
+                            mode: 'cors',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Proxy-Secret': CONFIG.GEMINI_PROXY_KEY
+                            },
+                            body: JSON.stringify(body) // Gemini всегда ждет JSON
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`[Proxy 3] ${response.status}: ${errorText}`);
+                        }
+                    } catch (error3) {
+                         console.error(`Все 3 прокси не удались. Последняя ошибка (Gemini): ${error3.message}`);
+                         throw error3; // Пробрасываем последнюю, самую специфичную ошибку
+                    }
+                } else {
+                    // Если это не Gemini, и два основных прокси упали - пробрасываем вторую ошибку
+                    throw error2;
+                }
+            }
+        }
+        
+        // Если хотя бы один из прокси сработал, возвращаем успешный ответ
+        return response;
+
+    } catch (error) {
+        // Логируем финальную ошибку, если ни один из методов не сработал
+        console.error("❌ Финальная ошибка отправки AI-запроса:", error);
+        // Пробрасываем ошибку выше, чтобы ее обработал вызывающий код (askLeshiy или generateAudioLyria)
+        throw error;
+    }
+}
 
 async function translateLeshiy(text, targetLang = "ru") {
     // Принудительно используем Cloudflare для перевода.
@@ -1134,6 +1238,10 @@ async function generateAudioLyria(prompt, voiceId) {
                 return { type: 'error', text: `Неподдерживаемый сервис для TTS: ${config.SERVICE}` };
         }
         
+        // Используем единую функцию для отправки запроса
+        const response = await sendAIRequest(config, url, body, authHeader, isRawBody);
+        
+        /*
         const commonProxyHeaders = {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
@@ -1173,10 +1281,13 @@ async function generateAudioLyria(prompt, voiceId) {
                  throw new Error(`TTS Proxy Error (Fallback): ${response.status} ${errText}`);
             }
         }
-        
+        */
+
         let audioUrl;
+        // Обрабатываем ответ
         const contentType = response.headers.get('content-type');
         
+        // Проверяем, что ответ действительно содержит аудио
         if (contentType && (contentType.includes('audio') || contentType.includes('octet-stream'))) {
             const blob = await response.blob();
             if (blob.size === 0) throw new Error('Получен пустой аудио-ответ от сервера.');
