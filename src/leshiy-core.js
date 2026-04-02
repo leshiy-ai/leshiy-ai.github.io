@@ -1123,7 +1123,7 @@ async function sendAIRequest(config, url, body, authHeader, isRawBody = false) {
     } catch (error) {
         // Логируем финальную ошибку, если ни один из методов не сработал
         console.error("❌ Финальная ошибка отправки AI-запроса:", error);
-        // Пробрасываем ошибку выше, чтобы ее обработал вызывающий код (askLeshiy или generateAudioLyria)
+        // Пробрасываем ошибку выше, чтобы ее обработал вызывающий код (askLeshiy или generateAudio)
         throw error;
     }
 }
@@ -1210,17 +1210,17 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
         case 1: // ОБЩЕНИЕ (Твой текущий askLeshiy)
             return await askLeshiy({ text: prompt, files, history });
 
-        case 2: // ФОТО (Nano Banana 2)
+        case 2: // ФОТО
             console.log("Режим: Генерация изображения");
-            return await generateImageNano(prompt, files);
+            return await generateImage(prompt, files);
 
-        case 3: // ГОЛОС (Lyria 3 / TTS)
+        case 3: // ГОЛОС (TTS)
             console.log("Режим: Генерация аудио");
-            return await generateAudioLyria(prompt, voiceId);
+            return await generateAudio(prompt, voiceId);
 
-        case 4: // ВИДЕО (Veo)
+        case 4: // ВИДЕО
             console.log("Режим: Генерация видео");
-            return await generateVideoVeo(prompt, files);
+            return await generateVideo(prompt, files);
 
         default:
             return await askLeshiy({ text: prompt, files, history });
@@ -1228,21 +1228,25 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
 };
 
 // Вспомогательные функции (заглушки, которые мы наполним API-логикой)
-async function generateImageNano(prompt, files) {
+async function generateImage(prompt, files) {
     // Здесь пойдет вызов модели Nano Banana 2
-    return { type: 'system', text: `🎨 Генерирую фото по запросу: "${prompt}"...` };
+    return { type: 'system', text: `🎨 Скоро... Здесь будет генерация фото по запросу: "${prompt}"...` };
 }
 
-async function generateAudioLyria(prompt, voiceId) {
+async function generateAudio(prompt, voiceId) {
     const config = loadActiveModelConfig('TEXT_TO_AUDIO');
-    if (!config) return { type: 'error', text: 'Модель TEXT_TO_AUDIO не настроена' };
+    if (!config) return { type: 'error', text: 'Модель для синтеза речи (TTS) не настроена' };
     
     const selectedVoice = voiceId || (config.voices && config.voices.length > 0 ? config.voices[0].id : null);
     console.log(`🎵 [AUDIO_GEN] Модель: ${config.SERVICE} (${config.MODEL}), Голос: ${selectedVoice}`);
     
     try {
         let audioUrl;
+        let audioFile;
 
+        // Генерируем имя файла из первых слов промпта
+        const fileName = `${prompt.split(' ').slice(0, 5).join('_') || 'leshiy_audio'}.mp3`;
+        
         // --- ОСОБЫЙ СЛУЧАЙ: GEMINI (требует конвертации PCM -> MP3) ---
         if (config.SERVICE === 'GEMINI') {
             const url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
@@ -1273,6 +1277,9 @@ async function generateAudioLyria(prompt, voiceId) {
             // Создаем Blob URL из готового MP3
             const mp3Blob = new Blob([mp3Buffer], { type: 'audio/mpeg' });
             audioUrl = URL.createObjectURL(mp3Blob);
+            //const fileName = `leshiy-audio-${Date.now()}.mp3`;
+            audioFile = new File([mp3Blob], fileName, { type: 'audio/mpeg' });
+
 
         } else {
             // --- СТАНДАРТНАЯ ЛОГИКА ДЛЯ ДРУГИХ СЕРВИСОВ (MP3/OGG напрямую) ---
@@ -1325,7 +1332,10 @@ async function generateAudioLyria(prompt, voiceId) {
 
             const blob = await response.blob();
             if (blob.size === 0) throw new Error('Сервер вернул пустой аудио-файл.');
-            audioUrl = URL.createObjectURL(blob);
+            // ИЗМЕНЕНИЕ: Создаем полноценный файл с именем
+            const fileName = `leshiy-audio-${Date.now()}.${contentType.split('/')[1] || 'mp3'}`;
+            audioFile = new File([blob], fileName, { type: contentType });
+            audioUrl = URL.createObjectURL(audioFile);
         }
 
         if (!audioUrl) throw new Error('Не удалось создать URL для аудио.');
@@ -1333,16 +1343,17 @@ async function generateAudioLyria(prompt, voiceId) {
         return { 
             type: 'audio', 
             text: `🎵 Аудио сгенерировано по запросу: "${prompt}"`,
-            audioUrl: audioUrl
+            audioUrl: audioUrl,
+            file: audioFile
         };
         
     } catch (error) {
-        console.error("❌ [generateAudioLyria] Ошибка:", error);
+        console.error("❌ [generateAudio] Ошибка:", error);
         return { type: 'error', text: `❌ Ошибка генерации аудио: ${error.message}` };
     }
 }
 
-async function generateVideoVeo(prompt, files) {
-    // Здесь пойдет вызов Veo
-    return { type: 'system', text: `🎬 Начинаю рендер видео: "${prompt}"...` };
+async function generateVideo(prompt, files) {
+    // Здесь пойдет вызов Video Generate
+    return { type: 'system', text: `🎬 Скоро... Здесь будет рендер видео по запросу: "${prompt}"...` };
 }

@@ -24,15 +24,16 @@ const MODELS_SELECTORS = {
         { key: 'TEXT_TO_TEXT_GEMINI', name: 'Умная', icon: '✨' },
         { key: 'TEXT_TO_TEXT_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
-    'TEXT_TO_AUDIO': [
-        { key: 'TEXT_TO_AUDIO_CLOUDFLARE', name: 'Быстрый', icon: '✳️' },
-        { key: 'TEXT_TO_AUDIO_GEMINI', name: 'Качественный', icon: '✨' },
-        { key: 'TEXT_TO_AUDIO_BOTHUB', name: 'Запасной', icon: '✴️' }
-    ],
     'TEXT_TO_IMAGE': [
         { key: 'TEXT_TO_IMAGE_CLOUDFLARE', name: 'Быстрая', icon: '✳️' },
         { key: 'TEXT_TO_IMAGE_GEMINI', name: 'Качественная', icon: '✨' },
         { key: 'TEXT_TO_IMAGE_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
+    'TEXT_TO_AUDIO': [
+        { key: 'TEXT_TO_AUDIO_CLOUDFLARE', name: 'Быстрый', icon: '✳️' },
+        { key: 'TEXT_TO_AUDIO_VOICERSS', name: 'Обычный', icon: '⚛️' },
+        { key: 'TEXT_TO_AUDIO_GEMINI', name: 'Качественный', icon: '✨' },
+        { key: 'TEXT_TO_AUDIO_BOTHUB', name: 'Запасной', icon: '✴️' }
     ],
     'TEXT_TO_VIDEO': [
         // Задел на будущее для моделей генерации видео
@@ -164,6 +165,22 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         currentX.current = 0;
     };
 
+    // --- ЕДИНЫЙ ОБРАБОТЧИК ПЕРЕТАСКИВАНИЯ ---
+    const handleDragStart = (e, fileToDrag) => {
+        if (!fileToDrag) return;
+        // Используем глобальную переменную, т.к. dataTransfer не может передавать объекты
+        window.draggedFile = fileToDrag;
+        e.dataTransfer.setData('application/x-leshiy-file', 'true');
+        
+        const dragIcon = document.createElement('div');
+        dragIcon.innerHTML = `📎 ${fileToDrag.name}`;
+        dragIcon.className = 'drag-ghost';
+        document.body.appendChild(dragIcon);
+        e.dataTransfer.setDragImage(dragIcon, 10, 10);
+        setTimeout(() => document.body.removeChild(dragIcon), 0);
+    };
+
+    // --- ФУНКЦИИ РЕНДЕРИНГА (ИСПРАВЛЕННЫЕ) ---
     const renderFile = (file, i) => {
         const type = file.type || '';
         const name = file.name || '';
@@ -172,7 +189,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         const isAud = type.startsWith('audio/') || name.endsWith('.mp3') || name.endsWith('.ogg') || name.endsWith('.wav');
         const isZip = name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z');
         const isDoc = name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf') || name.endsWith('.xls') || name.endsWith('.xlsx');
-
+        const isDraggable = !!file.file; // Можно перетаскивать, если есть объект файла
+        
         // Рисуем img только если есть живое превью
         if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
         
@@ -184,7 +202,13 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         else if (type.startsWith('image/')) { icon = '🖼️'; label = 'ФОТО'; } // Фото из истории
 
         return (
-            <div key={i} className={`file-badge ${label.toLowerCase()}`}>
+            <div 
+                key={i} 
+                className={`file-badge ${label.toLowerCase()}`}
+                draggable={isDraggable}
+                onDragStart={(e) => handleDragStart(e, file.file)}
+                title={isDraggable ? "Перетащить, чтобы использовать снова" : name}
+            >
                 <span className="file-icon">{icon}</span>
                 <span className="file-name">{name.length > 10 ? name.substring(0,7)+'...' : name}</span>
                 <span className="file-label">{label}</span>
@@ -193,12 +217,18 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     };
     
     // Рендер аудио из ответа AI (генерация голоса)
-    const renderGeneratedAudio = (audioUrl, text) => {
-        if (!audioUrl) return null;
+    const renderGeneratedAudio = (message) => { // Принимает все сообщение
+        if (!message.audioUrl) return null;
+        const isDraggable = !!message.file;
         return (
-            <div className="generated-audio-player">
-                <audio src={audioUrl} controls autoPlay />
-                {text && <p className="audio-caption">{text}</p>}
+            <div 
+                className="generated-audio-player"
+                draggable={isDraggable} // Делаем перетаскиваемым, только если есть объект файла
+                onDragStart={(e) => handleDragStart(e, message.file)}
+                title={isDraggable  ? "Перетащите в поле ввода, чтобы распознать" : ""}
+            >
+                <audio src={message.audioUrl} controls autoPlay />
+                {message.text && <p className="audio-caption">{message.text}</p>}
             </div>
         );
     };
@@ -252,7 +282,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                         )}
 
                         {/* Рендер аудио из ответа AI (генерация голоса) */}
-                        {message.audioUrl && renderGeneratedAudio(message.audioUrl, textToRender)}
+                        {message.audioUrl && renderGeneratedAudio(message)}
 
                         {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
                         {!message.audioUrl && (textToRender ? (
@@ -969,7 +999,8 @@ function App() {
                 preview: f.preview, 
                 name: f.file.name, 
                 url: f.url,
-                type: f.file.type 
+                type: f.file.type,
+                file: f.file
             }))
         };
 
@@ -1007,7 +1038,8 @@ function App() {
                 role: aiResponse.type === 'error' ? 'ai error' : (aiResponse.type === 'audio' ? 'ai audio' : 'ai'),
                 text: aiResponse.text,
                 buttons: aiResponse.buttons,
-                audioUrl: aiResponse.audioUrl
+                audioUrl: aiResponse.audioUrl,
+                file: aiResponse.file 
             };
 
             const updatedMessages = [...newMessages, assistantMsg];
@@ -1222,6 +1254,20 @@ function App() {
     const handleDrop = (e) => {
         e.preventDefault();
         setIsDragging(false);
+        // 1. ПРОВЕРКА НА ПЕРЕТАСКИВАЕМОЕ АУДИО
+        const isLeshiyFile = e.dataTransfer.types.includes('application/x-leshiy-file');
+        if (isLeshiyFile && window.draggedFile) {
+            handleFileSelect([window.draggedFile]);
+            
+            // Если это аудио, автоматически переключаемся в режим распознавания
+            if (window.draggedFile.type.startsWith('audio/')) {
+                setCurrentMode(1);
+            }
+            delete window.draggedFile; // Очищаем
+            return;
+        }
+
+        // 2. Стандартная логика для файлов с компьютера
         if (e.dataTransfer.files.length > 0) {
             handleFileSelect(e.dataTransfer.files);
         }
