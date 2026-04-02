@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { CONFIG } from './config';
-import { askLeshiy } from './leshiy-core';
+import { askLeshiy, generateLeshiy } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
@@ -173,6 +173,17 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         );
     };
     
+    // Рендер аудио из ответа AI (генерация голоса)
+    const renderGeneratedAudio = (audioUrl, text) => {
+        if (!audioUrl) return null;
+        return (
+            <div className="generated-audio-player">
+                <audio src={audioUrl} controls autoPlay />
+                {text && <p className="audio-caption">{text}</p>}
+            </div>
+        );
+    };
+    
     const textToRender = message.text || message.content;
     const isUser = message.role === 'user';
     const avatarUrl = isUser ? userPhoto : '/Gemini.png';
@@ -221,14 +232,17 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                             </div>
                         )}
 
+                        {/* Рендер аудио из ответа AI (генерация голоса) */}
+                        {message.audioUrl && renderGeneratedAudio(message.audioUrl, textToRender)}
+
                         {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
-                        {textToRender ? (
+                        {!message.audioUrl && (textToRender ? (
                             <ReactMarkdown>{textToRender}</ReactMarkdown>
                         ) : (
                             (!message.attachments || message.attachments.length === 0) && (
                                 <p className="media-msg-label">Медиафайл</p>
                             )
-                        )}
+                        ))}
 
                         {/* Кнопки действий */}
                         {message.buttons && (
@@ -927,7 +941,8 @@ function App() {
         setInput('');
 
         try {
-            const aiResponse = await askLeshiy({
+            // Используем generateLeshiy для поддержки всех режимов
+            const aiResponse = await generateLeshiy({
                 text: userMessageText,
                 history: historyForAi,
                 userId: currentUserId,
@@ -935,14 +950,16 @@ function App() {
                     file: f.file,
                     base64: f.base64,
                     mimeType: f.mimeType
-                }))
+                })),
+                currentMode: currentMode
             });
 
             const assistantMsg = {
                 id: Date.now() + 1,
-                role: aiResponse.type === 'error' ? 'ai error' : 'ai',
+                role: aiResponse.type === 'error' ? 'ai error' : (aiResponse.type === 'audio' ? 'ai audio' : 'ai'),
                 text: aiResponse.text,
-                buttons: aiResponse.buttons
+                buttons: aiResponse.buttons,
+                audioUrl: aiResponse.audioUrl // Для аудио режима
             };
 
             const updatedMessages = [...newMessages, assistantMsg];

@@ -944,3 +944,29 @@ body.sidebar-collapsed .history-item .icon {
     gap: 8px;
     flex-shrink: 0;
 }
+
+/* Стили для сгенерированного аудио (режим 3) */
+.generated-audio-player {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 10px 0;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.generated-audio-player audio {
+    width: 100%;
+    max-width: 400px;
+    height: 40px;
+}
+
+.audio-caption {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
