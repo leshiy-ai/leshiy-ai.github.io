@@ -28,5 +28,7 @@ export const CONFIG = {
     // Шлюз Gemini-AI Bot (Яндекс)
     GEMINI_GATEWAY: "https://d5d2v5jjmbggp9k8qe8q.pdkwbi1w.apigw.yandexcloud.net",
     // Твой медиа-бот (Cloudflare)
-    GEMINI_AI_BOT: "https://leshiy-gemini-bot.leshiyalex.workers.dev"
+    GEMINI_AI_BOT: "https://leshiy-gemini-bot.leshiyalex.workers.dev",
+    // MP3-Конвертер
+    MP3_CONVERTER_URL: "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/converter"
 };

@@ -26,9 +26,9 @@ export const AI_MODELS = {
         API_KEY: 'GEMINI_API_KEY', 
         BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
         voices: [
-            { id: 'Enceladus', name: 'Мужской', icon: '👨' },
-            { id: 'Kore', name: 'Женский1', icon: '👩' },
-            { id: 'Luna', name: 'Женский2', icon: '👩' }
+            { id: 'Enceladus', name: 'Энцеладус', icon: '👨' },
+            { id: 'Kore', name: 'Кора', icon: '👩' },
+            { id: 'Luna', name: 'Луна', icon: '👩' }
         ]
     },
     IMAGE_TO_TEXT_GEMINI: { 
@@ -96,10 +96,10 @@ export const AI_MODELS = {
         API_KEY: 'CLOUDFLARE_API_TOKEN', 
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts',
         voices: [
-            { id: 'orpheus', name: 'Мужской1', icon: '👨' },
-            { id: 'zeus', name: 'Мужской2', icon: '👨' },
-            { id: 'athena', name: 'Женский1', icon: '👩' },
-            { id: 'luna', name: 'Женский2', icon: '👩' }
+            { id: 'orpheus', name: 'Орфей', icon: '👨' },
+            { id: 'zeus', name: 'Зевс', icon: '👨' },
+            { id: 'athena', name: 'Афина', icon: '👩' },
+            { id: 'luna', name: 'Луна', icon: '👩' }
         ]
     },
     // ✅ [Изображение в Текст (Видение)]
@@ -145,10 +145,8 @@ export const AI_MODELS = {
         API_KEY: 'BOTHUB_API_KEY', 
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1',
         voices: [
-            { id: 'echo', name: 'Мужской 1', icon: '👨' },
-            { id: 'alloy', name: 'Мужской 2', icon: '🧑' },
-            { id: 'nova', name: 'Женский 1', icon: '👩' },
-            { id: 'shimmer', name: 'Женский 2', icon: '👩' }
+            { id: 'echo', name: 'Эхо', icon: '👨' },
+            { id: 'nova', name: 'Нова', icon: '👩' },
         ]
     },
     AUDIO_TO_TEXT_BOTHUB: { 

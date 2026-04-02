@@ -9,18 +9,37 @@ import Sidebar from './Sidebar';
 import './App.css';
 
 // --- КОНСТАНТЫ ---
+// Определяют основные режимы работы приложения и связывают их с типом сервиса
 const LESHIY_MODES = [
-    { id: 1, name: 'Общение', icon: '1️⃣' },
-    { id: 2, name: 'Генерация фото', icon: '2️⃣' },
-    { id: 3, name: 'Работа с аудио', icon: '3️⃣' },
-    { id: 4, name: 'Работа с видео', icon: '4️⃣' }
+    { id: 1, name: 'Общение', icon: '1️⃣', serviceType: 'TEXT_TO_TEXT' },
+    { id: 2, name: 'Генерация фото', icon: '2️⃣', serviceType: 'TEXT_TO_IMAGE' },
+    { id: 3, name: 'Синтез речи', icon: '3️⃣', serviceType: 'TEXT_TO_AUDIO' },
+    { id: 4, name: 'Генерация видео', icon: '4️⃣', serviceType: 'TEXT_TO_VIDEO' }
 ];
 
-const TEXT_TO_TEXT_MODELS_SELECTOR = [
-    { key: 'TEXT_TO_TEXT_CLOUDFLARE', name: 'Базовая модель', icon: '✳️' },
-    { key: 'TEXT_TO_TEXT_GEMINI', name: 'Умная модель', icon: '✨' },
-    { key: 'TEXT_TO_TEXT_BOTHUB', name: 'Запасная модель', icon: '✴️' }
-];
+// Карта селекторов моделей для каждого типа сервиса
+const MODELS_SELECTORS = {
+    'TEXT_TO_TEXT': [
+        { key: 'TEXT_TO_TEXT_CLOUDFLARE', name: 'Базовая', icon: '✳️' },
+        { key: 'TEXT_TO_TEXT_GEMINI', name: 'Умная', icon: '✨' },
+        { key: 'TEXT_TO_TEXT_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
+    'TEXT_TO_AUDIO': [
+        { key: 'TEXT_TO_AUDIO_CLOUDFLARE', name: 'Быстрый', icon: '✳️' },
+        { key: 'TEXT_TO_AUDIO_GEMINI', name: 'Качественный', icon: '✨' },
+        { key: 'TEXT_TO_AUDIO_BOTHUB', name: 'Запасной', icon: '✴️' }
+    ],
+    'TEXT_TO_IMAGE': [
+        { key: 'TEXT_TO_IMAGE_CLOUDFLARE', name: 'Быстрая', icon: '✳️' },
+        { key: 'TEXT_TO_IMAGE_GEMINI', name: 'Качественная', icon: '✨' },
+        { key: 'TEXT_TO_IMAGE_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
+    'TEXT_TO_VIDEO': [
+        // Задел на будущее для моделей генерации видео
+        { key: 'TEXT_TO_VIDEO_PLACEHOLDER', name: 'Скоро...', icon: '📹' }
+    ]
+};
+
 
 const TRANSLATIONS = {
     ru: {
@@ -347,7 +366,7 @@ function App() {
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
     const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('vk_user_id'));
     const [isAdmin, setIsAdmin] = useState(localStorage.getItem('isAdmin') === 'true');
-
+    const [selectedVoice, setSelectedVoice] = useState(() => localStorage.getItem('selected_voice_id'));
     const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('vk_user_id') || "guest");
     const [currentChatId, setCurrentChatId] = useState(null);
     const [chatList, setChatList] = useState([]);
@@ -377,6 +396,8 @@ function App() {
     const isNumberModeRef = useRef(isNumberMode);
     const textCaseModeRef = useRef(textCaseMode);
 
+    const [, setTick] = useState(0);
+    const forceUpdate = () => setTick(tick => tick + 1);
     const t = useMemo(() => TRANSLATIONS[language], [language]);
     const isVK = useMemo(() => window.location.search.includes('vk_app_id'), []);
 
@@ -457,9 +478,6 @@ function App() {
         IMAGE_TO_IMAGE: localStorage.getItem('ACTIVE_MODEL_IMAGE_TO_IMAGE') || 'IMAGE_TO_IMAGE_CLOUDFLARE',
     });
 
-    const activeTttModelKey = activeModels.TEXT_TO_TEXT;
-    const activeTttModel = TEXT_TO_TEXT_MODELS_SELECTOR.find(m => m.key === activeTttModelKey) || TEXT_TO_TEXT_MODELS_SELECTOR[0];
-
     const updateModel = (type, modelKey) => {
         setActiveModels(prev => ({ ...prev, [type]: modelKey }));
         const kvKey = SERVICE_TYPE_MAP[type]?.kvKey;
@@ -471,9 +489,27 @@ function App() {
     };
 
     const handleModelSelect = (modelKey) => {
-        updateModel('TEXT_TO_TEXT', modelKey);
+        // 1. Определяем тип сервиса (TEXT_TO_TEXT, TEXT_TO_AUDIO и т.д.)
+        const serviceType = LESHIY_MODES.find(m => m.id === currentMode)?.serviceType;
+        if (!serviceType) return;
+    
+        // 2. Находим правильный ключ для записи в localStorage (e.g., "ACTIVE_MODEL_TEXT_TO_AUDIO")
+        const localStorageKey = SERVICE_TYPE_MAP[serviceType]?.kvKey;
+        if (!localStorageKey) return;
+    
+        // 3. Сохраняем выбор в localStorage
+        localStorage.setItem(localStorageKey, modelKey);
+    
+        // 4. ИСПРАВЛЕНИЕ: Обновляем состояние React, которое слушает useMemo
+        setActiveModels(prev => ({
+            ...prev,
+            [serviceType]: modelKey
+        }));
+    
+        // 5. Закрываем меню
         setIsModelSelectorOpen(false);
     };
+    
 
     useEffect(() => {
         function handleClickOutside(event) {
@@ -1709,6 +1745,11 @@ function App() {
         }
     };
 
+    const handleVoiceChange = (voiceId) => {
+        setSelectedVoice(voiceId);
+        localStorage.setItem('selected_voice_id', voiceId);
+    };
+    
     const availableVoices = useMemo(() => {
         if (currentMode !== 3) return [];
         // Загружаем конфиг для ТЕКУЩЕЙ активной TEXT_TO_AUDIO модели
@@ -1721,19 +1762,25 @@ function App() {
         if (currentMode === 3) {
             // Проверяем, есть ли доступные голоса для текущей модели
             if (availableVoices.length > 0) {
-                // Устанавливаем ID первого голоса из списка, если голос еще не выбран
-                if (!currentVoiceId) {
+                
+                // ПРОВЕРЯЕМ, ЕСТЬ ЛИ ТЕКУЩИЙ ГОЛОС В НОВОМ СПИСКЕ
+                const isCurrentVoiceValid = availableVoices.some(voice => voice.id === currentVoiceId);
+    
+                // ЕСЛИ ГОЛОС НЕ ВАЛИДЕН (т.е. его нет в новом списке), 
+                // ТОГДА мы принудительно ставим первый из нового списка.
+                if (!isCurrentVoiceValid) {
                     setCurrentVoiceId(availableVoices[0].id);
                 }
             } else {
-                // Если для этой модели голосов нет, сбрасываем выбор
+                // Если для модели голосов нет, сбрасываем
                 setCurrentVoiceId(null);
             }
         } else {
-            // Если мы НЕ в режиме аудио, всегда сбрасываем голос
+            // Если мы не в режиме аудио, сбрасываем
             setCurrentVoiceId(null);
         }
-    }, [currentMode, availableVoices, currentVoiceId]);
+    }, [currentMode, availableVoices]);
+
 
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
@@ -2067,23 +2114,46 @@ function App() {
                         )}
                     </div>
                     <div className="model-selector-container" ref={modelSelectorRef}>
-                        <button id="input-model-selector" className="tool-btn model-selector-btn" title={t.tooltip_select_model} onClick={() => setIsModelSelectorOpen(prev => !prev)}>
-                           {activeTttModel.icon}
-                        </button>
-                        {isModelSelectorOpen && (
-                            <div className="model-selector-dropdown">
-                                {TEXT_TO_TEXT_MODELS_SELECTOR.map(model => (
-                                    <button
-                                        key={model.key}
-                                        className={`model-option ${activeTttModelKey === model.key ? 'active' : ''}`}
-                                        onClick={() => handleModelSelect(model.key)}
-                                    >
-                                        <span className="model-option-icon">{model.icon}</span>
-                                        <span className="model-option-name">{model.name}</span>
+                        {(() => {
+                            // --- Логика для динамического выбора ---
+                            // 1. Определяем тип сервиса для текущего режима (TEXT_TO_TEXT, TEXT_TO_AUDIO...)
+                            const currentServiceType = LESHIY_MODES.find(m => m.id === currentMode)?.serviceType;
+
+                            // 2. Получаем список моделей для этого сервиса
+                            const availableModels = MODELS_SELECTORS[currentServiceType] || [];
+
+                            // 3. Если моделей меньше двух, просто не показываем селектор
+                            if (availableModels.length < 1) {
+                                return null;
+                            }
+
+                            // 4. Находим активную модель, чтобы показать ее иконку
+                            const activeModelKey = getActiveModelKeyGeneric(currentServiceType);
+                            const activeModel = availableModels.find(m => m.key === activeModelKey) || availableModels[0];
+                            
+                            // --- Отрисовка JSX ---
+                            return (
+                                <>
+                                    <button id="input-model-selector" className="tool-btn model-selector-btn" title={t.tooltip_select_model} onClick={() => setIsModelSelectorOpen(prev => !prev)}>
+                                        {activeModel?.icon}
                                     </button>
-                                ))}
-                            </div>
-                        )}
+                                    {isModelSelectorOpen && (
+                                        <div className="model-selector-dropdown">
+                                            {availableModels.map(model => (
+                                                <button
+                                                    key={model.key}
+                                                    className={`model-option ${activeModelKey === model.key ? 'active' : ''}`}
+                                                    onClick={() => handleModelSelect(model.key)}
+                                                >
+                                                    <span className="model-option-icon">{model.icon}</span>
+                                                    <span className="model-option-name">{model.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                      <button 
                         id="input-mic-btn" 

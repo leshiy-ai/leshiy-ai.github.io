@@ -3,6 +3,57 @@ import { version } from '../package.json';
 import { AI_MODELS, loadActiveModelConfig } from './ai-config';
 import axios from 'axios'; // Добавляем axios для работы со шлюзом хранилища
 
+// =================================================================
+// SECTION: Вспомогательные функции для аудио и конвертации
+// =================================================================
+
+/**
+ * Конвертирует строку Base64 в ArrayBuffer. Браузерная версия.
+ * @param {string} base64 - Строка в формате Base64.
+ * @returns {ArrayBuffer}
+ */
+function base64ToArrayBuffer(base64) {
+    const binary_string = window.atob(base64);
+    const len = binary_string.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+/**
+ * Отправляет сырой PCM ArrayBuffer на сервер для конвертации в MP3.
+ * @param {ArrayBuffer} pcmBuffer - Сырые PCM-данные.
+ * @returns {Promise<ArrayBuffer>} - ArrayBuffer с MP3-данными.
+ */
+async function convertPcmToMp3(pcmBuffer) {
+    if (!CONFIG.MP3_CONVERTER_URL) {
+        throw new Error("URL для PCM->MP3 конвертера не настроен в CONFIG.MP3_CONVERTER_URL");
+    }
+    try {
+        console.log(`[MP3_CONVERTER] Отправка ${pcmBuffer.byteLength} байт PCM на ${CONFIG.MP3_CONVERTER_URL}`);
+        const response = await fetch(CONFIG.MP3_CONVERTER_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: pcmBuffer,
+            signal: AbortSignal.timeout(30000) // 30 секунд таймаут
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Сервис конвертации MP3 вернул ошибку ${response.status}: ${errorText}`);
+        }
+        
+        const mp3Buffer = await response.arrayBuffer();
+        console.log(`[MP3_CONVERTER] Успешно получено ${mp3Buffer.byteLength} байт MP3.`);
+        return mp3Buffer;
+    } catch (error) {
+        console.error("❌ Критическая ошибка конвертации PCM в MP3:", error);
+        throw error;
+    }
+}
+
 const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент Gemini AI от Leshiy, отвечающий на русском языке.
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 Ответы должны быть информативными и доброжелательными со смайликами и на русском языке.`;
@@ -974,6 +1025,9 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
 };
 
+// =================================================================
+// SECTION: Единая функция отправки AI запросов с прокси
+// =================================================================
 async function sendAIRequest(config, url, body, authHeader, isRawBody = false) {
     try {
         const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array || body === null);
@@ -1187,127 +1241,93 @@ async function generateAudioLyria(prompt, voiceId) {
     console.log(`🎵 [AUDIO_GEN] Модель: ${config.SERVICE} (${config.MODEL}), Голос: ${selectedVoice}`);
     
     try {
-        let url, authHeader, body, isRawBody = false;
-        
-        switch (config.SERVICE) {
-            case 'GEMINI':
-                url = `${config.BASE_URL}/models/${config.MODEL}:streamGenerateContent?key=${CONFIG[config.API_KEY]}&alt=sse`;
-                body = {
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        responseModalities: ["AUDIO"],
-                        speechConfig: {
-                            voiceConfig: { 
-                                prebuiltVoiceConfig: { 
-                                    voiceName: selectedVoice
-                                } 
-                            }
-                        }
-                    }
-                };
-                break;
-                
-            case 'CLOUDFLARE':
-                url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
-                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-                body = {
-                    text: prompt,
-                    voice: selectedVoice
-                };
-                break;
-                
-            case 'BOTHUB':
-                url = `${config.BASE_URL}/audio/speech`;
-                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-                body = {
-                    model: config.MODEL,
-                    input: prompt,
-                    voice: selectedVoice,
-                    response_format: "mp3"
-                };
-                isRawBody = true;
-                break;
-                
-            case 'VOICERSS':
-                const voiceParam = selectedVoice ? `&v=${selectedVoice}` : '';
-                url = `${config.BASE_URL}?${config.MODEL}&key=${CONFIG[config.API_KEY]}&src=${encodeURIComponent(prompt)}${voiceParam}`;
-                isRawBody = true;
-                break;
-                
-            default:
-                return { type: 'error', text: `Неподдерживаемый сервис для TTS: ${config.SERVICE}` };
-        }
-        
-        // Используем единую функцию для отправки запроса
-        const response = await sendAIRequest(config, url, body, authHeader, isRawBody);
-        
-        /*
-        const commonProxyHeaders = {
-            'X-Target-URL': url,
-            'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
-            'Content-Type': 'application/json'
-        };
-        if (authHeader) commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
-        
-        let response;
-        try {
-            const requestBody = isRawBody && config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body);
-            const headers = { ...commonProxyHeaders };
-            if (isRawBody && config.SERVICE !== 'VOICERSS') {
-                headers['Accept'] = 'audio/mpeg';
-            }
-
-            response = await fetch(CONFIG.PROXY_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: headers,
-                body: requestBody
-            });
-            
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`TTS Proxy Error (Main): ${response.status} ${errText}`);
-            }
-        } catch (proxyError) {
-            console.warn("Main proxy failed, trying fallback...", proxyError);
-            response = await fetch(CONFIG.FALLBACK_PROXY, {
-                method: 'POST',
-                mode: 'cors',
-                headers: commonProxyHeaders,
-                body: isRawBody && config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body)
-            });
-            if (!response.ok) {
-                 const errText = await response.text();
-                 throw new Error(`TTS Proxy Error (Fallback): ${response.status} ${errText}`);
-            }
-        }
-        */
-
         let audioUrl;
-        // Обрабатываем ответ
-        const contentType = response.headers.get('content-type');
-        
-        // Проверяем, что ответ действительно содержит аудио
-        if (contentType && (contentType.includes('audio') || contentType.includes('octet-stream'))) {
-            const blob = await response.blob();
-            if (blob.size === 0) throw new Error('Получен пустой аудио-ответ от сервера.');
-            audioUrl = URL.createObjectURL(blob);
-        } else if (config.SERVICE === 'GEMINI') {
-            const reader = response.body.getReader();
-            const chunks = [];
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                chunks.push(value);
+
+        // --- ОСОБЫЙ СЛУЧАЙ: GEMINI (требует конвертации PCM -> MP3) ---
+        if (config.SERVICE === 'GEMINI') {
+            const url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
+            const body = {
+                "contents": [{ "parts": [{ "text": prompt }] }],
+                "generationConfig": { 
+                    "responseModalities": ["AUDIO"], 
+                    "speechConfig": { "voiceConfig": { "prebuiltVoiceConfig": { "voiceName": selectedVoice } } }
+                }
+            };
+            
+            // Отправляем запрос через прокси
+            const response = await sendAIRequest(config, url, body, null, false);
+            const data = await response.json();
+
+            // Извлекаем сырые PCM-данные в Base64
+            const pcmBase64 = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            if (!pcmBase64) {
+                 const reason = data?.candidates?.[0]?.finishReason;
+                 if (reason === 'SAFETY') throw new Error(`Отказано в генерации из-за политики безопасности.`);
+                 throw new Error(`Gemini не вернул аудио данные. Ответ: ${JSON.stringify(data).substring(0, 200)}`);
             }
-            const blob = new Blob(chunks, { type: 'audio/wav' });
-            audioUrl = URL.createObjectURL(blob);
+
+            // Конвертируем Base64 -> ArrayBuffer -> MP3
+            const pcmBuffer = base64ToArrayBuffer(pcmBase64);
+            const mp3Buffer = await convertPcmToMp3(pcmBuffer);
+            
+            // Создаем Blob URL из готового MP3
+            const mp3Blob = new Blob([mp3Buffer], { type: 'audio/mpeg' });
+            audioUrl = URL.createObjectURL(mp3Blob);
+
         } else {
-             const errorText = await response.text();
-             console.error("TTS response was not audio:", errorText);
-             throw new Error('Неожиданный формат ответа от TTS сервиса (не аудио).');
-        }
+            // --- СТАНДАРТНАЯ ЛОГИКА ДЛЯ ДРУГИХ СЕРВИСОВ (MP3/OGG напрямую) ---
+            let url, authHeader, body;
+            let isRawBody = false;
         
+            switch (config.SERVICE) {
+                case 'CLOUDFLARE':
+                    url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
+                    authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                    body = {
+                        text: prompt,
+                        speaker: selectedVoice,
+                        language: 'ru-ru',
+                        encoding: 'mp3'
+                    };
+                    break;
+                    
+                case 'BOTHUB':
+                    url = `${config.BASE_URL}/audio/speech`;
+                    authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                    body = {
+                        model: config.MODEL,
+                        input: prompt,
+                        voice: selectedVoice,
+                        response_format: "mp3"
+                    };
+                    isRawBody = true;
+                    break;
+                    
+                case 'VOICERSS':
+                    const voiceParam = selectedVoice ? `&v=${selectedVoice}` : '';
+                    url = `${config.BASE_URL}?${config.MODEL}&key=${CONFIG[config.API_KEY]}&src=${encodeURIComponent(prompt)}${voiceParam}`;
+                    body = null; 
+                    isRawBody = true;
+                    break;
+                    
+                default:
+                    return { type: 'error', text: `Неподдерживаемый сервис для TTS: ${config.SERVICE}` };
+            }
+        
+            // Используем единую функцию для отправки запроса
+            const response = await sendAIRequest(config, url, body, authHeader, isRawBody);
+            
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.startsWith('audio')) {
+                const errorText = await response.text();
+                throw new Error(`Сервер вернул не аудио. Ответ: ${errorText.substring(0, 300)}`);
+            }
+
+            const blob = await response.blob();
+            if (blob.size === 0) throw new Error('Сервер вернул пустой аудио-файл.');
+            audioUrl = URL.createObjectURL(blob);
+        }
+
         if (!audioUrl) throw new Error('Не удалось создать URL для аудио.');
         
         return { 
