@@ -15,6 +15,7 @@ export const CONFIG = {
     POLLINATIONS_API_KEY:  import.meta.env.VITE_POLLINATIONS_API_KEY,
     BOTHUB_API_KEY: import.meta.env.VITE_BOTHUB_API_KEY,
     DEEPSEEK_API_KEY: import.meta.env.VITE_DEEPSEEK_API_KEY,
+    VOICERSS_API_KEY: import.meta.env.VITE_VOICERSS_API_KEY,
     TELEGRAM_BOT_NAME: import.meta.env.VITE_TELEGRAM_BOT_NAME,
 
     // --- Прокси ---

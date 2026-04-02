@@ -453,6 +453,8 @@ function App() {
         AUDIO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_AUDIO_TO_TEXT') || 'AUDIO_TO_TEXT_CLOUDFLARE',
         VIDEO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_VIDEO_TO_TEXT') || 'VIDEO_TO_TEXT_CLOUDFLARE',
         TEXT_TO_AUDIO: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_AUDIO') || 'TEXT_TO_AUDIO_CLOUDFLARE',
+        TEXT_TO_IMAGE: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_IMAGE') || 'TEXT_TO_IMAGE_CLOUDFLARE',
+        IMAGE_TO_IMAGE: localStorage.getItem('ACTIVE_MODEL_IMAGE_TO_IMAGE') || 'IMAGE_TO_IMAGE_CLOUDFLARE',
     });
 
     const activeTttModelKey = activeModels.TEXT_TO_TEXT;
@@ -460,8 +462,12 @@ function App() {
 
     const updateModel = (type, modelKey) => {
         setActiveModels(prev => ({ ...prev, [type]: modelKey }));
-        const kvKey = `ACTIVE_MODEL_${type}`;
-        localStorage.setItem(kvKey, modelKey);
+        const kvKey = SERVICE_TYPE_MAP[type]?.kvKey;
+        if (kvKey) {
+            localStorage.setItem(kvKey, modelKey);
+        } else {
+            console.warn(`[App] Не удалось найти kvKey для типа сервиса: ${type}`);
+        }
     };
 
     const handleModelSelect = (modelKey) => {
@@ -556,12 +562,16 @@ function App() {
         Object.keys(activeModels).forEach(type => {
             const config = SERVICE_TYPE_MAP[type];
             if (config && config.kvKey) {
-                if (!localStorage.getItem(config.kvKey)) {
-                    localStorage.setItem(config.kvKey, activeModels[type]);
+                const storedValue = localStorage.getItem(config.kvKey);
+                const defaultValue = activeModels[type]; // Значение из стейта, которое уже включает Cloudflare по умолчанию
+
+                // Если в localStorage ничего нет, устанавливаем значение по умолчанию
+                if (!storedValue) {
+                    localStorage.setItem(config.kvKey, defaultValue);
                 }
             }
         });
-    }, [activeModels]);
+    }, []); // Пустой массив зависимостей, чтобы выполнилось один раз при монтировании
 
     useEffect(() => {
         const textarea = textareaRef.current;
@@ -1701,16 +1711,26 @@ function App() {
 
     const availableVoices = useMemo(() => {
         if (currentMode !== 3) return [];
+        // Загружаем конфиг для ТЕКУЩЕЙ активной TEXT_TO_AUDIO модели
         const activeModelConfig = loadActiveModelConfig('TEXT_TO_AUDIO');
         return activeModelConfig?.voices || [];
     }, [currentMode, activeModels.TEXT_TO_AUDIO]);
 
     useEffect(() => {
+        // Если мы в режиме аудио (3)
         if (currentMode === 3) {
-            if (availableVoices.length > 0 && !currentVoiceId) {
-                setCurrentVoiceId(availableVoices[0].id);
+            // Проверяем, есть ли доступные голоса для текущей модели
+            if (availableVoices.length > 0) {
+                // Устанавливаем ID первого голоса из списка, если голос еще не выбран
+                if (!currentVoiceId) {
+                    setCurrentVoiceId(availableVoices[0].id);
+                }
+            } else {
+                // Если для этой модели голосов нет, сбрасываем выбор
+                setCurrentVoiceId(null);
             }
         } else {
+            // Если мы НЕ в режиме аудио, всегда сбрасываем голос
             setCurrentVoiceId(null);
         }
     }, [currentMode, availableVoices, currentVoiceId]);
@@ -1735,13 +1755,9 @@ function App() {
 
         const handleApply = () => {
             for (const [serviceType, modelKey] of Object.entries(tempSelections)) {
-                const kvKey = SERVICE_TYPE_MAP[serviceType]?.kvKey;
-                if (kvKey && modelKey) {
-                    localStorage.setItem(kvKey, modelKey);
-                }
+                updateModel(serviceType, modelKey);
             }
             onClose();
-            alert('Настройки моделей обновлены!');
         };
 
         return (
@@ -1985,17 +2001,20 @@ function App() {
                     )}
                     <div className="voice-selector-container">
                         {currentMode === 3 && availableVoices.length > 0 && (
-                            <div className="hints-scroll">
-                                {availableVoices.map(voice => (
-                                    <button 
-                                        key={voice.id} 
-                                        className={`hint-btn ${currentVoiceId === voice.id ? 'active-mode' : ''}`}
-                                        onClick={() => setCurrentVoiceId(voice.id)}
-                                    >
-                                        {voice.icon} {voice.name}
-                                    </button>
-                                ))}
-                            </div>
+                            <>
+                                <p className="voice-selector-title">Выберите голос для озвучивания:</p>
+                                <div className="hints-scroll">
+                                    {availableVoices.map(voice => (
+                                        <button 
+                                            key={voice.id} 
+                                            className={`hint-btn ${currentVoiceId === voice.id ? 'active-mode' : ''}`}
+                                            onClick={() => setCurrentVoiceId(voice.id)}
+                                        >
+                                            {voice.icon} {voice.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
                         )}
                     </div>
                     <button id="input-add-btn" className="tool-btn" title={t.tooltip_add_file} onClick={() => fileInputRef.current.click()}>

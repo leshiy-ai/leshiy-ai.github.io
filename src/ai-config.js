@@ -26,8 +26,9 @@ export const AI_MODELS = {
         API_KEY: 'GEMINI_API_KEY', 
         BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
         voices: [
-            { id: 'Kore', name: 'Мужской', icon: '👨' },
-            { id: 'Luna', name: 'Женский', icon: '👩' }
+            { id: 'Enceladus', name: 'Мужской', icon: '👨' },
+            { id: 'Kore', name: 'Женский1', icon: '👩' },
+            { id: 'Luna', name: 'Женский2', icon: '👩' }
         ]
     },
     IMAGE_TO_TEXT_GEMINI: { 
@@ -96,9 +97,9 @@ export const AI_MODELS = {
         BASE_URL: 'https://api.cloudflare.com/client/v4/accounts',
         voices: [
             { id: 'orpheus', name: 'Мужской1', icon: '👨' },
-            { id: 'aura-dmitry-ru', name: 'Мужской2', icon: '👨' },
+            { id: 'zeus', name: 'Мужской2', icon: '👨' },
             { id: 'athena', name: 'Женский1', icon: '👩' },
-            { id: 'aura-aleksandra-ru', name: 'Женский2', icon: '👩' }
+            { id: 'luna', name: 'Женский2', icon: '👩' }
         ]
     },
     // ✅ [Изображение в Текст (Видение)]
@@ -144,7 +145,7 @@ export const AI_MODELS = {
         API_KEY: 'BOTHUB_API_KEY', 
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1',
         voices: [
-            { id: 'onyx', name: 'Мужской 1', icon: '👨' },
+            { id: 'echo', name: 'Мужской 1', icon: '👨' },
             { id: 'alloy', name: 'Мужской 2', icon: '🧑' },
             { id: 'nova', name: 'Женский 1', icon: '👩' },
             { id: 'shimmer', name: 'Женский 2', icon: '👩' }
@@ -240,7 +241,7 @@ export const AI_MODELS = {
     },
     TEXT_TO_AUDIO_VOICERSS: { 
         SERVICE: 'VOICERSS', 
-        MODEL: 'hl=ru-ru&v=TTS-Model&c=MP3',
+        MODEL: 'hl=ru-ru&c=MP3',
         API_KEY: 'VOICERSS_API_KEY', 
         BASE_URL: 'http://api.voicerss.org',
         voices: [

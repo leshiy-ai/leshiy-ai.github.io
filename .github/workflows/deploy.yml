@@ -37,6 +37,7 @@ jobs:
           VITE_POLLINATIONS_API_KEY: ${{ secrets.VITE_POLLINATIONS_API_KEY }}
           VITE_BOTHUB_API_KEY: ${{ secrets.VITE_BOTHUB_API_KEY }}
           VITE_DEEPSEEK_API_KEY: ${{ secrets.VITE_DEEPSEEK_API_KEY }}
+          VITE_VOICERSS_API_KEY: ${{ secrets.VITE_VOICERSS_API_KEY }}
           VITE_TELEGRAM_BOT_NAME:  ${{ secrets.VITE_TELEGRAM_BOT_NAME }}
 
       - name: Upload Artifacts

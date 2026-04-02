@@ -1076,15 +1076,14 @@ async function generateImageNano(prompt, files) {
 }
 
 async function generateAudioLyria(prompt, voiceId) {
-    // Генерация аудио из текста (Text-to-Speech)
     const config = loadActiveModelConfig('TEXT_TO_AUDIO');
     if (!config) return { type: 'error', text: 'Модель TEXT_TO_AUDIO не настроена' };
     
-    console.log(`🎵 [AUDIO_GEN] Модель: ${config.SERVICE} (${config.MODEL})`);
+    const selectedVoice = voiceId || (config.voices && config.voices.length > 0 ? config.voices[0].id : null);
+    console.log(`🎵 [AUDIO_GEN] Модель: ${config.SERVICE} (${config.MODEL}), Голос: ${selectedVoice}`);
     
     try {
         let url, authHeader, body, isRawBody = false;
-        const selectedVoice = voiceId || config.voices?.[0]?.id;
         
         switch (config.SERVICE) {
             case 'GEMINI':
@@ -1096,7 +1095,7 @@ async function generateAudioLyria(prompt, voiceId) {
                         speechConfig: {
                             voiceConfig: { 
                                 prebuiltVoiceConfig: { 
-                                    voiceName: selectedVoice || "Kore" 
+                                    voiceName: selectedVoice
                                 } 
                             }
                         }
@@ -1109,7 +1108,7 @@ async function generateAudioLyria(prompt, voiceId) {
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                 body = {
                     text: prompt,
-                    voice: selectedVoice || "orpheus"
+                    voice: selectedVoice
                 };
                 break;
                 
@@ -1119,7 +1118,7 @@ async function generateAudioLyria(prompt, voiceId) {
                 body = {
                     model: config.MODEL,
                     input: prompt,
-                    voice: selectedVoice || "alloy",
+                    voice: selectedVoice,
                     response_format: "mp3"
                 };
                 isRawBody = true;
@@ -1144,28 +1143,35 @@ async function generateAudioLyria(prompt, voiceId) {
         
         let response;
         try {
+            const requestBody = isRawBody && config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body);
+            const headers = { ...commonProxyHeaders };
+            if (isRawBody && config.SERVICE !== 'VOICERSS') {
+                headers['Accept'] = 'audio/mpeg';
+            }
+
             response = await fetch(CONFIG.PROXY_URL, {
                 method: 'POST',
                 mode: 'cors',
-                headers: isRawBody && config.SERVICE !== 'VOICERSS' ? 
-                    { ...commonProxyHeaders, 'Accept': 'audio/mpeg' } : 
-                    commonProxyHeaders,
-                body: isRawBody && config.SERVICE !== 'VOICERSS' ? JSON.stringify(body) : (config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body))
+                headers: headers,
+                body: requestBody
             });
             
             if (!response.ok) {
                 const errText = await response.text();
-                throw new Error(`TTS Proxy Error: ${response.status} ${errText}`);
+                throw new Error(`TTS Proxy Error (Main): ${response.status} ${errText}`);
             }
         } catch (proxyError) {
-            console.warn("Main proxy failed, trying fallback...");
+            console.warn("Main proxy failed, trying fallback...", proxyError);
             response = await fetch(CONFIG.FALLBACK_PROXY, {
                 method: 'POST',
                 mode: 'cors',
                 headers: commonProxyHeaders,
-                body: isRawBody && config.SERVICE !== 'VOICERSS' ? JSON.stringify(body) : (config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body))
+                body: isRawBody && config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body)
             });
-            if (!response.ok) throw proxyError;
+            if (!response.ok) {
+                 const errText = await response.text();
+                 throw new Error(`TTS Proxy Error (Fallback): ${response.status} ${errText}`);
+            }
         }
         
         let audioUrl;
@@ -1173,7 +1179,7 @@ async function generateAudioLyria(prompt, voiceId) {
         
         if (contentType && (contentType.includes('audio') || contentType.includes('octet-stream'))) {
             const blob = await response.blob();
-            if (blob.size === 0) throw new Error('Получен пустой аудио-ответ.');
+            if (blob.size === 0) throw new Error('Получен пустой аудио-ответ от сервера.');
             audioUrl = URL.createObjectURL(blob);
         } else if (config.SERVICE === 'GEMINI') {
             const reader = response.body.getReader();
@@ -1187,11 +1193,11 @@ async function generateAudioLyria(prompt, voiceId) {
             audioUrl = URL.createObjectURL(blob);
         } else {
              const errorText = await response.text();
-             console.error("TTS response error:", errorText);
-             throw new Error('Неожиданный формат ответа от TTS сервиса.');
+             console.error("TTS response was not audio:", errorText);
+             throw new Error('Неожиданный формат ответа от TTS сервиса (не аудио).');
         }
         
-        if (!audioUrl) throw new Error('Не удалось получить аудио URL');
+        if (!audioUrl) throw new Error('Не удалось создать URL для аудио.');
         
         return { 
             type: 'audio', 

@@ -972,7 +972,13 @@ body.sidebar-collapsed .history-item .icon {
 
 .voice-selector-container {
     width: 100%;
-    order: -1; /* Ставит этот блок над полем ввода */
-    padding: 0 8px 8px 8px; /* Отступы, как у file-preview-container */
+    order: -1;
+    padding: 0 8px 8px 8px;
 }
 
+.voice-selector-title {
+    margin: 0 0 8px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
