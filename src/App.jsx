@@ -133,14 +133,89 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const isDragging = useRef(false);
     const [isCopied, setIsCopied] = useState(false);
     
+    // --- Локальные refs ТОЛЬКО для логики перетаскивания файла ---
+    const longPressTimer = useRef(null);
+    const isFileDragging = useRef(false);
+    const dragGhostRef = useRef(null);
+
+    // --- Логика для Mobile Touch-n-Drag (Long Press) ---
+    const cleanupMobileDrag = () => {
+        clearTimeout(longPressTimer.current);
+        if (dragGhostRef.current) {
+            dragGhostRef.current.remove();
+            dragGhostRef.current = null;
+        }
+        isFileDragging.current = false;
+        window.removeEventListener('touchmove', handleMobileDragMove);
+        window.removeEventListener('touchend', cleanupMobileDrag);
+    };
+
+    const handleMobileDragMove = (e) => {
+        if (isFileDragging.current && dragGhostRef.current) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            dragGhostRef.current.style.left = `${touch.clientX - 30}px`;
+            dragGhostRef.current.style.top = `${touch.clientY - 15}px`;
+        }
+    };
+
+    const handleMobileDragEndAndDrop = () => {
+        if (!isFileDragging.current) {
+            cleanupMobileDrag();
+            return;
+        }
+        if (dragGhostRef.current) {
+            const dropZone = document.querySelector('.input-area-container');
+            const ghostRect = dragGhostRef.current.getBoundingClientRect();
+            const dropZoneRect = dropZone.getBoundingClientRect();
+            if (ghostRect.top < dropZoneRect.bottom && ghostRect.left < dropZoneRect.right && ghostRect.right > dropZoneRect.left) {
+                if (window.draggedFile) {
+                    // Генерируем событие, которое ловит App.jsx
+                    const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
+                    window.dispatchEvent(dropEvent);
+                }
+            }
+        }
+        cleanupMobileDrag();
+    };
+
+    const handleTouchStartOnDraggable = (e, fileToDrag) => {
+        if (isDragging.current) return; // Не начинаем, если уже идет свайп сообщения
+        window.draggedFile = fileToDrag;
+        
+        longPressTimer.current = setTimeout(() => {
+            if (isDragging.current) return;
+            isFileDragging.current = true;
+            
+            const ghost = document.createElement('div');
+            ghost.className = 'drag-ghost';
+            ghost.innerHTML = `📎 ${fileToDrag.name}`;
+            document.body.appendChild(ghost);
+            dragGhostRef.current = ghost;
+
+            const touch = e.touches[0];
+            ghost.style.left = `${touch.clientX - 30}px`;
+            ghost.style.top = `${touch.clientY - 15}px`;
+
+            window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
+            window.addEventListener('touchend', handleMobileDragEndAndDrop, { passive: false });
+        }, 400); // Задержка для долгого нажатия
+    };
+
     const handleTouchStart = (e) => {
+        // ИЗМЕНЕНИЕ: Не начинаем свайп, если касание на файле.
+        // У файлов будет своя логика долгого нажатия.
+        if (e.target.closest('[data-is-draggable="true"]')) {
+            return;
+        }
         startX.current = e.touches[0].clientX;
         isDragging.current = true;
         if (msgRef.current) msgRef.current.style.transition = 'none';
     };
 
     const handleTouchMove = (e) => {
-        if (!isDragging.current) return;
+        clearTimeout(longPressTimer.current); 
+        if (!isDragging.current || isFileDragging.current) return;
         currentX.current = e.touches[0].clientX - startX.current;
         if ((message.role === 'user' && currentX.current < 0) || (message.role === 'ai' && currentX.current > 0)) {
             currentX.current = 0;
@@ -207,6 +282,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 className={`file-badge ${label.toLowerCase()}`}
                 draggable={isDraggable}
                 onDragStart={(e) => handleDragStart(e, file.file)}
+                onTouchStart={(e) => handleTouchStartOnDraggable(e, file.file)} // <--- ДОБАВИТЬ
+                onTouchEnd={cleanupMobileDrag}
                 title={isDraggable ? "Перетащить, чтобы использовать снова" : name}
             >
                 <span className="file-icon">{icon}</span>
@@ -225,6 +302,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 className="generated-audio-player"
                 draggable={isDraggable} // Делаем перетаскиваемым, только если есть объект файла
                 onDragStart={(e) => handleDragStart(e, message.file)}
+                onTouchStart={(e) => handleTouchStartOnDraggable(e, message.file)}
+                onTouchEnd={cleanupMobileDrag}
                 title={isDraggable  ? "Перетащите в поле ввода, чтобы распознать" : ""}
             >
                 <audio src={message.audioUrl} controls autoPlay />
@@ -540,7 +619,6 @@ function App() {
         setIsModelSelectorOpen(false);
     };
     
-
     useEffect(() => {
         function handleClickOutside(event) {
             // --- 1. Логика для меню РЕЖИМОВ (1, 2, 3, 4) ---
@@ -851,6 +929,23 @@ function App() {
         }
     };
     
+    useEffect(() => {
+        const handleFileDropEvent = (event) => {
+            const file = event.detail;
+            if (file) {
+                handleFileSelect([file]);
+                // Если это аудио, автоматически переключаемся в режим чата для распознавания
+                if (file.type.startsWith('audio/')) {
+                    setCurrentMode(1);
+                }
+            }
+        };
+        window.addEventListener('file-dropped', handleFileDropEvent);
+        return () => {
+            window.removeEventListener('file-dropped', handleFileDropEvent);
+        };
+    }, [handleFileSelect, setCurrentMode]); // Зависимости для корректной работы
+
     const removeFile = (fileId) => {
         setFiles(prevFiles => prevFiles.filter(f => f.id !== fileId));
     };
@@ -1401,15 +1496,15 @@ function App() {
       }, [showAdminPanel]);
 
     useEffect(() => {
-    const handleProfileUpdate = () => {
-        setUserName(localStorage.getItem('vk_user_name') || "Пользователь");
-        setUserPhoto(localStorage.getItem('vk_user_photo') || "");
-        setIsLoggedIn(!!localStorage.getItem('vk_user_id'));
-        setIsAdmin(localStorage.getItem('isAdmin') === 'true');
-    };
+        const handleProfileUpdate = () => {
+            setUserName(localStorage.getItem('vk_user_name') || "Пользователь");
+            setUserPhoto(localStorage.getItem('vk_user_photo') || "");
+            setIsLoggedIn(!!localStorage.getItem('vk_user_id'));
+            setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+        };
 
-    window.addEventListener('user-profile-updated', handleProfileUpdate);
-    return () => window.removeEventListener('user-profile-updated', handleProfileUpdate);
+        window.addEventListener('user-profile-updated', handleProfileUpdate);
+        return () => window.removeEventListener('user-profile-updated', handleProfileUpdate);
     }, []);
     
     useEffect(() => {

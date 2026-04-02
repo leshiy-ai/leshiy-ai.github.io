@@ -809,6 +809,19 @@ body.sidebar-collapsed .history-item .icon {
     text-align: center;
 }
 
+.drag-ghost {
+  position: absolute;
+  z-index: 9999;
+  background-color: rgba(80, 80, 80, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  pointer-events: none; /* чтобы призрак не мешал событиям мыши/касания */
+  white-space: nowrap;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
 .user-name {
     font-weight: bold;
     font-size: 0.9em;
