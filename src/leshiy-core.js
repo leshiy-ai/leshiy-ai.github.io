@@ -1251,11 +1251,20 @@ async function generateAudio(prompt, voiceId) {
         if (config.SERVICE === 'GEMINI') {
             const url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG[config.API_KEY]}`;
             const body = {
-                "contents": [{ "parts": [{ "text": prompt }] }],
                 "generationConfig": { 
                     "responseModalities": ["AUDIO"], 
-                    "speechConfig": { "voiceConfig": { "prebuiltVoiceConfig": { "voiceName": selectedVoice } } }
-                }
+                    "speechConfig": {
+                        "voiceConfig": {
+                            "prebuiltVoiceConfig": {
+                                "voiceName": selectedVoice
+                            }
+                        }
+                    }
+                },
+                "contents": [{
+                    "parts": [{ "text": prompt }] 
+                }],
+                "model": config.MODEL, 
             };
             
             // Отправляем запрос через прокси
