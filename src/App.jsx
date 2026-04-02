@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { CONFIG } from './config';
-import { askLeshiy, generateLeshiy } from './leshiy-core';
-import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric } from './ai-config';
+import { generateLeshiy } from './leshiy-core';
+import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric, loadActiveModelConfig } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
 
@@ -340,7 +340,8 @@ function App() {
     const [isNumberMode, setIsNumberMode] = useState(false);
     const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
     const [textCaseMode, setTextCaseMode] = useState('normal');
-    const [currentMode, setCurrentMode] = useState(1);    
+    const [currentMode, setCurrentMode] = useState(1);
+    const [currentVoiceId, setCurrentVoiceId] = useState(null);
 
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
@@ -451,6 +452,7 @@ function App() {
         IMAGE_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_IMAGE_TO_TEXT') || 'IMAGE_TO_TEXT_CLOUDFLARE',
         AUDIO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_AUDIO_TO_TEXT') || 'AUDIO_TO_TEXT_CLOUDFLARE',
         VIDEO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_VIDEO_TO_TEXT') || 'VIDEO_TO_TEXT_CLOUDFLARE',
+        TEXT_TO_AUDIO: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_AUDIO') || 'TEXT_TO_AUDIO_CLOUDFLARE',
     });
 
     const activeTttModelKey = activeModels.TEXT_TO_TEXT;
@@ -783,7 +785,7 @@ function App() {
         try {
             const prompt = "Проанализируй этот диалог и придумай для него короткое, ёмкое название (2-4 слова). Отвечай только названием, без лишних слов, кавычек или точек.";
 
-            const aiResponse = await askLeshiy({
+            const aiResponse = await generateLeshiy({
                 text: prompt,
                 history: messageHistory, // Передаем полный массив сообщений как историю
                 isSystemTask: true
@@ -941,7 +943,6 @@ function App() {
         setInput('');
 
         try {
-            // Используем generateLeshiy для поддержки всех режимов
             const aiResponse = await generateLeshiy({
                 text: userMessageText,
                 history: historyForAi,
@@ -951,7 +952,8 @@ function App() {
                     base64: f.base64,
                     mimeType: f.mimeType
                 })),
-                currentMode: currentMode
+                currentMode: currentMode,
+                voiceId: currentVoiceId
             });
 
             const assistantMsg = {
@@ -959,7 +961,7 @@ function App() {
                 role: aiResponse.type === 'error' ? 'ai error' : (aiResponse.type === 'audio' ? 'ai audio' : 'ai'),
                 text: aiResponse.text,
                 buttons: aiResponse.buttons,
-                audioUrl: aiResponse.audioUrl // Для аудио режима
+                audioUrl: aiResponse.audioUrl
             };
 
             const updatedMessages = [...newMessages, assistantMsg];
@@ -968,7 +970,7 @@ function App() {
             handleHistorySync(chatId, updatedMessages);
 
         } catch (err) {
-            console.error("Ошибка связи с askLeshiy:", err);
+            console.error("Ошибка связи с generateLeshiy:", err);
             setMessages(prev => [...prev, {
                 id: Date.now(),
                 role: 'ai error',
@@ -977,7 +979,7 @@ function App() {
         } finally {
             setIsLoading(false);
         }
-    }, [files, input, currentChatId, messages, currentUserId, handleHistorySync]);
+    }, [files, input, currentChatId, messages, currentUserId, handleHistorySync, currentMode, currentVoiceId]);
 
     const handleSendRef = useRef(handleSend);
     useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
@@ -1023,9 +1025,7 @@ function App() {
             const formattedMsgs = historyMessages.map(m => ({
                 id: m.id || Date.now() + Math.random(),
                 role: m.role,
-                // Подхватываем текст (имена файлов там уже есть благодаря handleSend)
                 text: m.content || m.text,
-                // Прокидываем легкие аттачи, чтобы renderFile(f) видел объект с именем
                 attachments: m.attachments || []
             }));
     
@@ -1162,17 +1162,14 @@ function App() {
     };
 
     const handleSwipeMessage = useCallback((messageId) => {
-        // Создаем новый массив, отфильтровав удаленное сообщение
         const updatedMessages = messages.filter(msg => msg.id !== messageId);
         
-        // 1. Обновляем UI, чтобы пользователь сразу увидел результат
         setMessages(updatedMessages);
 
-        // 2. Отправляем обновленный (уже без сообщения) массив на сервер
         if (currentChatId) {
             syncChatHistory(currentChatId, updatedMessages);
         }
-    }, [messages, currentChatId, syncChatHistory]); // Добавляем нужные зависимости
+    }, [messages, currentChatId, syncChatHistory]);
 
     const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
     const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
@@ -1289,7 +1286,7 @@ function App() {
             fetchChats();
         }
         
-    }, [fetchChats, currentUserId]); // Теперь он следит за ID!
+    }, [fetchChats, currentUserId]);
 
     useEffect(() => {
       const modalContent = document.querySelector('.storage-content');
@@ -1348,11 +1345,8 @@ function App() {
                 const overlay_vk = document.getElementById('vk_auth_overlay');
                 const overlay_tg = document.getElementById('tg_auth_overlay');
                 
-                // ПРЯЧЕМ ВК, ПЕРЕД ТЕМ КАК ПОКАЗАТЬ ТГ
                 if (overlay_vk) overlay_vk.style.display = 'none';
                 if (overlay_tg) overlay_tg.style.display = 'flex';
-                
-                //handleSend('/auth_init_tg');
             }
         };
   
@@ -1386,18 +1380,14 @@ function App() {
         };
     }, []);
 
-    // --- Speech Recognition (План Б: Ручной continuous - ФИНАЛЬНАЯ ВЕРСИЯ) ---
     const processNewLineCommands = useCallback((text) => {
         if (!text) return '';
         const newLineCommands = language === 'ru' ? ['новая строка', 'с новой строки', 'энтер'] : ['new line'];
-        // Pad with spaces for robust matching of multi-word commands
         let processedText = ` ${text} `;
         newLineCommands.forEach(cmd => {
-            // Match the command surrounded by spaces
             const regex = new RegExp(` ${cmd} `, 'gi');
             processedText = processedText.replace(regex, '\n');
         });
-        // Clean up spaces around the generated newline and trim the result
         return processedText.replace(/\s*\n\s*/g, '\n');
     }, [language]);
 
@@ -1413,7 +1403,6 @@ function App() {
         
         recognition.lang = language === 'ru' ? 'ru-RU' : 'en-US';
         recognition.interimResults = true;
-        // ГЛАВНЫЙ ФИКС: Отключаем нативный continuous, который глючит на мобилках
         recognition.continuous = false; 
 
         recognition.onstart = () => {
@@ -1436,10 +1425,8 @@ function App() {
                 }
             }
             
-            // Сохраняем "сырой" финальный результат для onend и для проверки команд
             sessionFinalTextRef.current = sessionFinal || sessionInterim;
             
-            // --- ОБРАБОТКА ГОЛОСОВЫХ РЕЖИМОВ ---
             const lowerSession = (sessionFinal || sessionInterim).toLowerCase().trim();
             if (lowerSession.endsWith('цифрами') || lowerSession.endsWith('символами')) {
                 setIsNumberMode(true);
@@ -1472,20 +1459,17 @@ function App() {
                 return;
             }
 
-            // --- ОБРАБОТКА КОМАНД НА ЛЕТУ ---
             const sendCommands = language === 'ru' ? ['отправить', 'послать'] : ['send', 'go'];
             const clearCommands = language === 'ru' ? ['очистить', 'удалить'] : ['clear', 'delete'];
             const undoCommands = language === 'ru' ? ['исправить', 'отменить'] : ['correct', 'undo'];
 
-            // 1. КОМАНДА "ОТПРАВИТЬ"
             if (sendCommands.some(cmd => lowerSession.endsWith(cmd)) && !isSendingRef.current) {
                 isSendingRef.current = true;
                 shouldSendOnEndRef.current = true;
-                recognition.stop(); // onend обработает отправку
+                recognition.stop();
                 return;
             }
 
-            // 2. КОМАНДА "ОЧИСТИТЬ"
             if (clearCommands.some(cmd => lowerSession.endsWith(cmd))) {
                 baseTextRef.current = '';
                 sessionFinalTextRef.current = '';
@@ -1495,7 +1479,6 @@ function App() {
                 return;
             }
             
-            // 3. КОМАНДА "ОТМЕНИТЬ"
             const undoCmd = undoCommands.find(cmd => lowerSession.endsWith(cmd));
             if (undoCmd) {
                 const sessionTextBeforeCommand = sessionFinal.substring(0, sessionFinal.toLowerCase().lastIndexOf(undoCmd)).trim();
@@ -1519,7 +1502,6 @@ function App() {
                 return;
             }
             
-            // --- ВИЗУАЛИЗАЦИЯ ---
             let processedSession = processNewLineCommands(sessionFinal);
             processedSession = applyPunctuation(processedSession);
             if (isNumberModeRef.current) {
@@ -1568,7 +1550,6 @@ function App() {
                 return applyCaseMode(processed, textCaseModeRef.current);
             }
 
-            // 1. ЛОГИКА ОТПРАВКИ
             if (shouldSendOnEndRef.current) {
                 const processedText = processChunk(sessionFinalTextRef.current);
                 const finalToSubmit = (baseTextRef.current + processedText).trim();
@@ -1583,11 +1564,9 @@ function App() {
                 return;
             }
 
-            // 2. ОБЫЧНОЕ ЗАВЕРШЕНИЕ ФРАЗЫ: фиксируем её в базу
             if (sessionFinalTextRef.current) {
                 const processedText = processChunk(sessionFinalTextRef.current);
                 if (processedText) {
-                    // Add a space only if the text doesn't end with a newline
                     baseTextRef.current += processedText + (processedText.endsWith('\n') ? '' : ' ');
                 }
                 sessionFinalTextRef.current = '';
@@ -1595,7 +1574,6 @@ function App() {
             
             setInput(baseTextRef.current);
 
-            // 3. АВТО-РЕСТАРТ
             if (!wasManuallyStoppedRef.current) {
                 if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
                 restartTimeoutRef.current = setTimeout(() => {
@@ -1631,18 +1609,15 @@ function App() {
         };
     }, [language, processNewLineCommands, applyPunctuation, convertWordsToNumbers, applyCaseMode]);       
 
-    // --- Speech Media Recording --------------------- //
     const handleMicClick = () => {
-        if (blockClickRef.current) return; // Если сработал стоп лонгпресса — игнорируем этот клик!
+        if (blockClickRef.current) return;
     
-        // СРАЗУ чистим таймер лонгпресса, чтобы не запустилась вторая запись!
         if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
         if (currentMode === 3) {
             if (isRecordingFile) {
                 stopVoiceLongPress();
             } else {
-                // Пишем файл без лишних сущностей
                 startFileRecordingLogic(); 
             }
             return;
@@ -1664,22 +1639,18 @@ function App() {
         }
     };
 
-    // СТАРТ ДОЛГОГО НАЖАТИЯ (Запись файла + переключение режима)
     const startVoiceLongPress = (e) => {
         if (e.type === 'touchstart') e.preventDefault();
     
-        // Очистка на всякий случай перед стартом нового таймера
         if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
         longPressTimer.current = setTimeout(() => {
             setCurrentMode(3);
-            startFileRecordingLogic(); // Используем ту же логику
+            startFileRecordingLogic();
         }, 500);
     };
     
-    // ВЫНОСИМ ЛОГИКУ В ОДНО МЕСТО, ЧТОБЫ НЕ ДУБЛИРОВАТЬ ВНУТРИ
     const startFileRecordingLogic = async () => {
-        // 1. МГНОВЕННО КРАСНЕЕМ (до await!)
         setIsRecordingFile(true); 
         if (navigator.vibrate) navigator.vibrate(50);
         
@@ -1693,7 +1664,6 @@ function App() {
             };
     
             mediaRecorderRef.current.onstop = () => {
-                // Проверка: если чанки пустые (плевок), не создаем файл
                 if (audioChunksRef.current.length === 0) return;
     
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
@@ -1724,12 +1694,26 @@ function App() {
             setIsRecordingFile(false);
             setIsRecording(false);
             
-            // ВКЛЮЧАЕМ БЛОКИРОВКУ: говорим клику, что мы только что закончили лонгпресс
             blockClickRef.current = true;
-            setTimeout(() => { blockClickRef.current = false; }, 300); // через 300мс разблокируем
+            setTimeout(() => { blockClickRef.current = false; }, 300);
         }
     };
-    // ------------------------ //
+
+    const availableVoices = useMemo(() => {
+        if (currentMode !== 3) return [];
+        const activeModelConfig = loadActiveModelConfig('TEXT_TO_AUDIO');
+        return activeModelConfig?.voices || [];
+    }, [currentMode, activeModels.TEXT_TO_AUDIO]);
+
+    useEffect(() => {
+        if (currentMode === 3) {
+            if (availableVoices.length > 0 && !currentVoiceId) {
+                setCurrentVoiceId(availableVoices[0].id);
+            }
+        } else {
+            setCurrentVoiceId(null);
+        }
+    }, [currentMode, availableVoices, currentVoiceId]);
 
     const AdminPanel = ({ onClose }) => {
         const [tempSelections, setTempSelections] = useState({});
@@ -1851,7 +1835,6 @@ function App() {
                 <span id="ptr-text">Потяните для обновления</span>
             </div>
 
-            {/* Оверлей подсветки, который виден только при драге файла */}
             {isDragging && (
                 <div className="drag-drop-zone-overlay">
                     <div className="drag-drop-message">
@@ -1888,10 +1871,8 @@ function App() {
             <div className="input-area-container" onPaste={handlePaste}>
 
                 <div className="input-area">
-                    {/* ЛОГИКА ГОЛОСОВЫХ КОМАНД ИЛИ ПРЕВЬЮ ФАЙЛОВ */}
-                    {(isRecording || isRecordingFile || files.length > 0) && (
+                    {(isRecording || isRecordingFile || files.length > 0 || currentMode === 3) && (
                         <div className="file-preview-container">
-                            {/* Показываем команды, когда идет STT (диктовка текста) */}
                             {isRecording && (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') ? (
                                 <div className="voice-commands-hints">
                                     <div className="rec-indicator">
@@ -1940,22 +1921,16 @@ function App() {
                                     </div>
                                 </div>
                             ) : (
-                                /* Этот DIV — тот самый "родитель", которого не хватает */
                                 <div className="files-list-wrapper">
-                                    {/* Индикатор REC - мигает пока идет физическая запись файла */}
                                     {isRecordingFile && (
                                         <div className="file-preview-item recording-status">
                                             <div className="rec-dot-blink">🔴</div>
                                             <span className="file-preview-name" style={{color: '#ff4444', fontSize: '10px'}}>REC</span>
                                         </div>
                                     )}
-                                    {/* 2. Стандартный рендер файлов */}
                                     {files.map(file => {
                                         const type = file.file.type || '';
                                         const name = file.file.name || '';
-                                        
-                                        // Если это только что записанное аудио, у него может быть audioUrl
-                                        // Если это загруженный файл, создаем URL из Blob
                                         const fileUrl = file.audioUrl || (file.file instanceof Blob ? URL.createObjectURL(file.file) : file.preview);
                                         
                                         const isImage = type.startsWith('image/');
@@ -1989,7 +1964,6 @@ function App() {
                                                 )}
                                                 {isAudio && (
                                                     <div className="audio-preview-content">
-                                                        {/* key={fileUrl} заставляет плеер обновиться и подхватить звук */}
                                                         <audio key={fileUrl} src={fileUrl} controls />
                                                     </div>
                                                 )}
@@ -2005,10 +1979,25 @@ function App() {
                                             </div>
                                         );
                                     })}
-                                </div> /* Закрытие родительского DIV */
+                                </div>
                             )}
                         </div>
                     )}
+                    <div className="voice-selector-container">
+                        {currentMode === 3 && availableVoices.length > 0 && (
+                            <div className="hints-scroll">
+                                {availableVoices.map(voice => (
+                                    <button 
+                                        key={voice.id} 
+                                        className={`hint-btn ${currentVoiceId === voice.id ? 'active-mode' : ''}`}
+                                        onClick={() => setCurrentVoiceId(voice.id)}
+                                    >
+                                        {voice.icon} {voice.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                     <button id="input-add-btn" className="tool-btn" title={t.tooltip_add_file} onClick={() => fileInputRef.current.click()}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-7-7h14"/></svg>
                     </button>
@@ -2040,7 +2029,6 @@ function App() {
                             {LESHIY_MODES.find(m => m.id === currentMode)?.icon}
                         </button>
 
-                        {/* ПОДМЕНЮ ВЫБОРА РЕЖИМА */}
                         {isModeMenuOpen && (
                             <div className="model-selector-dropdown" style={{ bottom: '100%', left: 0, display: 'block' }}>
                                 {LESHIY_MODES.map(mode => (
@@ -2082,7 +2070,7 @@ function App() {
                         id="input-mic-btn" 
                         className={`tool-btn ${isRecording || isRecordingFile ? 'recording' : ''}`} 
                         title={t.tooltip_record_voice} 
-                        onClick={handleMicClick} // Обычный клик работает как раньше
+                        onClick={handleMicClick}
                         onMouseDown={startVoiceLongPress}
                         onMouseUp={stopVoiceLongPress}
                         onMouseLeave={stopVoiceLongPress}

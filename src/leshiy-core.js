@@ -1044,7 +1044,7 @@ async function translateLeshiy(text, targetLang = "ru") {
  * ГЕНЕРАТОР ЛЕШИЙ: Единая точка входа для всех типов контента
  * @param {Object} params - Объект с данными (текст, файлы, режим)
  */
-export const generateLeshiy = async ({ text, files = [], history = [], currentMode = 1 }) => {
+export const generateLeshiy = async ({ text, files = [], history = [], currentMode = 1, voiceId = null }) => {
     const prompt = text?.trim() || "";
 
     // Логика выбора режима
@@ -1058,7 +1058,7 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
 
         case 3: // ГОЛОС (Lyria 3 / TTS)
             console.log("Режим: Генерация аудио");
-            return await generateAudioLyria(prompt);
+            return await generateAudioLyria(prompt, voiceId);
 
         case 4: // ВИДЕО (Veo)
             console.log("Режим: Генерация видео");
@@ -1075,7 +1075,7 @@ async function generateImageNano(prompt, files) {
     return { type: 'system', text: `🎨 Генерирую фото по запросу: "${prompt}"...` };
 }
 
-async function generateAudioLyria(prompt) {
+async function generateAudioLyria(prompt, voiceId) {
     // Генерация аудио из текста (Text-to-Speech)
     const config = loadActiveModelConfig('TEXT_TO_AUDIO');
     if (!config) return { type: 'error', text: 'Модель TEXT_TO_AUDIO не настроена' };
@@ -1084,10 +1084,10 @@ async function generateAudioLyria(prompt) {
     
     try {
         let url, authHeader, body, isRawBody = false;
+        const selectedVoice = voiceId || config.voices?.[0]?.id;
         
         switch (config.SERVICE) {
             case 'GEMINI':
-                // Gemini TTS через generativelanguage API
                 url = `${config.BASE_URL}/models/${config.MODEL}:streamGenerateContent?key=${CONFIG[config.API_KEY]}&alt=sse`;
                 body = {
                     contents: [{ parts: [{ text: prompt }] }],
@@ -1096,7 +1096,7 @@ async function generateAudioLyria(prompt) {
                         speechConfig: {
                             voiceConfig: { 
                                 prebuiltVoiceConfig: { 
-                                    voiceName: "Kore" 
+                                    voiceName: selectedVoice || "Kore" 
                                 } 
                             }
                         }
@@ -1105,31 +1105,29 @@ async function generateAudioLyria(prompt) {
                 break;
                 
             case 'CLOUDFLARE':
-                // Cloudflare Deepgram Aura TTS
                 url = `${config.BASE_URL}/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                 body = {
-                    text: prompt,  // Исправлено: было "input", нужно "text"
-                    voice: "aura-asteria-en" // Можно добавить выбор голоса
+                    text: prompt,
+                    voice: selectedVoice || "orpheus"
                 };
                 break;
                 
             case 'BOTHUB':
-                // OpenAI-compatible TTS API
                 url = `${config.BASE_URL}/audio/speech`;
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                 body = {
                     model: config.MODEL,
                     input: prompt,
-                    voice: "alloy",
+                    voice: selectedVoice || "alloy",
                     response_format: "mp3"
                 };
-                isRawBody = true; // TTS возвращает бинарные данные
+                isRawBody = true;
                 break;
                 
             case 'VOICERSS':
-                // VoiceRSS API
-                url = `${config.BASE_URL}?${config.MODEL}&key=${CONFIG[config.API_KEY]}&src=${encodeURIComponent(prompt)}`;
+                const voiceParam = selectedVoice ? `&v=${selectedVoice}` : '';
+                url = `${config.BASE_URL}?${config.MODEL}&key=${CONFIG[config.API_KEY]}&src=${encodeURIComponent(prompt)}${voiceParam}`;
                 isRawBody = true;
                 break;
                 
@@ -1137,7 +1135,6 @@ async function generateAudioLyria(prompt) {
                 return { type: 'error', text: `Неподдерживаемый сервис для TTS: ${config.SERVICE}` };
         }
         
-        // Отправка запроса через прокси
         const commonProxyHeaders = {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
@@ -1153,7 +1150,7 @@ async function generateAudioLyria(prompt) {
                 headers: isRawBody && config.SERVICE !== 'VOICERSS' ? 
                     { ...commonProxyHeaders, 'Accept': 'audio/mpeg' } : 
                     commonProxyHeaders,
-                body: isRawBody && config.SERVICE !== 'VOICERSS' ? JSON.stringify(body) : JSON.stringify(body)
+                body: isRawBody && config.SERVICE !== 'VOICERSS' ? JSON.stringify(body) : (config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body))
             });
             
             if (!response.ok) {
@@ -1161,23 +1158,24 @@ async function generateAudioLyria(prompt) {
                 throw new Error(`TTS Proxy Error: ${response.status} ${errText}`);
             }
         } catch (proxyError) {
-            // Пытаем fallback прокси
             console.warn("Main proxy failed, trying fallback...");
             response = await fetch(CONFIG.FALLBACK_PROXY, {
                 method: 'POST',
                 mode: 'cors',
                 headers: commonProxyHeaders,
-                body: JSON.stringify(body)
+                body: isRawBody && config.SERVICE !== 'VOICERSS' ? JSON.stringify(body) : (config.SERVICE === 'VOICERSS' ? null : JSON.stringify(body))
             });
             if (!response.ok) throw proxyError;
         }
         
-        // Обработка ответа
         let audioUrl;
         const contentType = response.headers.get('content-type');
         
-        if (config.SERVICE === 'GEMINI') {
-            // Gemini возвращает SSE с аудио данными
+        if (contentType && (contentType.includes('audio') || contentType.includes('octet-stream'))) {
+            const blob = await response.blob();
+            if (blob.size === 0) throw new Error('Получен пустой аудио-ответ.');
+            audioUrl = URL.createObjectURL(blob);
+        } else if (config.SERVICE === 'GEMINI') {
             const reader = response.body.getReader();
             const chunks = [];
             while (true) {
@@ -1187,24 +1185,10 @@ async function generateAudioLyria(prompt) {
             }
             const blob = new Blob(chunks, { type: 'audio/wav' });
             audioUrl = URL.createObjectURL(blob);
-        } else if (config.SERVICE === 'CLOUDFLARE') {
-            // Cloudflare Deepgram Aura возвращает бинарный аудио-поток напрямую
-            const contentType = response.headers.get('content-type');
-            console.log(`[CLOUDFLARE TTS] Content-Type: ${contentType}`);
-            
-            // Всегда обрабатываем как бинарные данные (audio/wav или audio/mpeg)
-            const blob = await response.blob();
-            console.log(`[CLOUDFLARE TTS] Blob size: ${blob.size} bytes`);
-            
-            if (blob.size === 0) {
-                throw new Error('Пустой аудио-ответ от Cloudflare');
-            }
-            
-            audioUrl = URL.createObjectURL(blob);
-        } else if (config.SERVICE === 'BOTHUB' || config.SERVICE === 'VOICERSS') {
-            // Прямой бинарный ответ
-            const blob = await response.blob();
-            audioUrl = URL.createObjectURL(blob);
+        } else {
+             const errorText = await response.text();
+             console.error("TTS response error:", errorText);
+             throw new Error('Неожиданный формат ответа от TTS сервиса.');
         }
         
         if (!audioUrl) throw new Error('Не удалось получить аудио URL');

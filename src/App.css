@@ -970,3 +970,9 @@ body.sidebar-collapsed .history-item .icon {
     font-style: italic;
 }
 
+.voice-selector-container {
+    width: 100%;
+    order: -1; /* Ставит этот блок над полем ввода */
+    padding: 0 8px 8px 8px; /* Отступы, как у file-preview-container */
+}
+
