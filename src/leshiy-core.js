@@ -1174,6 +1174,8 @@ async function generateAudioLyria(prompt) {
         
         // Обработка ответа
         let audioUrl;
+        const contentType = response.headers.get('content-type');
+        
         if (config.SERVICE === 'GEMINI') {
             // Gemini возвращает SSE с аудио данными
             const reader = response.body.getReader();
@@ -1186,17 +1188,25 @@ async function generateAudioLyria(prompt) {
             const blob = new Blob(chunks, { type: 'audio/wav' });
             audioUrl = URL.createObjectURL(blob);
         } else if (config.SERVICE === 'CLOUDFLARE') {
-            const data = await response.json();
-            if (data.result?.audio) {
-                const binaryStr = atob(data.result.audio);
-                const bytes = new Uint8Array(binaryStr.length);
-                for (let i = 0; i < binaryStr.length; i++) {
-                    bytes[i] = binaryStr.charCodeAt(i);
-                }
-                const blob = new Blob([bytes], { type: 'audio/wav' });
+            // Cloudflare может возвращать как JSON (с base64), так и прямой аудио-поток
+            if (contentType && contentType.includes('audio')) {
+                // Прямой аудио-ответ
+                const blob = await response.blob();
                 audioUrl = URL.createObjectURL(blob);
             } else {
-                throw new Error('Нет аудио данных в ответе Cloudflare');
+                // JSON ответ с base64
+                const data = await response.json();
+                if (data.result?.audio) {
+                    const binaryStr = atob(data.result.audio);
+                    const bytes = new Uint8Array(binaryStr.length);
+                    for (let i = 0; i < binaryStr.length; i++) {
+                        bytes[i] = binaryStr.charCodeAt(i);
+                    }
+                    const blob = new Blob([bytes], { type: 'audio/wav' });
+                    audioUrl = URL.createObjectURL(blob);
+                } else {
+                    throw new Error('Нет аудио данных в ответе Cloudflare');
+                }
             }
         } else if (config.SERVICE === 'BOTHUB' || config.SERVICE === 'VOICERSS') {
             // Прямой бинарный ответ
