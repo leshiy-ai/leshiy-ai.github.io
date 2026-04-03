@@ -328,11 +328,19 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     
         return (
             <div 
+                // Внедряем через Ref, как и свайп
+                ref={(el) => {
+                    if (el && fileToDrag) {
+                        makeDraggableToFile(el, fileToDrag, (f) => {
+                            handleFileSelect({ target: { files: [f] } });
+                        });
+                    }
+                }}
                 className="voice-generation-wrapper clickable-drag-zone"
                 draggable={!!fileToDrag}
                 onDragStart={(e) => handleDragStart(e, fileToDrag)}
-                onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
-                onTouchEnd={handleTouchEnd}
+                // Эти обработчики больше не нужны для мобилы, их заменит makeDraggableToFile
+                // Но можно оставить для совместимости, если они не конфликтуют
                 data-is-draggable="true" 
                 style={{ cursor: fileToDrag ? 'grab' : 'default' }}
             >
@@ -411,8 +419,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                         {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
                         {!message.audioUrl && (textToRender ? (
                             <ReactMarkdown>
-                                {/* Заменяем запятую с пробелом на перенос строки прямо перед рендером */}
-                                {textToRender.split(', ').join('\n')}
+                                {textToRender}
                             </ReactMarkdown>
                         ) : (
                             (!message.attachments || message.attachments.length === 0) && (
@@ -497,6 +504,67 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
       panel.removeEventListener('touchstart', onTouchStart);
       panel.removeEventListener('touchmove', onTouchMove);
       panel.removeEventListener('touchend', onTouchEnd);
+    };
+};
+
+const makeDraggableToFile = (element, file, onDropToFile) => {
+    let startX = 0;
+    let startY = 0;
+    let ghost = null;
+
+    const onTouchStart = (e) => {
+        // Не мешаем свайпу, если это быстрый жест
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    };
+
+    const onTouchMove = (e) => {
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
+
+        // Если сдвинули палец более чем на 15px - считаем это драгом
+        if (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15) {
+            if (!ghost) {
+                ghost = document.createElement('div');
+                ghost.id = 'mobile-drag-ghost';
+                ghost.innerHTML = "🎙"; // Или иконка файла
+                ghost.style.cssText = `
+                    position: fixed; width: 60px; height: 60px; 
+                    background: rgba(76, 175, 80, 0.9); border-radius: 50%; 
+                    z-index: 10000; pointer-events: none; display: flex; 
+                    align-items: center; justify-content: center; font-size: 24px;
+                `;
+                document.body.appendChild(ghost);
+            }
+            ghost.style.left = `${currentX - 30}px`;
+            ghost.style.top = `${currentY - 30}px`;
+        }
+    };
+
+    const onTouchEnd = (e) => {
+        if (ghost) {
+            const touch = e.changedTouches[0];
+            // Проверяем, что под пальцем в момент отпускания
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const isInput = target?.closest('.chat-input-container') || target?.closest('textarea');
+
+            if (isInput && onDropToFile) {
+                onDropToFile(file);
+            }
+
+            ghost.remove();
+            ghost = null;
+        }
+    };
+
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: false });
+    element.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+        element.removeEventListener('touchstart', onTouchStart);
+        element.removeEventListener('touchmove', onTouchMove);
+        element.removeEventListener('touchend', onTouchEnd);
     };
 };
 
