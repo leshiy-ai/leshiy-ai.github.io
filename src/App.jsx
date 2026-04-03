@@ -194,7 +194,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     
             if (!dragGhostRef.current) {
                 const ghost = document.createElement('div');
-                ghost.className = 'drag-ghost';
+                ghost.className = 'drag-ghost-mobile';
                 ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
                 document.body.appendChild(ghost);
                 dragGhostRef.current = ghost;
@@ -292,7 +292,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         const isZip = name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z');
         const isDoc = name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf') || name.endsWith('.xls') || name.endsWith('.xlsx');
         const isDraggable = !!file.file; // Можно перетаскивать, если есть объект файла
-        
+        const fileToDrag = file.file;
+
         // Рисуем img только если есть живое превью
         if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
         
@@ -304,19 +305,19 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         else if (type.startsWith('image/')) { icon = '🖼️'; label = 'ФОТО'; } // Фото из истории
 
         return (
-            <div 
-                key={i} 
-                className={`file-badge ${label.toLowerCase()}`}
-                draggable={isDraggable}
-                onDragStart={(e) => handleDragStart(e, file.file)}
-                onTouchStart={(e) => handleTouchStartOnDraggable(e, file.file)} // <--- ДОБАВИТЬ
-                onTouchEnd={cleanupMobileDrag}
-                title={isDraggable ? "Перетащить, чтобы использовать снова" : name}
-            >
-                <span className="file-icon">{icon}</span>
-                <span className="file-name">{name.length > 10 ? name.substring(0,7)+'...' : name}</span>
-                <span className="file-label">{label}</span>
-            </div>
+        <div 
+            key={i} 
+            className={`file-badge ${label.toLowerCase()}`}
+            draggable={isDraggable}
+            onDragStart={(e) => handleDragStart(e, fileToDrag)}
+            onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
+            onTouchEnd={handleTouchEnd} // Единая функция завершения
+            title={isDraggable ? "Перетащить, чтобы использовать снова" : name}
+        >
+            <span className="file-icon">{icon}</span>
+            <span className="file-name">{name.length > 10 ? name.substring(0,7)+'...' : name}</span>
+            <span className="file-label">{label}</span>
+        </div>
         );
     };
     
@@ -326,20 +327,16 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         const fileToDrag = message.file;
     
         return (
-            /* Теперь ЭТА РАМКА — главная зона захвата */
             <div 
                 className="voice-generation-wrapper clickable-drag-zone"
                 draggable={!!fileToDrag}
                 onDragStart={(e) => handleDragStart(e, fileToDrag)}
-                // Вешаем твою логику (вибрация, призрак, лонг-пресс) на всю область
                 onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
-                onTouchEnd={cleanupMobileDrag}
+                onTouchEnd={handleTouchEnd}
                 data-is-draggable="true" 
                 style={{ cursor: fileToDrag ? 'grab' : 'default' }}
             >
                 <div className="voice-generation-layout">
-                    
-                    {/* Иконка теперь просто визуальный элемент внутри активной рамы */}
                     <div className="file-badge audio static-badge">
                         <span className="file-icon">🎙</span>
                         <span className="file-label">ГОЛОС</span>
@@ -349,13 +346,10 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                         <audio 
                             src={message.audioUrl} 
                             controls 
-                            // Чтобы клик по кнопке Play не сбрасывал драг на некоторых девайсах
                             onContextMenu={(e) => e.preventDefault()} 
                         />
                         {message.text && (
-                            <p className="voice-text-caption">
-                                {message.text}
-                            </p>
+                            <p className="voice-text-caption">{message.text}</p>
                         )}
                     </div>
                 </div>
@@ -1485,23 +1479,47 @@ function App() {
         }
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e) => {
+        // --- 1. ЛОГИКА ДРОПА ФАЙЛА (Если в процессе перетаскивания) ---
+        if (isDragging) {
+            const touch = e.changedTouches ? e.changedTouches[0] : null;
+            if (touch && fileToDrag) {
+                // Проверяем, куда бросили
+                const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+                const isInput = dropTarget?.closest('.chat-input-container') || 
+                                dropTarget?.closest('#chat-textarea');
+    
+                if (isInput) {
+                    handleFileSelect({ target: { files: [fileToDrag] } });
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
+            }
+            
+            // Чистим гхоста и сбрасываем драг
+            const ghost = document.getElementById('mobile-drag-ghost');
+            if (ghost) ghost.remove();
+            setFileToDrag(null);
+            setIsDragging(false);
+            return; // Выходим, чтобы не сработал Pull-to-Refresh ниже
+        }
+    
+        // --- 2. ТВОЯ РОДНАЯ ЛОГИКА PULL-TO-REFRESH ---
         if (!isPulled.current) return;
         isPulled.current = false;
         const container = appContainerRef.current;
         if (!container) return;
-
+    
         container.style.transition = 'transform 0.3s';
         const matrix = window.getComputedStyle(container).transform;
         const translateY = matrix !== 'none' ? parseFloat(matrix.split(',')[5]) : 0;
-
+    
         if (translateY > 80) {
             container.style.transform = 'translateY(50px)';
             const ptrText = document.getElementById('ptr-text');
             const ptrLoader = document.getElementById('ptr-loader');
             if (ptrText) ptrText.innerText = "Загрузка...";
             if (ptrLoader) ptrLoader.style.display = 'block';
-
+    
             loadChatFromHistory(currentChatId, true).finally(() => {
                  setTimeout(() => {
                     container.style.transform = 'translateY(0)';
