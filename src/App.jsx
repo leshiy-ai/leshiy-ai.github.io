@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { CONFIG } from './config';
-import { generateLeshiy } from './leshiy-core';
+import { askLeshiy, generateLeshiy } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric, loadActiveModelConfig } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
@@ -1072,10 +1072,10 @@ function App() {
         try {
             const prompt = "Проанализируй этот диалог и придумай для него короткое, ёмкое название (2-4 слова). Отвечай только названием, без лишних слов, кавычек или точек.";
 
-            const aiResponse = await generateLeshiy({
+            const aiResponse = await askLeshiy({
                 text: prompt,
-                history: messageHistory, // Передаем полный массив сообщений как историю
-                isSystemTask: true
+                history: messageHistory,
+                isSystemTask: true // Теперь этот флаг ДОЙДЕТ до логики
             });
 
             if (aiResponse && aiResponse.text && aiResponse.type !== 'error') {

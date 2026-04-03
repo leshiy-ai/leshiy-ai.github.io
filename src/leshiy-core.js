@@ -650,7 +650,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     let isRawBody = false;
     let config;
     let serviceType = 'TEXT_TO_TEXT';
-
+    console.log("ВХОД В askLeshiy, isSystemTask:", isSystemTask);
     if (isSystemTask) {
         // Принудительно используем Cloudflare для системных задач, как и было указано.
         config = AI_MODELS['TEXT_TO_TEXT_CLOUDFLARE']; 
@@ -678,7 +678,24 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             ],
             stream: false
         };
+
+        // ОТПРАВЛЯЕМ И СРАЗУ ВОЗВРАЩАЕМ
+        const response = await fetch(CONFIG.PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                target: url,
+                method: 'POST',
+                headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
+                body: body
+            })
+        });
+
+        const data = await response.json();
+        const resultText = data?.result?.response || "Новый чат";
         
+        return { text: resultText, type: 'text' }; // Возвращаем объект, который ждет App.jsx
+
     } else {
         const firstFileObj = hasFiles ? files[0].file : null;
         if (firstFileObj) {
