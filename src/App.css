@@ -822,6 +822,16 @@ body.sidebar-collapsed .history-item .icon {
   box-shadow: 0 4px 8px rgba(0,0,0,0.3);
 }
 
+.drag-ghost-mobile {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none !important;
+    background: var(--accent-color);
+    padding: 8px 16px;
+    border-radius: 20px;
+    transform: translate(-50%, -50%);
+}
+
 .user-name {
     font-weight: bold;
     font-size: 0.9em;

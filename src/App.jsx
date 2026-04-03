@@ -177,7 +177,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             // Создаем "призрак" элемента
             const ghost = document.createElement('div');
             ghost.className = 'drag-ghost';
-            ghost.innerHTML = `📎 ${window.draggedFile.name}`;
+            ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
             document.body.appendChild(ghost);
             dragGhostRef.current = ghost;
         }
@@ -236,7 +236,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         // который позволит функции handleMobileDragMove начать перетаскивание.
         longPressTimer.current = setTimeout(() => {
             isLongPress.current = true;
-        }, 400); // Задержка для долгого нажатия
+            // "Файл подцеплен, можно тащить, а не ждать меню"
+            if (navigator.vibrate) navigator.vibrate(40);
+        }, 500); // Задержка для долгого нажатия
 
         // Вешаем слушатели на все окно, чтобы ловить движение где угодно
         window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
@@ -247,8 +249,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const handleTouchStart = (e) => {
         // ИЗМЕНЕНИЕ: Не начинаем свайп, если касание на файле.
         // У файлов будет своя логика долгого нажатия.
-        if (e.target.closest('[data-is-draggable="true"]')) {
-            return;
+        if (e.target.closest('.file-badge') || e.target.closest('[data-is-draggable="true"]')) {
+            return; // Выходим, отдаем управление логике перетаскивания файла
         }
         startX.current = e.touches[0].clientX;
         isDragging.current = true;
