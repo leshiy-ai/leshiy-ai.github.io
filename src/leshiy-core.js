@@ -666,10 +666,15 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const systemInstruction = text; // `text` - это системный промпт от App.jsx
         
         // `history` - это полный массив сообщений (JSON) из чата
-        const messagesForCloudflare = history.map(h => ({
-            role: h.role === 'model' || h.role === 'ai' ? 'assistant' : 'user', // Приводим к формату, который понимает CF
-            content: h.content || h.text || ''
-        }));
+        const messagesForCloudflare = history
+        .map(h => {
+            const msgText = typeof h.content === 'string' ? h.content : (h.text || "");
+            const role = (h.role === 'model' || h.role === 'ai' || h.role === 'assistant') ? 'assistant' : 'user';
+            return msgText.trim() ? `${role === 'user' ? 'Пользователь' : 'Ассистент'}: ${msgText}` : null;
+        })
+        .filter(Boolean)
+        .slice(-6) // Последние 6 реплик — этого за глаза для названия
+        .join("\n");
         
         body = {
             messages: [
