@@ -321,20 +321,44 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     };
     
     // Рендер аудио из ответа AI (генерация голоса)
-    const renderGeneratedAudio = (message) => { // Принимает все сообщение
+    const renderGeneratedAudio = (message) => {
         if (!message.audioUrl) return null;
-        const isDraggable = !!message.file;
+        const fileToDrag = message.file;
+    
         return (
+            /* Теперь ЭТА РАМКА — главная зона захвата */
             <div 
-                className="generated-audio-player"
-                draggable={isDraggable} // Делаем перетаскиваемым, только если есть объект файла
-                onDragStart={(e) => handleDragStart(e, message.file)}
-                onTouchStart={(e) => handleTouchStartOnDraggable(e, message.file)}
+                className="voice-generation-wrapper clickable-drag-zone"
+                draggable={!!fileToDrag}
+                onDragStart={(e) => handleDragStart(e, fileToDrag)}
+                // Вешаем твою логику (вибрация, призрак, лонг-пресс) на всю область
+                onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
                 onTouchEnd={cleanupMobileDrag}
-                title={isDraggable  ? "Перетащите в поле ввода, чтобы распознать" : ""}
+                data-is-draggable="true" 
+                style={{ cursor: fileToDrag ? 'grab' : 'default' }}
             >
-                <audio src={message.audioUrl} controls autoPlay />
-                {message.text && <p className="audio-caption">{message.text}</p>}
+                <div className="voice-generation-layout">
+                    
+                    {/* Иконка теперь просто визуальный элемент внутри активной рамы */}
+                    <div className="file-badge audio static-badge">
+                        <span className="file-icon">🎙</span>
+                        <span className="file-label">ГОЛОС</span>
+                    </div>
+    
+                    <div className="audio-body-zone">
+                        <audio 
+                            src={message.audioUrl} 
+                            controls 
+                            // Чтобы клик по кнопке Play не сбрасывал драг на некоторых девайсах
+                            onContextMenu={(e) => e.preventDefault()} 
+                        />
+                        {message.text && (
+                            <p className="voice-text-caption">
+                                {message.text}
+                            </p>
+                        )}
+                    </div>
+                </div>
             </div>
         );
     };
@@ -392,7 +416,10 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
                         {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
                         {!message.audioUrl && (textToRender ? (
-                            <ReactMarkdown>{textToRender}</ReactMarkdown>
+                            <ReactMarkdown>
+                                {/* Заменяем запятую с пробелом на перенос строки прямо перед рендером */}
+                                {textToRender.split(', ').join('\n')}
+                            </ReactMarkdown>
                         ) : (
                             (!message.attachments || message.attachments.length === 0) && (
                                 <p className="media-msg-label">Медиафайл</p>
