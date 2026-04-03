@@ -194,7 +194,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     
             if (!dragGhostRef.current) {
                 const ghost = document.createElement('div');
-                ghost.className = 'drag-ghost-mobile';
+                ghost.className = 'drag-ghost';
                 ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
                 document.body.appendChild(ghost);
                 dragGhostRef.current = ghost;

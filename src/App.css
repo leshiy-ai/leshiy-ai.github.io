@@ -824,7 +824,7 @@ body.sidebar-collapsed .history-item .icon {
 
 .drag-ghost-mobile {
     position: fixed;
-    z-index: 10000;
+    z-index: 9999;
     pointer-events: none !important;
     background: var(--accent-color);
     padding: 8px 16px;
