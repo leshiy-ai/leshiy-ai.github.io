@@ -251,6 +251,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     };
 
     const handleTouchEnd = () => {
+        // Чтобы эта функция не трогала msgRef и не обнуляла ничего лишнего
+        if (isDragging) return;
+        
         isDragging.current = false;
         if (msgRef.current) {
             msgRef.current.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
@@ -324,29 +327,33 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     // Рендер аудио из ответа AI (генерация голоса)
     const renderGeneratedAudio = (message) => {
         if (!message.audioUrl) return null;
-        const fileToDrag = message.file;
-    
+        const f = message.file;
+
         return (
             <div 
                 className="voice-generation-wrapper clickable-drag-zone"
-                draggable={!!fileToDrag}
-                onDragStart={(e) => handleDragStart(e, fileToDrag)}
-                onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, f)}
+                onTouchStart={(e) => handleTouchStartOnDraggable(e, f)}
                 onTouchEnd={handleTouchEnd}
-                data-is-draggable="true" 
-                style={{ cursor: fileToDrag ? 'grab' : 'default' }}
+                style={{ 
+                    cursor: f ? 'grab' : 'default',
+                    touchAction: 'none', // ОЧЕНЬ ВАЖНО для мобилы
+                    userSelect: 'none'
+                }}
             >
                 <div className="voice-generation-layout">
+                    {/* Твоя иконка 52x52 из CSS */}
                     <div className="file-badge audio static-badge">
                         <span className="file-icon">🎙</span>
                         <span className="file-label">ГОЛОС</span>
                     </div>
-    
+
                     <div className="audio-body-zone">
                         <audio 
                             src={message.audioUrl} 
                             controls 
-                            onContextMenu={(e) => e.preventDefault()} 
+                            onPlay={(e) => e.stopPropagation()} 
                         />
                         {message.text && (
                             <p className="voice-text-caption">{message.text}</p>
@@ -1480,48 +1487,62 @@ function App() {
     };
 
     const handleTouchEnd = (e) => {
-        // --- 1. ЛОГИКА ДРОПА ФАЙЛА (Если в процессе перетаскивания) ---
+        // --- 1. ЛОГИКА ДРОПА (ПРИОРИТЕТ) ---
         if (isDragging) {
             const touch = e.changedTouches ? e.changedTouches[0] : null;
             if (touch && fileToDrag) {
-                // Проверяем, куда бросили
+                // Определяем, куда бросили файл
                 const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-                const isInput = dropTarget?.closest('.chat-input-container') || 
-                                dropTarget?.closest('#chat-textarea');
-    
-                if (isInput) {
+                // Ищем наш инпут или текстовое поле
+                const inputZone = dropTarget?.closest('.chat-input-container') || 
+                                  dropTarget?.closest('#chat-textarea') ||
+                                  dropTarget?.tagName === 'TEXTAREA';
+
+                if (inputZone) {
+                    console.log("Mobile Drop Success:", fileToDrag.name);
                     handleFileSelect({ target: { files: [fileToDrag] } });
                     if (navigator.vibrate) navigator.vibrate(50);
                 }
             }
-            
-            // Чистим гхоста и сбрасываем драг
+
+            // УДАЛЯЕМ ГХОСТ (тот самый, который у тебя виснет)
             const ghost = document.getElementById('mobile-drag-ghost');
-            if (ghost) ghost.remove();
-            setFileToDrag(null);
+            if (ghost) {
+                ghost.style.transition = 'transform 0.2s, opacity 0.2s';
+                ghost.style.transform = 'scale(0)';
+                ghost.style.opacity = '0';
+                setTimeout(() => ghost.remove(), 200);
+            }
+
+            // СБРОС СОСТОЯНИЙ ДРАГА
             setIsDragging(false);
-            return; // Выходим, чтобы не сработал Pull-to-Refresh ниже
+            setFileToDrag(null);
+            window.removeEventListener('touchmove', handleTouchMoveGlobal);
+            
+            // Если мы дропали файл, Pull-to-refresh срабатывать не должен
+            isPulled.current = false; 
+            return; 
         }
-    
+
         // --- 2. ТВОЯ РОДНАЯ ЛОГИКА PULL-TO-REFRESH ---
         if (!isPulled.current) return;
         isPulled.current = false;
         const container = appContainerRef.current;
         if (!container) return;
-    
+
         container.style.transition = 'transform 0.3s';
         const matrix = window.getComputedStyle(container).transform;
         const translateY = matrix !== 'none' ? parseFloat(matrix.split(',')[5]) : 0;
-    
+
         if (translateY > 80) {
             container.style.transform = 'translateY(50px)';
             const ptrText = document.getElementById('ptr-text');
             const ptrLoader = document.getElementById('ptr-loader');
             if (ptrText) ptrText.innerText = "Загрузка...";
             if (ptrLoader) ptrLoader.style.display = 'block';
-    
+
             loadChatFromHistory(currentChatId, true).finally(() => {
-                 setTimeout(() => {
+                setTimeout(() => {
                     container.style.transform = 'translateY(0)';
                     if (ptrLoader) ptrLoader.style.display = 'none';
                 }, 500);
