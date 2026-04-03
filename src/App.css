@@ -369,6 +369,98 @@ body { background: var(--bg-color); color: var(--text-color); font-family: 'Inte
 .file-badge.video { border-color: #ff5722; } .file-badge.audio { border-color: #2196f3; } .file-badge.archive { border-color: #ffc107; } .file-badge.doc { border-color: #4caf50; }
 .media-msg-label { font-style: italic; opacity: 0.6; font-size: 0.9em; margin: 4px 0; }
 
+/* --- УНИВЕРСАЛЬНЫЙ СПИСОК ВЛОЖЕНИЙ (attachments-list) --- */
+.attachments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.attachment-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Мини-бадж слева (для драга) */
+.file-badge-mini {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
+    cursor: grab;
+}
+
+.file-badge-mini.image { border-color: #4caf50; }
+.file-badge-mini.video { border-color: #ff5722; }
+.file-badge-mini.audio { border-color: #2196f3; }
+.file-badge-mini.other { border-color: #9e9e9e; }
+
+.file-badge-mini .file-icon {
+    font-size: 20px;
+    margin-top: 0;
+}
+
+.file-label-mini {
+    font-size: 8px;
+    color: #ccc;
+    font-weight: bold;
+    margin-top: 2px;
+}
+
+/* Правая часть с инфо и медиа */
+.attachment-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name-row {
+    font-size: 13px;
+    color: #fff;
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+
+/* Контейнер для медиафайлов внутри ряда */
+.media-wrapper {
+    width: 100%;
+    margin-top: 4px;
+}
+
+.attachment-info video {
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    border-radius: 8px;
+}
+
+.attachment-info img {
+    width: 100%;
+    max-width: 180px;
+    max-height: 180px;
+    object-fit: cover; /* Кропаем, если картинка слишком большая */
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* Компактный плеер аудио */
+.attachment-info audio {
+    width: 100%;
+    height: 32px;
+    max-width: 240px;
+}
+
 /* --- MOBILE INPUT AREA STYLES --- */
 @media (max-width: 600px) {
     .input-area {

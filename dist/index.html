@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leshiy-AI Ecosystem</title>
+    <script type="module" crossorigin src="/assets/index-Bf14RIWr.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DUiH6BzR.css">
+  </head>
+  <body>
+    <div id="top"></div>
+    
+    <div id="sidebar"></div>
+    
+    <div class="app-container">
+      <div id="root"></div>
+    </div>
+
+    <div id="footer"></div>
+
+    <div id="vk_auth_overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); z-index:10000; justify-content:center; align-items:center;">
+  
+      <div id="vk_auth_box" style="background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 90%; max-width: 360px; position: relative; animation: slideUp 0.3s ease-out;">
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 40px; margin-bottom: 10px;">🔐</div>
+            <h3 style="margin: 0; font-family: sans-serif; color: #333;">Вход в Хранилку</h3>
+            <p style="font-size: 14px; color: #666; margin-top: 8px;">Используйте VK ID для безопасного доступа к вашим файлам</p>
+        </div>
+    
+        <div id="vk_auth_container"></div>
+            <button onclick="document.getElementById('vk_auth_overlay').style.display='none'" style="width: 100%; margin-top: 15px; border: none; background: none; color: #0077ff; cursor: pointer; font-size: 14px;">Позже</button>
+      </div>
+    </div>
+
+    <div id="tg_auth_overlay"></div>
+
+    <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+
+    <div id="storage-modal" class="storage-modal">
+      <div class="storage-content"></div>
+    </div>
+
+    <script src="https://vk.com/js/api/openapi.js?169" type="text/javascript" defer></script>
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" defer></script>
+    <script>
+      (function loadTelegram() {
+        try {
+          // Старая команда для справки (разрезана, чтобы не закрыть тег раньше времени):
+          // <script src="https://telegram.org/js/telegram-web-app.js"></scr_ipt>
+          var script = document.createElement('script');
+          script.src = "https://telegram.org/js/telegram-web-app.js";
+          script.async = true;
+          script.onerror = function() {
+            console.warn("Telegram SDK не загрузился, работаем без него.");
+          };
+          script.onload = function() {
+            console.log("Telegram SDK успешно загружен.");
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.ready();
+            }
+          };
+          document.head.appendChild(script);
+        } catch (e) {
+          console.error("Ошибка при попытке загрузить Telegram JS:", e);
+        }
+      })();
+    </script>
+    <script>
+      (function handleVKAuth() {
+          const hash = window.location.hash.substring(1);
+          if (hash) {
+              const params = new URLSearchParams(hash);
+              const userId = params.get('user_id');
+              const accessToken = params.get('access_token'); // Получаем токен из хэша
+
+              if (userId && accessToken) {
+                  localStorage.setItem('vk_user_id', userId);
+
+                  // Делаем JSONP запрос к ВК, чтобы обойти CORS и получить данные профиля
+                  const script = document.createElement('script');
+                  script.src = `https://api.vk.com/method/users.get?user_ids=${userId}&fields=photo_100&access_token=${accessToken}&v=5.131&callback=vkCallback`;
+                  document.head.appendChild(script);
+
+                  window.vkCallback = function(response) {
+                    if (response.response && response.response[0]) {
+                      const user = response.response[0];
+                      const userData = {
+                          vk_user_id: userId,
+                          userName: `${user.first_name} ${user.last_name}`,
+                          userPhoto: user.photo_100
+                      };
+
+                      localStorage.setItem('vk_user_id', userData.vk_user_id);
+                      localStorage.setItem('vk_user_name', userData.userName);
+                      localStorage.setItem('vk_user_photo', userData.userPhoto);
+                      
+                      // ПЕРЕДАЕМ ВЕСЬ ОБЪЕКТ, а не только ID
+                      window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: userData }));
+                    }
+                      delete window.vkCallback;
+                      script.remove();
+                  };
+
+                  window.history.replaceState({}, document.title, window.location.pathname);
+              }
+          }
+      })();
+    </script>
+  </body>
+</html>

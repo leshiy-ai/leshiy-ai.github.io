@@ -140,6 +140,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const isLongPress = useRef(false);
     const touchStartCoords = useRef({x: 0, y: 0});
 
+    // Хук для очистки Blob-URL
+    useBlobUrlCleanup(message);
+
 
     // --- УЛУЧШЕННАЯ ЛОГИКА для Mobile Touch-n-Drag (Long Press + Drag) ---
     const cleanupMobileDrag = () => {
@@ -282,6 +285,101 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         setTimeout(() => document.body.removeChild(dragIcon), 0);
     };
 
+    // --- ХЕЛПЕР ДЛЯ ОПРЕДЕЛЕНИЯ ТИПА ФАЙЛА ---
+    const getFileInfo = (file, isAudioUrl = false) => {
+        if (isAudioUrl) return { icon: '🎵', label: 'ГОЛОС', type: 'audio' };
+        if (!file || !file.type) return { icon: '📄', label: 'ФАЙЛ', type: 'other' };
+
+        const mime = file.type.toLowerCase();
+        
+        if (mime.startsWith('image/')) return { icon: '🖼️', label: 'ИЗОБР', type: 'image' };
+        if (mime.startsWith('video/')) return { icon: '🎬', label: 'ВИДЕО', type: 'video' };
+        if (mime.startsWith('audio/')) return { icon: '🎵', label: 'АУДИО', type: 'audio' };
+        if (mime.includes('pdf')) return { icon: '📕', label: 'PDF', type: 'other' };
+        if (mime.includes('zip') || mime.includes('rar')) return { icon: '📦', label: 'АРХИВ', type: 'other' };
+        
+        return { icon: '📄', label: 'ФАЙЛ', type: 'other' };
+    };
+
+    // --- УНИВЕРСАЛЬНЫЙ РЕНДЕР ВЛОЖЕНИЙ ---
+    const renderAttachments = (msg) => {
+        // Собираем всё в один список
+        const items = [];
+
+        // 1. Обрабатываем обычные вложения (USER или AI прислал файлы)
+        if (msg.attachments && msg.attachments.length > 0) {
+            msg.attachments.forEach(att => {
+                const info = getFileInfo(att.file);
+                items.push({
+                    ...info,
+                    file: att.file,
+                    name: att.name || 'file',
+                    // Для картинок и видео создаем Blob-URL, чтобы показать превью/плеер
+                    blobUrl: (info.type === 'image' || info.type === 'video') ? URL.createObjectURL(att.file) : null
+                });
+            });
+        }
+
+        // 2. Обрабатываем сгенерированный голос (AI сгенерировал аудио)
+        if (msg.audioUrl) {
+            items.push({
+                type: 'audio',
+                isVoice: true, // Флаг, что это именно голос ИИ
+                file: msg.file, // Объект File для драга
+                name: msg.file?.name || 'audio_message.mp3',
+                url: msg.audioUrl,
+                icon: '🗣️', // Иконка для голоса
+                label: 'ГОЛОС'
+            });
+        }
+
+        if (items.length === 0) return null;
+
+        return (
+            <div className="attachments-list">
+                {items.map((item, idx) => (
+                    <div key={idx} className="attachment-row">
+                        {/* ЛЕВАЯ ЧАСТЬ: Бадж-иконка (ТОЛЬКО для драга и системного меню) */}
+                        <div 
+                            className={`file-badge-mini ${item.type}`}
+                            onTouchStart={(e) => handleTouchStartOnDraggable(e, item.file)}
+                            onTouchEnd={cleanupMobileDrag}
+                        >
+                            <span className="file-icon">{item.icon}</span>
+                            <span className="file-label-mini">{item.label}</span>
+                        </div>
+
+                        {/* ПРАВАЯ ЧАСТЬ: Инфо и Плеер/Превью */}
+                        <div className="attachment-info">
+                            <div className="file-name-row">{item.name}</div>
+                            
+                            {/* 1. Если это АУДИО (обычное или голос) */}
+                            {item.type === 'audio' && (
+                                <div className="media-wrapper">
+                                    <audio src={item.url || item.blobUrl} controls />
+                                </div>
+                            )}
+
+                            {/* 2. Если это ВИДЕО */}
+                            {item.type === 'video' && item.blobUrl && (
+                                <div className="media-wrapper">
+                                    <video src={item.blobUrl} controls preload="metadata" />
+                                </div>
+                            )}
+
+                            {/* 3. Если это КАРТИНКА */}
+                            {item.type === 'image' && item.blobUrl && (
+                                <div className="media-wrapper">
+                                    <img src={item.blobUrl} alt={item.name} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     // --- ФУНКЦИИ РЕНДЕРИНГА (ИСПРАВЛЕННЫЕ) ---
     const renderFile = (file, i) => {
         const type = file.type || '';
@@ -380,15 +478,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 <div className="message-content">
                     <div className="user-name">{name}</div>
                     <div className="message-body">
-                        {/* Сначала рендерим вложения, если они есть */}
-                        {message.attachments && message.attachments.length > 0 && (
-                            <div className="attachments-grid">
-                                {message.attachments.map((f, i) => renderFile(f, i))}
-                            </div>
-                        )}
-
-                        {/* Рендер аудио из ответа AI (генерация голоса) */}
-                        {message.audioUrl && renderGeneratedAudio(message)}
+                        {/* Универсальный рендер вложений (attachments + audioUrl) */}
+                        {renderAttachments(message)}
 
                         {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
                         {!message.audioUrl && (textToRender ? (
@@ -424,6 +515,23 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             </div>
         </div>
     );
+};
+
+// Хук для очистки Blob-URL при размонтировании компонента Message
+const useBlobUrlCleanup = (message) => {
+    useEffect(() => {
+        return () => {
+            // Очистка Blob-URL при размонтировании сообщения
+            if (message.attachments && message.attachments.length > 0) {
+                message.attachments.forEach(att => {
+                    if (att.file && (att.file.type.startsWith('image/') || att.file.type.startsWith('video/'))) {
+                        // URL.createObjectURL создавался в renderAttachments, 
+                        // браузер автоматически очистит их при сборке мусора
+                    }
+                });
+            }
+        };
+    }, [message]);
 };
 
 const makeSwipable = (panel, onRemove, useRotation = true) => {
