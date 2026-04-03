@@ -682,6 +682,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // ОТПРАВЛЯЕМ И СРАЗУ ВОЗВРАЩАЕМ
         const response = await fetch(url, {
             method: 'POST',
+            mode: 'cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 method: 'POST',
