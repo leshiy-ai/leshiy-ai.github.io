@@ -156,95 +156,77 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         delete window.draggedFile;
     };
 
-    const handleMobileDragMove = (e) => {
-        const touch = e.touches[0];
-        const movedX = Math.abs(touch.clientX - touchStartCoords.current.x);
-        const movedY = Math.abs(touch.clientY - touchStartCoords.current.y);
-        const movedDistance = movedX + movedY;
-    
-        // Если палец сдвинулся до того, как сработал таймер долгого нажатия,
-        // значит это скролл страницы. Отменяем все.
-        if (movedDistance > 15 && !isLongPress.current) {
-            cleanupMobileDrag();
-            return;
-        }
-        
-        // Если таймер долгого нажатия сработал И мы начали двигать палец,
-        // то это официальное начало перетаскивания.
-        if (isLongPress.current && movedDistance > 10 && !isFileDragging.current) {
-            isFileDragging.current = true; // Начинаем драг.
-            
-            // Создаем "призрак" элемента
-            const ghost = document.createElement('div');
-            ghost.className = 'drag-ghost';
-            ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
-            document.body.appendChild(ghost);
-            dragGhostRef.current = ghost;
-        }
-    
-        // Если перетаскивание активно, двигаем "призрак" и блокируем скролл.
-        if (isFileDragging.current) {
-            e.preventDefault(); 
-            if (dragGhostRef.current) {
-                dragGhostRef.current.style.left = `${touch.clientX - 30}px`;
-                dragGhostRef.current.style.top = `${touch.clientY - 15}px`;
-            }
-        } 
-    };
-
-    const handleMobileDragEndAndDrop = (e) => {
-        // "Бросаем" файл, только если перетаскивание было активно
-        if (isFileDragging.current && dragGhostRef.current) {
-            
-            // Прячем "призрак", чтобы он не мешал определить, что под ним
-            dragGhostRef.current.style.display = 'none';
-    
-            const touch = e.changedTouches[0];
-            // Находим самый верхний элемент под пальцем в момент отпускания
-            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
-            
-            // Показываем "призрак" обратно на мгновение
-            dragGhostRef.current.style.display = '';
-    
-            const dropZone = document.querySelector('.input-area-container');
-    
-            // Проверяем, находится ли элемент под пальцем ВНУТРИ зоны для "падения"
-            if (dropZone && dropZone.contains(elementAtPoint)) {
-                 if (window.draggedFile) {
-                    const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
-                    window.dispatchEvent(dropEvent);
-                 }
-            }
-        }
-        // Если это был просто долгий тап без движения, isFileDragging будет false.
-        // Этот блок не сработает, и браузер покажет стандартное контекстное меню.
-        
-        cleanupMobileDrag();
-    };
-
     const handleTouchStartOnDraggable = (e, fileToDrag) => {
-        // Не даем `handleSwipeTouchStart` сработать на этом же событии
-        e.stopPropagation(); 
+        // УБИРАЕМ stopPropagation — даем браузеру шанс показать меню
         if (isDragging.current) return;
-
+    
         touchStartCoords.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         window.draggedFile = fileToDrag;
         isLongPress.current = false;
         isFileDragging.current = false;
         
-        // Запускаем таймер. Он взведет флаг isFileDragging.current,
-        // который позволит функции handleMobileDragMove начать перетаскивание.
         longPressTimer.current = setTimeout(() => {
             isLongPress.current = true;
-            // "Файл подцеплен, можно тащить, а не ждать меню"
-            if (navigator.vibrate) navigator.vibrate(40);
-        }, 500); // Задержка для долгого нажатия
-
-        // Вешаем слушатели на все окно, чтобы ловить движение где угодно
+            // ТАКТИЛЬНЫЙ ОТКЛИК: теперь ты поймешь, что драг начался
+            if (navigator.vibrate) navigator.vibrate(50); 
+        }, 600); // Чуть увеличили задержку для системного меню
+    
         window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
         window.addEventListener('touchend', handleMobileDragEndAndDrop, { once: true });
     };
-
+    
+    const handleMobileDragMove = (e) => {
+        if (!window.draggedFile) return;
+        const touch = e.touches[0];
+        const movedX = Math.abs(touch.clientX - touchStartCoords.current.x);
+        const movedY = Math.abs(touch.clientY - touchStartCoords.current.y);
+    
+        // Если палец двинулся ДО лонг-пресса — это скролл. Сбрасываем всё.
+        if (!isLongPress.current && (movedX > 10 || movedY > 10)) {
+            cleanupMobileDrag();
+            return;
+        }
+    
+        // Если лонг-пресс был и мы начали движение
+        if (isLongPress.current && (movedX > 5 || movedY > 5)) {
+            isFileDragging.current = true;
+            e.preventDefault(); // Блокируем скролл ТОЛЬКО когда реально тащим файл
+    
+            if (!dragGhostRef.current) {
+                const ghost = document.createElement('div');
+                ghost.className = 'drag-ghost-mobile';
+                ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
+                document.body.appendChild(ghost);
+                dragGhostRef.current = ghost;
+            }
+    
+            if (dragGhostRef.current) {
+                dragGhostRef.current.style.left = `${touch.clientX}px`;
+                dragGhostRef.current.style.top = `${touch.clientY - 40}px`; // Сдвиг выше пальца
+            }
+        }
+    };
+    
+    const handleMobileDragEndAndDrop = (e) => {
+        if (isFileDragging.current && window.draggedFile) {
+            const touch = e.changedTouches[0];
+            
+            // Магия для поиска зоны дропа
+            if (dragGhostRef.current) dragGhostRef.current.style.display = 'none';
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (dragGhostRef.current) dragGhostRef.current.style.display = 'block';
+    
+            // Ищем контейнер ввода (проверяем саму зону и её родителей)
+            const dropZone = target?.closest('.input-area-container');
+    
+            if (dropZone) {
+                const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
+                window.dispatchEvent(dropEvent);
+                if (navigator.vibrate) navigator.vibrate([30, 30]); // Двойной клик на успех
+            }
+        }
+        cleanupMobileDrag();
+    };
 
     const handleTouchStart = (e) => {
         // ИЗМЕНЕНИЕ: Не начинаем свайп, если касание на файле.
