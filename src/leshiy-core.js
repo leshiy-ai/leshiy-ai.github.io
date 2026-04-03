@@ -680,15 +680,16 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         };
         
         // ОТПРАВЛЯЕМ И СРАЗУ ВОЗВРАЩАЕМ
-        const response = await fetch(url, {
+        const response = await fetch(CONFIG.PROXY_URL, {
             method: 'POST',
             mode: 'cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                method: 'POST',
-                headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
-                body: body
-            })
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Target-URL': url, // Прокси должен знать, куда слать
+                'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
+                'X-Proxy-Authorization': `Bearer ${CONFIG[config.API_KEY]}`
+            },
+            body: JSON.stringify(body)
         });
 
         const data = await response.json();
