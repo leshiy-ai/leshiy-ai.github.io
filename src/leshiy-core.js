@@ -682,7 +682,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         };
         
         // ОТПРАВЛЯЕМ И СРАЗУ ВОЗВРАЩАЕМ
-        const response = await fetch(CONFIG.PROXY_URL, {
+        const response = await fetch(CONFIG.FALLBACK_PROXY, {
             method: 'POST',
             mode: 'cors',
             headers: {
