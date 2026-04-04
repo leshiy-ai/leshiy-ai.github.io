@@ -567,7 +567,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         document.removeEventListener('touchmove', onTouchMove);
         document.removeEventListener('touchend', onTouchEnd);
         document.removeEventListener('touchcancel', onTouchEnd);
-        
+
         // 1. Убираем подсветку (твой код)
         const dropZone = document.querySelector('.app-container');
         if (dropZone) {
@@ -582,7 +582,9 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
                 ghost.remove();
                 ghost = null;
             }
-    
+            // Если увидишь красную рамку при отпускании — событие ДОХОДИТ
+            document.body.style.outline = '2px solid red';
+
             // 🔥 ПРЯМОЙ ВЫЗОВ — без проверок, без setTimeout
             if (typeof handleFileSelect === 'function') {
                 handleFileSelect([file]);
