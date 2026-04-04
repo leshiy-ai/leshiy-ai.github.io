@@ -570,48 +570,40 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             ghost.style.top = `${currentY - 30}px`;
 
             // Опционально: подсвечиваем зону сброса (инпут) в реальном времени
+            // Просто убираем блок с .input-area-container, оставляем как было:
             const target = document.elementFromPoint(currentX, currentY);
-            const inputZone = target?.closest('.input-area-container'); // ← только этот класс
-            document.querySelectorAll('.input-area-container').forEach(el => {
-                el.style.border = (el === inputZone) ? '2px dashed #4CAF50' : '';
+            const inputZone = target?.closest('.app-container'); // или вообще не ищи, просто крась .app-container
+
+            document.querySelectorAll('.app-container').forEach(el => {
+                el.classList.add('dragging-over'); // или style.border, как у тебя
             });
         }
     };
 
     const onTouchEnd = (e) => {
-        // 1. Убираем подсветку — ПРАВИЛЬНЫЙ селектор из App.jsx
-        document.querySelectorAll('.input-area-container').forEach(el => {
-            el.style.border = '';
-        });
-        
-        // 2. Берем ту же зону, что подсвечивали
-        const dropZone = document.querySelector('.input-area-container');
+        // 1. Убираем визуальные эффекты (как у тебя было)
+        const dropZone = document.querySelector('.app-container');
         if (dropZone) {
             dropZone.classList.remove('dragging-over');
             window.dispatchEvent(new Event('mobile-drag-stop'));
         }
     
+        // 2. Если тащили — просто приаттачиваем файл. БЕЗ ПРОВЕРОК.
         if (isDragging) {
-            const touch = e.changedTouches[0];
-    
-            // Удаляем призрака ПЕРЕД elementFromPoint
+            // Мгновенно убираем призрака
             if (ghost) {
-                ghost.remove();  // 🔥 Полное удаление из DOM
+                ghost.remove();
                 ghost = null;
             }
-    
-            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
-    
-            // 3. Проверка попадания — через contains, как у тебя
-            if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
-                if (typeof handleFileSelect === 'function') {
-                    handleFileSelect([file]); 
-                    if (navigator.vibrate) navigator.vibrate(50);
-                }
+            
+            // Вызываем обработку — файл приаттачится в любом случае
+            if (typeof handleFileSelect === 'function') {
+                handleFileSelect([file]); 
+                if (navigator.vibrate) navigator.vibrate(50);
             }
         }
     
-        // 4. Очистка
+        // 3. Финальная очистка
         if (ghost) {
             ghost.remove();
             ghost = null;
