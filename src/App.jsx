@@ -511,55 +511,80 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
     let startX = 0;
     let startY = 0;
     let ghost = null;
+    let isDragging = false;
 
     const onTouchStart = (e) => {
-        // Не мешаем свайпу, если это быстрый жест
+        // Запоминаем точку старта
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
+        isDragging = false;
     };
 
     const onTouchMove = (e) => {
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
 
-        // Если сдвинули палец более чем на 15px - считаем это драгом
+        // Если сдвиг больше 15px, активируем драг
         if (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15) {
+            isDragging = true;
+            
+            // Блокируем стандартный скролл страницы, пока тащим файл
+            if (e.cancelable) e.preventDefault();
+
             if (!ghost) {
                 ghost = document.createElement('div');
                 ghost.id = 'mobile-drag-ghost';
-                ghost.innerHTML = "🎙"; // Или иконка файла
+                // Подставляем иконку в зависимости от типа файла
+                const icon = file.type?.startsWith('audio') ? "🎙" : "📄";
+                ghost.innerHTML = icon; 
                 ghost.style.cssText = `
                     position: fixed; width: 60px; height: 60px; 
                     background: rgba(76, 175, 80, 0.9); border-radius: 50%; 
                     z-index: 10000; pointer-events: none; display: flex; 
                     align-items: center; justify-content: center; font-size: 24px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    transform: scale(1.1); transition: transform 0.2s;
                 `;
                 document.body.appendChild(ghost);
             }
+
             ghost.style.left = `${currentX - 30}px`;
             ghost.style.top = `${currentY - 30}px`;
+
+            // Опционально: подсвечиваем зону сброса (инпут) в реальном времени
+            const target = document.elementFromPoint(currentX, currentY);
+            const inputZone = target?.closest('.chat-input-container');
+            document.querySelectorAll('.chat-input-container').forEach(el => {
+                el.style.border = (el === inputZone) ? '2px dashed #4CAF50' : '';
+            });
         }
     };
 
     const onTouchEnd = (e) => {
         if (ghost) {
             const touch = e.changedTouches[0];
-            // Проверяем, что под пальцем в момент отпускания
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
             const isInput = target?.closest('.chat-input-container') || target?.closest('textarea');
 
+            // Убираем подсветку
+            document.querySelectorAll('.chat-input-container').forEach(el => el.style.border = '');
+
             if (isInput && onDropToFile) {
+                // Вибрация для тактильного отклика (если поддерживается)
+                if (navigator.vibrate) navigator.vibrate(50);
                 onDropToFile(file);
             }
 
             ghost.remove();
             ghost = null;
         }
+        isDragging = false;
     };
 
+    // ВАЖНО: { passive: false } позволяет блокировать скролл через preventDefault
     element.addEventListener('touchstart', onTouchStart, { passive: true });
     element.addEventListener('touchmove', onTouchMove, { passive: false });
-    element.addEventListener('touchend', onTouchEnd);
+    element.addEventListener('touchend', onTouchEnd, { passive: true });
 
     return () => {
         element.removeEventListener('touchstart', onTouchStart);
