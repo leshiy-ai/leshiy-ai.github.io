@@ -572,7 +572,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        // 1. Убираем подсветку — ПРАВИЛЬНЫЙ селектор из App.jsx
+        // 1. Убираем подсветку — только правильный селектор
         document.querySelectorAll('.input-area-container').forEach(el => {
             el.style.border = '';
         });
@@ -594,16 +594,21 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     
             const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
     
-            // Проверяем попадание в ПРАВИЛЬНУЮ зону
+            // Проверяем попадание ТОЛЬКО в .input-area-container
             if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
-                // 🔥 ВАЖНО: Используем готовое событие, как в остальном приложении
-                const dropEvent = new CustomEvent('file-dropped', { detail: file });
+                // 🔥 ТОЛЬКО событие — без прямого вызова handleFileSelect
+                const dropEvent = new CustomEvent('file-dropped', { 
+                    detail: file,
+                    bubbles: false,
+                    cancelable: false
+                });
                 window.dispatchEvent(dropEvent);
                 
                 if (navigator.vibrate) navigator.vibrate(50);
             }
         }
     
+        // Очистка
         if (ghost) {
             ghost.remove();
             ghost = null;
