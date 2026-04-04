@@ -513,6 +513,10 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
     let ghost = null;
     let isDragging = false;
 
+    element.style.touchAction = 'none'; 
+    element.style.userSelect = 'none';
+    element.style.webkitUserSelect = 'none';
+    
     const onTouchStart = (e) => {
         // Запоминаем точку старта
         startX = e.touches[0].clientX;
@@ -562,23 +566,37 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
 
     const onTouchEnd = (e) => {
         if (ghost) {
+            // 1. Берем координаты ИМЕННО в момент отрыва пальца
             const touch = e.changedTouches[0];
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            const isInput = target?.closest('.chat-input-container') || target?.closest('textarea');
+            const endX = touch.clientX;
+            const endY = touch.clientY;
 
-            // Убираем подсветку
-            document.querySelectorAll('.chat-input-container').forEach(el => el.style.border = '');
+            // 2. Скрываем ghost на мгновение, чтобы он не мешал функции elementFromPoint 
+            // смотреть "сквозь" него на нижние элементы
+            ghost.style.display = 'none'; 
+
+            // 3. Ищем, что реально находится под пальцем в этой точке
+            const targetUnderFinger = document.elementFromPoint(endX, endY);
+            
+            // 4. Проверяем, является ли это поле ввода
+            const isInput = targetUnderFinger?.closest('.chat-input-container') || 
+                            targetUnderFinger?.closest('#chat-input'); // Проверь ID своего инпута
 
             if (isInput && onDropToFile) {
-                // Вибрация для тактильного отклика (если поддерживается)
-                if (navigator.vibrate) navigator.vibrate(50);
+                if (navigator.vibrate) navigator.vibrate(50); // Отклик
                 onDropToFile(file);
             }
 
+            // 5. Удаляем фантома
             ghost.remove();
             ghost = null;
+
+            // Сбрасываем стили инпутов (если подсвечивали)
+            document.querySelectorAll('.chat-input-container').forEach(el => {
+                el.style.border = '';
+                el.style.background = '';
+            });
         }
-        isDragging = false;
     };
 
     // ВАЖНО: { passive: false } позволяет блокировать скролл через preventDefault
