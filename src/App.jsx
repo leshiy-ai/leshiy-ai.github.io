@@ -508,40 +508,46 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
 };
 
 const makeDraggableToFile = (element, file, handleFileSelect) => {
+    element.style.touchAction = 'none';
     if (element.dataset.dragAttached === "true") return;
     element.dataset.dragAttached = "true";
 
-    let startX = 0;
-    let startY = 0;
-    let ghost = null;
-    let isDragging = false;
+    let startX = 0, startY = 0, ghost = null, isDragging = false;
+    let hasMoved = false;
 
-    element.style.touchAction = 'none';
-    element.style.userSelect = 'none';
-    element.style.webkitUserSelect = 'none';
-    
-    const onTouchStart = (e) => {
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
+    const cleanup = () => {
+        if (ghost) { ghost.remove(); ghost = null; }
         isDragging = false;
-        
-        // 🔥 ВАЖНО: вешаем на document, чтобы пережить ре-рендер React
-        document.addEventListener('touchmove', onTouchMove, { passive: false });
-        document.addEventListener('touchend', onTouchEnd, { passive: true });
-        document.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        hasMoved = false;
+        document.removeEventListener('pointermove', onPointerMove);
+        document.removeEventListener('pointerup', onPointerUp);
+        document.removeEventListener('pointercancel', onPointerCancel);
     };
 
-    const onTouchMove = (e) => {
-        const currentX = e.touches[0].clientX;
-        const currentY = e.touches[0].clientY;
+    const onPointerDown = (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
+        isDragging = false;
+        hasMoved = false;
+        
+        // Переносим слушатели на document, чтобы не потерять событие при reflow React
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerCancel);
+    };
+
+    const onPointerMove = (e) => {
+        const currentX = e.clientX;
+        const currentY = e.clientY;
 
         if (!isDragging && (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15)) {
             isDragging = true;
+            hasMoved = true;
             window.dispatchEvent(new Event('mobile-drag-start'));
         }
         if (!isDragging) return;
-
-        if (e.cancelable) e.preventDefault();
+        
+        e.preventDefault(); // Блокируем скролл только во время драга
 
         if (!ghost) {
             ghost = document.createElement('div');
@@ -556,42 +562,29 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             `;
             document.body.appendChild(ghost);
         }
-
-        ghost.style.left = `${currentX - 30}px`;
-        ghost.style.top = `${currentY - 30}px`;
+        ghost.style.transform = `translate(${currentX - 30}px, ${currentY - 30}px)`;
     };
 
-    const onTouchEnd = (e) => {
-        // 🔥 Снимаем слушатели сразу, чтобы не копилось
-        document.removeEventListener('touchmove', onTouchMove);
-        document.removeEventListener('touchend', onTouchEnd);
-        document.removeEventListener('touchcancel', onTouchEnd);
-
-        if (!isDragging) {
-            if (ghost) { ghost.remove(); ghost = null; }
-            return;
-        }
-
-        isDragging = false;
-        if (ghost) { ghost.remove(); ghost = null; }
+    const onPointerUp = (e) => {
+        cleanup();
+        if (!hasMoved) return;
         
         window.dispatchEvent(new Event('mobile-drag-stop'));
-
-        // Просто аттачим. Без проверок зон, как ты и просил.
         if (typeof handleFileSelect === 'function') {
             handleFileSelect([file]);
             if (navigator.vibrate) navigator.vibrate(50);
         }
     };
 
-    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    const onPointerCancel = (e) => {
+        cleanup();
+    };
+
+    element.addEventListener('pointerdown', onPointerDown);
 
     return () => {
-        element.removeEventListener('touchstart', onTouchStart);
-        document.removeEventListener('touchmove', onTouchMove);
-        document.removeEventListener('touchend', onTouchEnd);
-        document.removeEventListener('touchcancel', onTouchEnd);
-        if (ghost) ghost.remove();
+        element.removeEventListener('pointerdown', onPointerDown);
+        cleanup();
     };
 };
 
