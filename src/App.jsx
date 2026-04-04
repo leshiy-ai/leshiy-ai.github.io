@@ -508,83 +508,90 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
 };
 
 const makeDraggableToFile = (element, file, handleFileSelect) => {
-    element.style.touchAction = 'none';
     if (element.dataset.dragAttached === "true") return;
     element.dataset.dragAttached = "true";
 
-    let startX = 0, startY = 0, ghost = null, isDragging = false;
-    let hasMoved = false;
+    let startX = 0, startY = 0;
+    let isDragging = false;
+    let ghost = null;
 
-    const cleanup = () => {
-        if (ghost) { ghost.remove(); ghost = null; }
+    element.style.touchAction = 'none';
+    element.style.userSelect = 'none';
+
+    const onTouchStart = (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
         isDragging = false;
-        hasMoved = false;
-        document.removeEventListener('pointermove', onPointerMove);
-        document.removeEventListener('pointerup', onPointerUp);
-        document.removeEventListener('pointercancel', onPointerCancel);
+
+        // 🔥 Вешаем на window: переживёт ре-рендер React и не отвалится
+        window.addEventListener('touchmove', onTouchMove, { passive: false });
+        window.addEventListener('touchend', onTouchEnd, { passive: false });
+        window.addEventListener('touchcancel', onTouchEnd, { passive: false });
     };
 
-    const onPointerDown = (e) => {
-        startX = e.clientX;
-        startY = e.clientY;
-        isDragging = false;
-        hasMoved = false;
-        
-        // Переносим слушатели на document, чтобы не потерять событие при reflow React
-        document.addEventListener('pointermove', onPointerMove);
-        document.addEventListener('pointerup', onPointerUp);
-        document.addEventListener('pointercancel', onPointerCancel);
-    };
+    const onTouchMove = (e) => {
+        const currentX = e.touches[0].clientX;
+        const currentY = e.touches[0].clientY;
 
-    const onPointerMove = (e) => {
-        const currentX = e.clientX;
-        const currentY = e.clientY;
-
-        if (!isDragging && (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15)) {
-            isDragging = true;
-            hasMoved = true;
-            window.dispatchEvent(new Event('mobile-drag-start'));
+        // Порог 15px
+        if (!isDragging) {
+            if (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15) {
+                isDragging = true;
+                window.dispatchEvent(new Event('mobile-drag-start')); // Подсветка включится только тут
+                
+                // Создаём гхост сразу при старте драга
+                ghost = document.createElement('div');
+                ghost.id = 'mobile-drag-ghost';
+                ghost.innerHTML = file.type?.startsWith('audio') ? "🎙" : "📄";
+                ghost.style.cssText = `
+                    position: fixed; width: 60px; height: 60px;
+                    background: rgba(76, 175, 80, 0.9); border-radius: 50%;
+                    z-index: 10000; pointer-events: none; display: flex;
+                    align-items: center; justify-content: center; font-size: 24px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                `;
+                document.body.appendChild(ghost);
+            }
         }
+
+        // Если уже тащим: блокируем скролл и двигаем гхост
+        if (isDragging) {
+            e.preventDefault(); 
+            ghost.style.left = `${currentX - 30}px`;
+            ghost.style.top = `${currentY - 30}px`;
+        }
+    };
+
+    const onTouchEnd = (e) => {
+        // 🔥 Снимаем слушатели СРАЗУ, чтобы не копилось и не было утечек
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+        window.removeEventListener('touchcancel', onTouchEnd);
+
         if (!isDragging) return;
-        
-        e.preventDefault(); // Блокируем скролл только во время драга
+        isDragging = false;
 
-        if (!ghost) {
-            ghost = document.createElement('div');
-            ghost.id = 'mobile-drag-ghost';
-            ghost.innerHTML = file.type?.startsWith('audio') ? "🎙" : "📄";
-            ghost.style.cssText = `
-                position: fixed; width: 60px; height: 60px;
-                background: rgba(76, 175, 80, 0.9); border-radius: 50%;
-                z-index: 10000; pointer-events: none; display: flex;
-                align-items: center; justify-content: center; font-size: 24px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            `;
-            document.body.appendChild(ghost);
-        }
-        ghost.style.transform = `translate(${currentX - 30}px, ${currentY - 30}px)`;
-    };
+        // Убираем гхост
+        if (ghost) { ghost.remove(); ghost = null; }
 
-    const onPointerUp = (e) => {
-        cleanup();
-        if (!hasMoved) return;
-        
+        // Гарантированно гасим подсветку в App.jsx
         window.dispatchEvent(new Event('mobile-drag-stop'));
+
+        // Приаттачиваем файл. Без проверок зон, как ты просил.
         if (typeof handleFileSelect === 'function') {
             handleFileSelect([file]);
             if (navigator.vibrate) navigator.vibrate(50);
         }
     };
 
-    const onPointerCancel = (e) => {
-        cleanup();
-    };
-
-    element.addEventListener('pointerdown', onPointerDown);
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
 
     return () => {
-        element.removeEventListener('pointerdown', onPointerDown);
-        cleanup();
+        element.removeEventListener('touchstart', onTouchStart);
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', onTouchEnd);
+        window.removeEventListener('touchcancel', onTouchEnd);
+        if (ghost) ghost.remove();
     };
 };
 
