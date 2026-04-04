@@ -507,7 +507,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     };
 };
 
-const makeDraggableToFile = (element, file, callback) => {
+const makeDraggableToFile = (element, file, handleFileSelect) => {
     let startX = 0;
     let startY = 0;
     let ghost = null;
@@ -573,29 +573,39 @@ const makeDraggableToFile = (element, file, callback) => {
 
     const onTouchEnd = (e) => {
         if (ghost) {
-            // 1. СРАЗУ гасим подсветку в React (через событие)
+            // СРАЗУ ГОВОРИМ REAСT: "Всё, палец подняли, выключай подсветку 'Бросай сюда'"
             window.dispatchEvent(new Event('mobile-drag-stop'));
-    
-            // 2. ЗАВЕРШЕНИЕ ДРОПА
-            // Проверяем, что нам передали функцию (callback)
-            if (typeof callback === 'function') {
-                // Вызываем её и передаем файл. 
-                // В App.jsx мы передадим туда handleFiles
-                callback(file); 
-                
-                if (navigator.vibrate) navigator.vibrate(50);
+
+            // 1. Берем координаты ИМЕННО в момент отрыва пальца
+            const touch = e.changedTouches[0];
+            const endX = touch.clientX;
+            const endY = touch.clientY;
+
+            // 2. Скрываем ghost на мгновение, чтобы он не мешал функции elementFromPoint 
+            // смотреть "сквозь" него на нижние элементы
+            ghost.style.display = 'none'; 
+
+            // 3. Ищем, что реально находится под пальцем в этой точке
+            const targetUnderFinger = document.elementFromPoint(endX, endY);
+            
+            // 4. Проверяем, является ли это поле ввода
+            const isInput = targetUnderFinger?.closest('.chat-input-container') || 
+                            targetUnderFinger?.closest('#chat-input'); // Проверь ID своего инпута
+
+            if (isInput && onDropToFile) {
+                if (navigator.vibrate) navigator.vibrate(50); // Отклик
+                onDropToFile({ target: { files: [file] } });
             }
-    
-            // 3. Убираем гхоста
+
+            // 5. Удаляем фантома
             ghost.remove();
             ghost = null;
-    
-            // 4. Чистим стили контейнера
-            const appContainer = document.querySelector('.app-container');
-            if (appContainer) {
-                appContainer.style.border = '';
-                appContainer.style.background = '';
-            }
+
+            // Сбрасываем стили инпутов (если подсвечивали)
+            document.querySelectorAll('.app-container').forEach(el => {
+                el.style.border = '';
+                el.style.background = '';
+            });
         }
     };
 
