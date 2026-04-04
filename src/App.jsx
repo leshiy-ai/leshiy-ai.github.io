@@ -528,7 +528,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         // 🔥 предотвращаем нативный скролл/зум на элементе
         e.preventDefault();
 
-        document.addEventListener('touchmove', onTouchMove, { passive: true });
+        document.addEventListener('touchmove', onTouchMove, { passive: false });
         document.addEventListener('touchend', onTouchEnd, { passive: true });
         document.addEventListener('touchcancel', onTouchEnd, { passive: true });
     };
@@ -568,6 +568,10 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         document.removeEventListener('touchend', onTouchEnd);
         document.removeEventListener('touchcancel', onTouchEnd);
 
+        // 🔥 ДИАГНОСТИКА: если увидишь красную рамку — touchend ДОХОДИТ
+        document.body.style.outline = '2px solid red';
+        setTimeout(() => { document.body.style.outline = ''; }, 500);
+        
         // 1. Убираем подсветку (твой код)
         const dropZone = document.querySelector('.app-container');
         if (dropZone) {
@@ -582,9 +586,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
                 ghost.remove();
                 ghost = null;
             }
-            // Если увидишь красную рамку при отпускании — событие ДОХОДИТ
-            document.body.style.outline = '2px solid red';
-
+            
             // 🔥 ПРЯМОЙ ВЫЗОВ — без проверок, без setTimeout
             if (typeof handleFileSelect === 'function') {
                 handleFileSelect([file]);
