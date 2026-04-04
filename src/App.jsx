@@ -514,6 +514,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     let startX = 0, startY = 0;
     let isDragging = false;
     let ghost = null;
+    let dropHandled = false; // 🔥 НОВЫЙ: флаг однократного срабатывания
 
     element.style.touchAction = 'none';
     element.style.userSelect = 'none';
@@ -522,24 +523,22 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         isDragging = false;
+        dropHandled = false; // 🔥 Сброс флага для нового жеста
 
-        // 🔥 Вешаем на window: переживёт ре-рендер React и не отвалится
         window.addEventListener('touchmove', onTouchMove, { passive: false });
-        window.addEventListener('touchend', onTouchEnd, { passive: false });
-        window.addEventListener('touchcancel', onTouchEnd, { passive: false });
+        window.addEventListener('touchend', onTouchEnd, { passive: true }); // 🔥 ИСПРАВЛЕНО: было false
+        window.addEventListener('touchcancel', onTouchEnd, { passive: true }); // 🔥 ИСПРАВЛЕНО: было false
     };
 
     const onTouchMove = (e) => {
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
 
-        // Порог 15px
         if (!isDragging) {
             if (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15) {
                 isDragging = true;
-                window.dispatchEvent(new Event('mobile-drag-start')); // Подсветка включится только тут
+                window.dispatchEvent(new Event('mobile-drag-start'));
                 
-                // Создаём гхост сразу при старте драга
                 ghost = document.createElement('div');
                 ghost.id = 'mobile-drag-ghost';
                 ghost.innerHTML = file.type?.startsWith('audio') ? "🎙" : "📄";
@@ -554,7 +553,6 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             }
         }
 
-        // Если уже тащим: блокируем скролл и двигаем гхост
         if (isDragging) {
             e.preventDefault(); 
             ghost.style.left = `${currentX - 30}px`;
@@ -563,25 +561,24 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        // 🔥 Снимаем слушатели СРАЗУ, чтобы не копилось и не было утечек
         window.removeEventListener('touchmove', onTouchMove);
         window.removeEventListener('touchend', onTouchEnd);
         window.removeEventListener('touchcancel', onTouchEnd);
 
-        if (!isDragging) return;
+        if (!isDragging || dropHandled) return; // 🔥 Проверка флага
+        dropHandled = true; // 🔥 Блокируем повторные вызовы
         isDragging = false;
 
-        // Убираем гхост
         if (ghost) { ghost.remove(); ghost = null; }
-
-        // Гарантированно гасим подсветку в App.jsx
         window.dispatchEvent(new Event('mobile-drag-stop'));
 
-        // Приаттачиваем файл. Без проверок зон, как ты просил.
-        if (typeof handleFileSelect === 'function') {
-            handleFileSelect([file]);
-            if (navigator.vibrate) navigator.vibrate(50);
-        }
+        // 🔥 Микро-задержка: отдаём браузеру завершить тач-цикл перед вызовом React
+        setTimeout(() => {
+            if (typeof handleFileSelect === 'function') {
+                handleFileSelect([file]);
+                if (navigator.vibrate) navigator.vibrate(50);
+            }
+        }, 30);
     };
 
     element.addEventListener('touchstart', onTouchStart, { passive: true });
