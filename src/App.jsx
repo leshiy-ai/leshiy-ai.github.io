@@ -573,37 +573,48 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
 
     const onTouchEnd = (e) => {
         if (ghost) {
-            // 1. Координаты отпускания
+            // 1. Координаты отрыва
             const touch = e.changedTouches[0];
             const endX = touch.clientX;
             const endY = touch.clientY;
     
-            // 2. СРАЗУ гасим подсветку в App.jsx
+            // 2. Скрываем гхоста
+            ghost.style.display = 'none'; 
+    
+            // 3. ВАЖНО: Сначала гасим подсветку (оверлей), чтобы она не мешала "видеть" инпут
             window.dispatchEvent(new Event('mobile-drag-stop'));
     
-            // 3. ПРОВЕРКА ЗАВЕРШЕНИЯ (Упрощенная)
-            // Если палец отпущен в пределах окна (не ушел за экран)
-            // и у нас есть функция для прикрепления файла — ДЕЙСТВУЕМ
-            if (onDropToFile) {
-                // Опционально: проверяем, что палец не в самом верху (где шапка/сайдбар)
-                // Но обычно достаточно просто факта отпускания, раз оверлей горел
-                if (endY > 50) { 
-                    console.log("Touch Drop Success!");
-                    onDropToFile(file); // Тот самый заветный вызов
-                    if (navigator.vibrate) navigator.vibrate(50);
-                }
+            // Небольшой лайфхак: если оверлей исчезает не мгновенно (из-за анимации), 
+            // нам нужно убедиться, что он не мешает.
+            // Поэтому ищем оверлей и принудительно его прячем на секунду
+            const overlay = document.querySelector('.drag-overlay') || document.getElementById('mobile-drag-overlay');
+            const originalDisplay = overlay ? overlay.style.display : null;
+            if (overlay) overlay.style.display = 'none';
+    
+            // 4. Теперь ищем, что реально под пальцем
+            const targetUnderFinger = document.elementFromPoint(endX, endY);
+            
+            // 5. Проверяем инпут
+            const isInput = targetUnderFinger?.closest('.chat-input-container') || 
+                            targetUnderFinger?.closest('#chat-input') ||
+                            targetUnderFinger?.closest('.main-content'); // Добавил main-content для надежности
+    
+            if (isInput && onDropToFile) {
+                if (navigator.vibrate) navigator.vibrate(50);
+                onDropToFile(file);
             }
     
-            // 4. Убираем визуальный мусор
+            // 6. Чистим всё
             ghost.remove();
             ghost = null;
+            
+            // Возвращаем оверлей в исходное (хотя событие stop его уже должно было убить)
+            if (overlay && originalDisplay) overlay.style.display = originalDisplay;
     
-            // На всякий случай чистим бордеры вручную
-            const appContainer = document.querySelector('.app-container');
-            if (appContainer) {
-                appContainer.style.border = '';
-                appContainer.style.background = '';
-            }
+            document.querySelectorAll('.app-container').forEach(el => {
+                el.style.border = '';
+                el.style.background = '';
+            });
         }
     };
 
