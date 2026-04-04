@@ -516,6 +516,9 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     let startY = 0;
     let ghost = null;
     let isDragging = false;
+    
+    // 🔥 НОВЫЙ ФЛАГ: блокировка повторного дропа
+    let dropHandled = false;
 
     element.style.touchAction = 'none'; 
     element.style.userSelect = 'none';
@@ -584,34 +587,42 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        if (!isDragging) return;
-        isDragging = false; // Блокировка повторных срабатываний
-    
-        const touch = e.changedTouches[0];
+        // 1. Убираем подсветку — ОДИН селектор везде
+        document.querySelectorAll('.input-area-container').forEach(el => {
+            el.style.border = '';
+        });
         
-        // Удаляем призрака мгновенно
+        const dropZone = document.querySelector('.input-area-container');
+        if (dropZone) {
+            dropZone.classList.remove('dragging-over');
+            window.dispatchEvent(new Event('mobile-drag-stop'));
+        }
+    
+        if (isDragging && !dropHandled) { // 🔥 Проверка флага
+            dropHandled = true; // 🔥 Блокируем повторные вызовы
+            
+            const touch = e.changedTouches[0];
+    
+            if (ghost) ghost.style.display = 'none';
+    
+            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+            if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
+                if (typeof handleFileSelect === 'function') {
+                    handleFileSelect([file]); 
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
+            }
+            
+            // 🔥 Сброс флага с задержкой
+            setTimeout(() => { dropHandled = false; }, 200);
+        }
+    
         if (ghost) {
             ghost.remove();
             ghost = null;
         }
-    
-        // ЖЁСТКИЙ сброс всей подсветки
-        document.querySelectorAll('.dragging-over').forEach(el => el.classList.remove('dragging-over'));
-        document.querySelectorAll('.input-area-container, .app-container').forEach(el => {
-            el.style.border = '';
-            el.style.background = '';
-        });
-        window.dispatchEvent(new Event('mobile-drag-stop'));
-    
-        // Проверяем попадание
-        const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
-        const dropZone = elementAtPoint?.closest('.input-area-container');
-    
-        if (dropZone && typeof handleFileSelect === 'function') {
-            // ПРЯМОЙ вызов, БЕЗ dispatchEvent (чтобы не множилось)
-            handleFileSelect([file]); 
-            if (navigator.vibrate) navigator.vibrate(50);
-        }
+        isDragging = false;
     };
 
     element.addEventListener('touchstart', onTouchStart, { passive: true });
