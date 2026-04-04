@@ -525,6 +525,9 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         isDragging = false;
         handled = false;
 
+        // 🔥 предотвращаем нативный скролл/зум на элементе
+        e.preventDefault();
+
         document.addEventListener('touchmove', onTouchMove, { passive: true });
         document.addEventListener('touchend', onTouchEnd, { passive: true });
         document.addEventListener('touchcancel', onTouchEnd, { passive: true });
@@ -560,33 +563,34 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        // 1. Убираем подсветку (твоя логика)
+        // 🔥 КРИТИЧНО: Снимаем слушатели с document, иначе они будут множиться!
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchcancel', onTouchEnd);
+        
+        // 1. Убираем подсветку (твой код)
         const dropZone = document.querySelector('.app-container');
         if (dropZone) {
             dropZone.classList.remove('dragging-over');
             window.dispatchEvent(new Event('mobile-drag-stop'));
         }
     
-        // 2. Если тащили - приаттачиваем. БЕЗ ПРОВЕРОК ПОЗИЦИИ.
+        // 2. Завершение дропа
         if (isDragging) {
-            // Сразу чистим призрака
+            // 🔥 ЕДИНСТВЕННОЕ ИЗМЕНЕНИЕ: удаляем гхост через remove(), а не display:none
             if (ghost) {
                 ghost.remove();
                 ghost = null;
             }
     
-            // 🔥 КЛЮЧЕВОЕ: откладываем вызов на 1 такт. 
-            // Это отдаёт браузеру время закрыть нативный тач-цикл, 
-            // чтобы React гарантированно принял файл и не съел событие.
-            setTimeout(() => {
-                if (typeof handleFileSelect === 'function') {
-                    handleFileSelect([file]);
-                    if (navigator.vibrate) navigator.vibrate(50);
-                }
-            }, 10);
+            // 🔥 ПРЯМОЙ ВЫЗОВ — без проверок, без setTimeout
+            if (typeof handleFileSelect === 'function') {
+                handleFileSelect([file]);
+                if (navigator.vibrate) navigator.vibrate(50);
+            }
         }
     
-        // 3. Сброс флага
+        // 3. Сброс
         isDragging = false;
     };
 
