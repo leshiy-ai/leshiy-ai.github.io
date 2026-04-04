@@ -572,27 +572,30 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        // 1. Убираем подсветку
-        const dropZone = document.querySelector('.app-container');
+        // 1. Убираем подсветку (по тому же селектору, что и при драге)
+        document.querySelectorAll('.chat-input-container').forEach(el => {
+            el.style.border = '';
+        });
+        
+        const dropZone = document.querySelector('.chat-input-container'); // <-- ИСПРАВЛЕНО: был .app-container
         if (dropZone) {
             dropZone.classList.remove('dragging-over');
-            // Генерируем событие для App.jsx, чтобы убрать надпись "Бросай сюда"
             window.dispatchEvent(new Event('mobile-drag-stop'));
         }
     
-        if (isDragging) { // Твой флаг из начала функции
+        if (isDragging) {
             const touch = e.changedTouches[0];
     
-            // КРИТИЧНО: Прячем призрака перед поиском точки!
+            // КРИТИЧНО: Прячем призрака перед поиском точки
             if (ghost) ghost.style.display = 'none';
     
             const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
     
-            // 4. Проверяем попадание в зону
-            if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
-                
-                // 5. РЕШЕНИЕ ДЛЯ ТВОЕЙ ФУНКЦИИ:
-                // Обязательно в массиве [], так как handleFileSelect делает Array.from()
+            // 4. Проверяем попадание в ЗОНУ ВВОДА (через closest для надежности)
+            const targetZone = elementAtPoint?.closest('.chat-input-container');
+            
+            if (targetZone) {
+                // 5. Вызываем обработку файла
                 if (typeof handleFileSelect === 'function') {
                     handleFileSelect([file]); 
                     if (navigator.vibrate) navigator.vibrate(50);
@@ -600,7 +603,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             }
         }
     
-        // 6. Очистка (используй свои переменные, которые объявил в начале makeDraggableToFile)
+        // 6. Очистка
         if (ghost) {
             ghost.remove();
             ghost = null;
