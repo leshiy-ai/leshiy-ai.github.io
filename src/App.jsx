@@ -476,24 +476,41 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         }
     };
 
-    const onTouchEnd = () => {
-        panel.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1), opacity 0.4s';
-        if (Math.abs(currentX) > threshold) {
-            const direction = currentX > 0 ? 1000 : -1000;
-            panel.style.transform = initialTransform + ` translateX(${direction}px)`;
-            panel.style.opacity = '0';
-            
-            setTimeout(() => {
-                if (onRemove) onRemove();
-                
-                panel.style.transform = initialTransform;
-                panel.style.opacity = '1';
-            }, 400);
-        } else {
-            panel.style.transform = initialTransform;
-            panel.style.opacity = '1';
+    const onTouchEnd = (e) => {
+        // 1. Убираем подсветку — ТАК ЖЕ, как ставили в onTouchMove (инлайн-стиль)
+        document.querySelectorAll('.chat-input-container').forEach(el => {
+            el.style.border = '';
+        });
+        
+        // 2. Работаем с той же зоной, что и при подсветке
+        const dropZone = document.querySelector('.chat-input-container');
+        if (dropZone) {
+            dropZone.classList.remove('dragging-over');
+            window.dispatchEvent(new Event('mobile-drag-stop'));
         }
-        currentX = 0;
+    
+        if (isDragging) {
+            const touch = e.changedTouches[0];
+    
+            // КРИТИЧНО: Полностью удаляем призрака ПЕРЕД elementFromPoint
+            if (ghost) {
+                ghost.remove();
+                ghost = null;
+            }
+    
+            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+            // Проверяем попадание: или прямо в зону, или в её потомка
+            if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
+                if (typeof handleFileSelect === 'function') {
+                    handleFileSelect([file]); 
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
+            }
+        }
+    
+        // Очистка флага
+        isDragging = false;
     };
 
     panel.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -572,30 +589,27 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        // 1. Убираем подсветку (по тому же селектору, что и при драге)
-        document.querySelectorAll('.chat-input-container').forEach(el => {
-            el.style.border = '';
-        });
-        
-        const dropZone = document.querySelector('.chat-input-container'); // <-- ИСПРАВЛЕНО: был .app-container
+        // 1. Убираем подсветку
+        const dropZone = document.querySelector('.input-area-container');
         if (dropZone) {
             dropZone.classList.remove('dragging-over');
+            // Генерируем событие для App.jsx, чтобы убрать надпись "Бросай сюда"
             window.dispatchEvent(new Event('mobile-drag-stop'));
         }
     
-        if (isDragging) {
+        if (isDragging) { // Твой флаг из начала функции
             const touch = e.changedTouches[0];
     
-            // КРИТИЧНО: Прячем призрака перед поиском точки
+            // КРИТИЧНО: Прячем призрака перед поиском точки!
             if (ghost) ghost.style.display = 'none';
     
             const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
     
-            // 4. Проверяем попадание в ЗОНУ ВВОДА (через closest для надежности)
-            const targetZone = elementAtPoint?.closest('.chat-input-container');
-            
-            if (targetZone) {
-                // 5. Вызываем обработку файла
+            // 4. Проверяем попадание в зону
+            if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
+                
+                // 5. РЕШЕНИЕ ДЛЯ ТВОЕЙ ФУНКЦИИ:
+                // Обязательно в массиве [], так как handleFileSelect делает Array.from()
                 if (typeof handleFileSelect === 'function') {
                     handleFileSelect([file]); 
                     if (navigator.vibrate) navigator.vibrate(50);
@@ -603,7 +617,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             }
         }
     
-        // 6. Очистка
+        // 6. Очистка (используй свои переменные, которые объявил в начале makeDraggableToFile)
         if (ghost) {
             ghost.remove();
             ghost = null;
