@@ -514,7 +514,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     let startX = 0, startY = 0;
     let isDragging = false;
     let ghost = null;
-    let dropHandled = false;
+    let handled = false;
 
     element.style.touchAction = 'none';
     element.style.userSelect = 'none';
@@ -523,10 +523,9 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         isDragging = false;
-        dropHandled = false;
+        handled = false;
 
-        // 🔥 document стабильнее window для touch-событий в React
-        document.addEventListener('touchmove', onTouchMove, { passive: false });
+        document.addEventListener('touchmove', onTouchMove, { passive: true });
         document.addEventListener('touchend', onTouchEnd, { passive: true });
         document.addEventListener('touchcancel', onTouchEnd, { passive: true });
     };
@@ -539,7 +538,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             if (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15) {
                 isDragging = true;
                 window.dispatchEvent(new Event('mobile-drag-start'));
-                
+
                 ghost = document.createElement('div');
                 ghost.id = 'mobile-drag-ghost';
                 ghost.innerHTML = file.type?.startsWith('audio') ? "🎙" : "📄";
@@ -549,15 +548,14 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
                     z-index: 10000; pointer-events: none; display: flex;
                     align-items: center; justify-content: center; font-size: 24px;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                    transform: translate(${currentX - 30}px, ${currentY - 30}px);
                 `;
                 document.body.appendChild(ghost);
             }
         }
 
-        // 🔥 УБРАЛ e.preventDefault() - он КОНФЛИКТУЕТ с touchAction: 'none' и физически роняет touchend на Android
         if (isDragging && ghost) {
-            ghost.style.transform = `translate(${currentX - 30}px, ${currentY - 30}px)`;
+            ghost.style.left = `${currentX - 30}px`;
+            ghost.style.top = `${currentY - 30}px`;
         }
     };
 
@@ -566,16 +564,20 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         document.removeEventListener('touchend', onTouchEnd);
         document.removeEventListener('touchcancel', onTouchEnd);
 
-        if (!isDragging || dropHandled) return;
-        dropHandled = true;
-        isDragging = false;
+        if (isDragging && !handled) {
+            handled = true;
+            isDragging = false;
 
-        if (ghost) { ghost.remove(); ghost = null; }
-        window.dispatchEvent(new Event('mobile-drag-stop'));
+            if (ghost) {
+                ghost.remove();
+                ghost = null;
+            }
+            window.dispatchEvent(new Event('mobile-drag-stop'));
 
-        if (typeof handleFileSelect === 'function') {
-            handleFileSelect([file]);
-            if (navigator.vibrate) navigator.vibrate(50);
+            if (typeof handleFileSelect === 'function') {
+                handleFileSelect([file]);
+                if (navigator.vibrate) navigator.vibrate(50);
+            }
         }
     };
 
