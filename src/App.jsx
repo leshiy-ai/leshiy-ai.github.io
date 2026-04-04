@@ -528,6 +528,13 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
 
+        if (e.cancelable) e.preventDefault();
+        if (!isDragging) {
+            isDragging = true;
+            // Просто кричим на всё окно: "Эй, мы тащим!"
+            window.dispatchEvent(new Event('mobile-drag-start'));
+        }
+        
         // Если сдвиг больше 15px, активируем драг
         if (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15) {
             isDragging = true;
@@ -566,6 +573,9 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
 
     const onTouchEnd = (e) => {
         if (ghost) {
+            // СРАЗУ ГОВОРИМ REAСT: "Всё, палец подняли, выключай подсветку 'Бросай сюда'"
+            window.dispatchEvent(new Event('mobile-drag-stop'));
+
             // 1. Берем координаты ИМЕННО в момент отрыва пальца
             const touch = e.changedTouches[0];
             const endX = touch.clientX;
@@ -592,7 +602,7 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
             ghost = null;
 
             // Сбрасываем стили инпутов (если подсвечивали)
-            document.querySelectorAll('.chat-input-container').forEach(el => {
+            document.querySelectorAll('.app-container').forEach(el => {
                 el.style.border = '';
                 el.style.background = '';
             });
@@ -1088,6 +1098,20 @@ function App() {
         }
     };
     
+    useEffect(() => {
+        const startDrag = () => setIsDragging(true);
+        const stopDrag = () => setIsDragging(false);
+    
+        // Слушаем глобальные события
+        window.addEventListener('mobile-drag-start', startDrag);
+        window.addEventListener('mobile-drag-stop', stopDrag);
+    
+        return () => {
+            window.removeEventListener('mobile-drag-start', startDrag);
+            window.removeEventListener('mobile-drag-stop', stopDrag);
+        };
+    }, []);
+
     useEffect(() => {
         const handleFileDropEvent = (event) => {
             const file = event.detail;
