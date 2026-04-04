@@ -573,39 +573,37 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
 
     const onTouchEnd = (e) => {
         if (ghost) {
-            // СРАЗУ ГОВОРИМ REAСT: "Всё, палец подняли, выключай подсветку 'Бросай сюда'"
-            window.dispatchEvent(new Event('mobile-drag-stop'));
-
-            // 1. Берем координаты ИМЕННО в момент отрыва пальца
+            // 1. Координаты отпускания
             const touch = e.changedTouches[0];
             const endX = touch.clientX;
             const endY = touch.clientY;
-
-            // 2. Скрываем ghost на мгновение, чтобы он не мешал функции elementFromPoint 
-            // смотреть "сквозь" него на нижние элементы
-            ghost.style.display = 'none'; 
-
-            // 3. Ищем, что реально находится под пальцем в этой точке
-            const targetUnderFinger = document.elementFromPoint(endX, endY);
-            
-            // 4. Проверяем, является ли это поле ввода
-            const isInput = targetUnderFinger?.closest('.chat-input-container') || 
-                            targetUnderFinger?.closest('#chat-input'); // Проверь ID своего инпута
-
-            if (isInput && onDropToFile) {
-                if (navigator.vibrate) navigator.vibrate(50); // Отклик
-                onDropToFile(file);
+    
+            // 2. СРАЗУ гасим подсветку в App.jsx
+            window.dispatchEvent(new Event('mobile-drag-stop'));
+    
+            // 3. ПРОВЕРКА ЗАВЕРШЕНИЯ (Упрощенная)
+            // Если палец отпущен в пределах окна (не ушел за экран)
+            // и у нас есть функция для прикрепления файла — ДЕЙСТВУЕМ
+            if (onDropToFile) {
+                // Опционально: проверяем, что палец не в самом верху (где шапка/сайдбар)
+                // Но обычно достаточно просто факта отпускания, раз оверлей горел
+                if (endY > 50) { 
+                    console.log("Touch Drop Success!");
+                    onDropToFile(file); // Тот самый заветный вызов
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
             }
-
-            // 5. Удаляем фантома
+    
+            // 4. Убираем визуальный мусор
             ghost.remove();
             ghost = null;
-
-            // Сбрасываем стили инпутов (если подсвечивали)
-            document.querySelectorAll('.app-container').forEach(el => {
-                el.style.border = '';
-                el.style.background = '';
-            });
+    
+            // На всякий случай чистим бордеры вручную
+            const appContainer = document.querySelector('.app-container');
+            if (appContainer) {
+                appContainer.style.border = '';
+                appContainer.style.background = '';
+            }
         }
     };
 
