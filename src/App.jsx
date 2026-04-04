@@ -572,44 +572,42 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        if (ghost) {
-            // СРАЗУ ГОВОРИМ REAСT: "Всё, палец подняли, выключай подсветку 'Бросай сюда'"
+        // 1. Убираем подсветку
+        const dropZone = document.querySelector('.input-area-container');
+        if (dropZone) {
+            dropZone.classList.remove('dragging-over');
+            // Генерируем событие для App.jsx, чтобы убрать надпись "Бросай сюда"
             window.dispatchEvent(new Event('mobile-drag-stop'));
-
-            // 1. Берем координаты ИМЕННО в момент отрыва пальца
+        }
+    
+        if (isDragging) { // Твой флаг из начала функции
             const touch = e.changedTouches[0];
-            const endX = touch.clientX;
-            const endY = touch.clientY;
-
-            // 2. Скрываем ghost на мгновение, чтобы он не мешал функции elementFromPoint 
-            // смотреть "сквозь" него на нижние элементы
-            ghost.style.display = 'none'; 
-
-            // 3. Ищем, что реально находится под пальцем в этой точке
-            const targetUnderFinger = document.elementFromPoint(endX, endY);
-            
-            // 4. Проверяем, является ли это поле ввода
-            const isInput = targetUnderFinger?.closest('.chat-input-container') || 
-                            targetUnderFinger?.closest('#chat-input'); // Проверь ID своего инпута
-
-            if (isInput && onDropToFile) {
-                if (navigator.vibrate) navigator.vibrate(50); // Отклик
-                onDropToFile({ target: { files: [file] } });
+    
+            // КРИТИЧНО: Прячем призрака перед поиском точки!
+            if (ghost) ghost.style.display = 'none';
+    
+            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
+    
+            // 4. Проверяем попадание в зону
+            if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
+                
+                // 5. РЕШЕНИЕ ДЛЯ ТВОЕЙ ФУНКЦИИ:
+                // Обязательно в массиве [], так как handleFileSelect делает Array.from()
+                if (typeof handleFileSelect === 'function') {
+                    handleFileSelect([file]); 
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
             }
-
-            // 5. Удаляем фантома
+        }
+    
+        // 6. Очистка (используй свои переменные, которые объявил в начале makeDraggableToFile)
+        if (ghost) {
             ghost.remove();
             ghost = null;
-
-            // Сбрасываем стили инпутов (если подсвечивали)
-            document.querySelectorAll('.app-container').forEach(el => {
-                el.style.border = '';
-                el.style.background = '';
-            });
         }
+        isDragging = false;
     };
 
-    // ВАЖНО: { passive: false } позволяет блокировать скролл через preventDefault
     element.addEventListener('touchstart', onTouchStart, { passive: true });
     element.addEventListener('touchmove', onTouchMove, { passive: false });
     element.addEventListener('touchend', onTouchEnd, { passive: true });
