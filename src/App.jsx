@@ -560,25 +560,34 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     };
 
     const onTouchEnd = (e) => {
-        document.removeEventListener('touchmove', onTouchMove);
-        document.removeEventListener('touchend', onTouchEnd);
-        document.removeEventListener('touchcancel', onTouchEnd);
-
-        if (isDragging && !handled) {
-            handled = true;
-            isDragging = false;
-
+        // 1. Убираем подсветку (твоя логика)
+        const dropZone = document.querySelector('.app-container');
+        if (dropZone) {
+            dropZone.classList.remove('dragging-over');
+            window.dispatchEvent(new Event('mobile-drag-stop'));
+        }
+    
+        // 2. Если тащили - приаттачиваем. БЕЗ ПРОВЕРОК ПОЗИЦИИ.
+        if (isDragging) {
+            // Сразу чистим призрака
             if (ghost) {
                 ghost.remove();
                 ghost = null;
             }
-            window.dispatchEvent(new Event('mobile-drag-stop'));
-
-            if (typeof handleFileSelect === 'function') {
-                handleFileSelect([file]);
-                if (navigator.vibrate) navigator.vibrate(50);
-            }
+    
+            // 🔥 КЛЮЧЕВОЕ: откладываем вызов на 1 такт. 
+            // Это отдаёт браузеру время закрыть нативный тач-цикл, 
+            // чтобы React гарантированно принял файл и не съел событие.
+            setTimeout(() => {
+                if (typeof handleFileSelect === 'function') {
+                    handleFileSelect([file]);
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
+            }, 10);
         }
+    
+        // 3. Сброс флага
+        isDragging = false;
     };
 
     element.addEventListener('touchstart', onTouchStart, { passive: true });
