@@ -508,7 +508,6 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
 };
 
 const makeDraggableToFile = (element, file, handleFileSelect) => {
-    // ЖЕСТКИЙ ПРЕДОХРАНИТЕЛЬ: не вешаем слушатели дважды на один элемент
     if (element.dataset.dragAttached === "true") return;
     element.dataset.dragAttached = "true";
 
@@ -516,109 +515,83 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     let startY = 0;
     let ghost = null;
     let isDragging = false;
-    
-    // 🔥 НОВЫЙ ФЛАГ: блокировка повторного дропа
-    let dropHandled = false;
 
-    element.style.touchAction = 'none'; 
+    element.style.touchAction = 'none';
     element.style.userSelect = 'none';
     element.style.webkitUserSelect = 'none';
     
     const onTouchStart = (e) => {
-        // Запоминаем точку старта
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         isDragging = false;
+        
+        // 🔥 ВАЖНО: вешаем на document, чтобы пережить ре-рендер React
+        document.addEventListener('touchmove', onTouchMove, { passive: false });
+        document.addEventListener('touchend', onTouchEnd, { passive: true });
+        document.addEventListener('touchcancel', onTouchEnd, { passive: true });
     };
 
     const onTouchMove = (e) => {
         const currentX = e.touches[0].clientX;
         const currentY = e.touches[0].clientY;
 
-        if (e.cancelable) e.preventDefault();
-        if (!isDragging) {
+        if (!isDragging && (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15)) {
             isDragging = true;
-            // Просто кричим на всё окно: "Эй, мы тащим!"
             window.dispatchEvent(new Event('mobile-drag-start'));
         }
-        
-        // Если сдвиг больше 15px, активируем драг
-        if (Math.abs(currentX - startX) > 15 || Math.abs(currentY - startY) > 15) {
-            isDragging = true;
-            
-            // Блокируем стандартный скролл страницы, пока тащим файл
-            if (e.cancelable) e.preventDefault();
+        if (!isDragging) return;
 
-            if (!ghost) {
-                ghost = document.createElement('div');
-                ghost.id = 'mobile-drag-ghost';
-                // Подставляем иконку в зависимости от типа файла
-                const icon = file.type?.startsWith('audio') ? "🎙" : "📄";
-                ghost.innerHTML = icon; 
-                ghost.style.cssText = `
-                    position: fixed; width: 60px; height: 60px; 
-                    background: rgba(76, 175, 80, 0.9); border-radius: 50%; 
-                    z-index: 10000; pointer-events: none; display: flex; 
-                    align-items: center; justify-content: center; font-size: 24px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-                    transform: scale(1.1); transition: transform 0.2s;
-                `;
-                document.body.appendChild(ghost);
-            }
+        if (e.cancelable) e.preventDefault();
 
-            ghost.style.left = `${currentX - 30}px`;
-            ghost.style.top = `${currentY - 30}px`;
-
-            // Опционально: подсвечиваем зону сброса (инпут) в реальном времени
-            // Просто убираем блок с .input-area-container, оставляем как было:
-            const target = document.elementFromPoint(currentX, currentY);
-            const inputZone = target?.closest('.app-container'); // или вообще не ищи, просто крась .app-container
-
-            document.querySelectorAll('.app-container').forEach(el => {
-                el.classList.add('dragging-over'); // или style.border, как у тебя
-            });
+        if (!ghost) {
+            ghost = document.createElement('div');
+            ghost.id = 'mobile-drag-ghost';
+            ghost.innerHTML = file.type?.startsWith('audio') ? "🎙" : "📄";
+            ghost.style.cssText = `
+                position: fixed; width: 60px; height: 60px;
+                background: rgba(76, 175, 80, 0.9); border-radius: 50%;
+                z-index: 10000; pointer-events: none; display: flex;
+                align-items: center; justify-content: center; font-size: 24px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            `;
+            document.body.appendChild(ghost);
         }
+
+        ghost.style.left = `${currentX - 30}px`;
+        ghost.style.top = `${currentY - 30}px`;
     };
 
     const onTouchEnd = (e) => {
-        // 1. Убираем визуальные эффекты (как у тебя было)
-        const dropZone = document.querySelector('.app-container');
-        if (dropZone) {
-            dropZone.classList.remove('dragging-over');
-            window.dispatchEvent(new Event('mobile-drag-stop'));
+        // 🔥 Снимаем слушатели сразу, чтобы не копилось
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchcancel', onTouchEnd);
+
+        if (!isDragging) {
+            if (ghost) { ghost.remove(); ghost = null; }
+            return;
         }
-    
-        // 2. Если тащили — просто приаттачиваем файл. БЕЗ ПРОВЕРОК.
-        if (isDragging) {
-            // Мгновенно убираем призрака
-            if (ghost) {
-                ghost.remove();
-                ghost = null;
-            }
-            
-            // Вызываем обработку — файл приаттачится в любом случае
-            if (typeof handleFileSelect === 'function') {
-                handleFileSelect([file]); 
-                if (navigator.vibrate) navigator.vibrate(50);
-            }
-        }
-    
-        // 3. Финальная очистка
-        if (ghost) {
-            ghost.remove();
-            ghost = null;
-        }
+
         isDragging = false;
+        if (ghost) { ghost.remove(); ghost = null; }
+        
+        window.dispatchEvent(new Event('mobile-drag-stop'));
+
+        // Просто аттачим. Без проверок зон, как ты и просил.
+        if (typeof handleFileSelect === 'function') {
+            handleFileSelect([file]);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
     };
 
     element.addEventListener('touchstart', onTouchStart, { passive: true });
-    element.addEventListener('touchmove', onTouchMove, { passive: false });
-    element.addEventListener('touchend', onTouchEnd, { passive: true });
 
     return () => {
         element.removeEventListener('touchstart', onTouchStart);
-        element.removeEventListener('touchmove', onTouchMove);
-        element.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchcancel', onTouchEnd);
+        if (ghost) ghost.remove();
     };
 };
 
