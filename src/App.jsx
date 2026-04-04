@@ -573,7 +573,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
 
     const onTouchEnd = (e) => {
         // 1. Убираем подсветку
-        const dropZone = document.querySelector('.input-area-container');
+        const dropZone = document.querySelector('.app-container');
         if (dropZone) {
             dropZone.classList.remove('dragging-over');
             // Генерируем событие для App.jsx, чтобы убрать надпись "Бросай сюда"
