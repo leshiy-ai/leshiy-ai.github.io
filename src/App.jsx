@@ -569,50 +569,49 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             // Опционально: подсвечиваем зону сброса (инпут) в реальном времени
             const target = document.elementFromPoint(currentX, currentY);
             const inputZone = target?.closest('.input-area-container');
+            
+            // Чистим перед покраской, чтобы не накладывалось
             document.querySelectorAll('.input-area-container').forEach(el => {
-                el.style.border = (el === inputZone) ? '2px dashed #4CAF50' : '';
+                el.style.border = '';
+                el.style.background = '';
             });
+
+            if (inputZone) {
+                inputZone.style.border = '2px dashed #4CAF50';
+                inputZone.style.background = 'rgba(76, 175, 80, 0.08)';
+            }
         }
     };
 
     const onTouchEnd = (e) => {
-        // 1. Убираем подсветку — только правильный селектор
-        document.querySelectorAll('.input-area-container').forEach(el => {
-            el.style.border = '';
-        });
+        if (!isDragging) return;
+        isDragging = false; // Блокировка повторных срабатываний
+    
+        const touch = e.changedTouches[0];
         
-        const dropZone = document.querySelector('.input-area-container');
-        if (dropZone) {
-            dropZone.classList.remove('dragging-over');
-            window.dispatchEvent(new Event('mobile-drag-stop'));
-        }
-    
-        if (isDragging) {
-            const touch = e.changedTouches[0];
-    
-            // Удаляем призрака ПЕРЕД elementFromPoint
-            if (ghost) {
-                ghost.remove();
-                ghost = null;
-            }
-    
-            const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
-    
-            // Проверяем попадание ТОЛЬКО в .input-area-container
-            if (dropZone && typeof handleFileSelect === 'function') {
-                if (navigator.vibrate) navigator.vibrate(50);
-                
-                // Передаем файл как массив [file], так как handleFileSelect делает Array.from
-                handleFileSelect([file]); 
-            }
-        }
-    
-        // Очистка
+        // Удаляем призрака мгновенно
         if (ghost) {
             ghost.remove();
             ghost = null;
         }
-        isDragging = false;
+    
+        // ЖЁСТКИЙ сброс всей подсветки
+        document.querySelectorAll('.dragging-over').forEach(el => el.classList.remove('dragging-over'));
+        document.querySelectorAll('.input-area-container, .app-container').forEach(el => {
+            el.style.border = '';
+            el.style.background = '';
+        });
+        window.dispatchEvent(new Event('mobile-drag-stop'));
+    
+        // Проверяем попадание
+        const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
+        const dropZone = elementAtPoint?.closest('.input-area-container');
+    
+        if (dropZone && typeof handleFileSelect === 'function') {
+            // ПРЯМОЙ вызов, БЕЗ dispatchEvent (чтобы не множилось)
+            handleFileSelect([file]); 
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
     };
 
     element.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -1059,16 +1058,16 @@ function App() {
         }
     };
 
-    const handleFileSelect = async (selectedFiles) => {
+    const handleFileSelect = useCallback(async (selectedFiles) => {
         const newFiles = Array.from(selectedFiles);
         const processedFiles = [];
         const otherFiles = [];
-
+    
         for (const file of newFiles) {
             const isImage = file.type.startsWith('image/');
             const isAudio = file.type.startsWith('audio/');
             const isVideo = file.type.startsWith('video/');
-
+    
             if (isImage) {
                 try {
                     const dataUrl = await fileToDataURL(file);
@@ -1097,11 +1096,11 @@ function App() {
         }
         
         setFiles(prev => [...prev, ...processedFiles]);
-
+    
         if (otherFiles.length > 0) {
             handleFileUpload(otherFiles);
         }
-    };
+    }, [setFiles, setMessages, handleFileUpload]); // ← Стабильные зависимости
     
     useEffect(() => {
         const startDrag = () => setIsDragging(true);
