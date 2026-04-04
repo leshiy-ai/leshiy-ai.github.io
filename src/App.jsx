@@ -508,6 +508,10 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
 };
 
 const makeDraggableToFile = (element, file, handleFileSelect) => {
+    // ЖЕСТКИЙ ПРЕДОХРАНИТЕЛЬ: не вешаем слушатели дважды на один элемент
+    if (element.dataset.dragAttached === "true") return;
+    element.dataset.dragAttached = "true";
+
     let startX = 0;
     let startY = 0;
     let ghost = null;
@@ -595,16 +599,11 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
             const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
     
             // Проверяем попадание ТОЛЬКО в .input-area-container
-            if (dropZone && (dropZone === elementAtPoint || dropZone.contains(elementAtPoint))) {
-                // 🔥 ТОЛЬКО событие — без прямого вызова handleFileSelect
-                const dropEvent = new CustomEvent('file-dropped', { 
-                    detail: file,
-                    bubbles: false,
-                    cancelable: false
-                });
-                window.dispatchEvent(dropEvent);
-                
+            if (dropZone && typeof handleFileSelect === 'function') {
                 if (navigator.vibrate) navigator.vibrate(50);
+                
+                // Передаем файл как массив [file], так как handleFileSelect делает Array.from
+                handleFileSelect([file]); 
             }
         }
     
