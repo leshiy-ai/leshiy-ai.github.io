@@ -514,7 +514,7 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
     let startX = 0, startY = 0;
     let isDragging = false;
     let ghost = null;
-    let dropHandled = false; // 🔥 НОВЫЙ: флаг однократного срабатывания
+    let dropHandled = false;
 
     element.style.touchAction = 'none';
     element.style.userSelect = 'none';
@@ -523,11 +523,12 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         isDragging = false;
-        dropHandled = false; // 🔥 Сброс флага для нового жеста
+        dropHandled = false;
 
-        window.addEventListener('touchmove', onTouchMove, { passive: false });
-        window.addEventListener('touchend', onTouchEnd, { passive: true }); // 🔥 ИСПРАВЛЕНО: было false
-        window.addEventListener('touchcancel', onTouchEnd, { passive: true }); // 🔥 ИСПРАВЛЕНО: было false
+        // 🔥 document стабильнее window для touch-событий в React
+        document.addEventListener('touchmove', onTouchMove, { passive: false });
+        document.addEventListener('touchend', onTouchEnd, { passive: true });
+        document.addEventListener('touchcancel', onTouchEnd, { passive: true });
     };
 
     const onTouchMove = (e) => {
@@ -548,46 +549,43 @@ const makeDraggableToFile = (element, file, handleFileSelect) => {
                     z-index: 10000; pointer-events: none; display: flex;
                     align-items: center; justify-content: center; font-size: 24px;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    transform: translate(${currentX - 30}px, ${currentY - 30}px);
                 `;
                 document.body.appendChild(ghost);
             }
         }
 
-        if (isDragging) {
-            e.preventDefault(); 
-            ghost.style.left = `${currentX - 30}px`;
-            ghost.style.top = `${currentY - 30}px`;
+        // 🔥 УБРАЛ e.preventDefault() - он КОНФЛИКТУЕТ с touchAction: 'none' и физически роняет touchend на Android
+        if (isDragging && ghost) {
+            ghost.style.transform = `translate(${currentX - 30}px, ${currentY - 30}px)`;
         }
     };
 
     const onTouchEnd = (e) => {
-        window.removeEventListener('touchmove', onTouchMove);
-        window.removeEventListener('touchend', onTouchEnd);
-        window.removeEventListener('touchcancel', onTouchEnd);
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchcancel', onTouchEnd);
 
-        if (!isDragging || dropHandled) return; // 🔥 Проверка флага
-        dropHandled = true; // 🔥 Блокируем повторные вызовы
+        if (!isDragging || dropHandled) return;
+        dropHandled = true;
         isDragging = false;
 
         if (ghost) { ghost.remove(); ghost = null; }
         window.dispatchEvent(new Event('mobile-drag-stop'));
 
-        // 🔥 Микро-задержка: отдаём браузеру завершить тач-цикл перед вызовом React
-        setTimeout(() => {
-            if (typeof handleFileSelect === 'function') {
-                handleFileSelect([file]);
-                if (navigator.vibrate) navigator.vibrate(50);
-            }
-        }, 30);
+        if (typeof handleFileSelect === 'function') {
+            handleFileSelect([file]);
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
     };
 
     element.addEventListener('touchstart', onTouchStart, { passive: true });
 
     return () => {
         element.removeEventListener('touchstart', onTouchStart);
-        window.removeEventListener('touchmove', onTouchMove);
-        window.removeEventListener('touchend', onTouchEnd);
-        window.removeEventListener('touchcancel', onTouchEnd);
+        document.removeEventListener('touchmove', onTouchMove);
+        document.removeEventListener('touchend', onTouchEnd);
+        document.removeEventListener('touchcancel', onTouchEnd);
         if (ghost) ghost.remove();
     };
 };
