@@ -507,7 +507,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     };
 };
 
-const makeDraggableToFile = (element, file, onDropToFile) => {
+const makeDraggableToFile = (element, file, callback) => {
     let startX = 0;
     let startY = 0;
     let ghost = null;
@@ -573,48 +573,29 @@ const makeDraggableToFile = (element, file, onDropToFile) => {
 
     const onTouchEnd = (e) => {
         if (ghost) {
-            // 1. Координаты отрыва
-            const touch = e.changedTouches[0];
-            const endX = touch.clientX;
-            const endY = touch.clientY;
-    
-            // 2. Скрываем гхоста
-            ghost.style.display = 'none'; 
-    
-            // 3. ВАЖНО: Сначала гасим подсветку (оверлей), чтобы она не мешала "видеть" инпут
+            // 1. СРАЗУ гасим подсветку в React (через событие)
             window.dispatchEvent(new Event('mobile-drag-stop'));
     
-            // Небольшой лайфхак: если оверлей исчезает не мгновенно (из-за анимации), 
-            // нам нужно убедиться, что он не мешает.
-            // Поэтому ищем оверлей и принудительно его прячем на секунду
-            const overlay = document.querySelector('.drag-overlay') || document.getElementById('mobile-drag-overlay');
-            const originalDisplay = overlay ? overlay.style.display : null;
-            if (overlay) overlay.style.display = 'none';
-    
-            // 4. Теперь ищем, что реально под пальцем
-            const targetUnderFinger = document.elementFromPoint(endX, endY);
-            
-            // 5. Проверяем инпут
-            const isInput = targetUnderFinger?.closest('.chat-input-container') || 
-                            targetUnderFinger?.closest('#chat-input') ||
-                            targetUnderFinger?.closest('.main-content'); // Добавил main-content для надежности
-    
-            if (isInput && onDropToFile) {
+            // 2. ЗАВЕРШЕНИЕ ДРОПА
+            // Проверяем, что нам передали функцию (callback)
+            if (typeof callback === 'function') {
+                // Вызываем её и передаем файл. 
+                // В App.jsx мы передадим туда handleFiles
+                callback(file); 
+                
                 if (navigator.vibrate) navigator.vibrate(50);
-                onDropToFile(file);
             }
     
-            // 6. Чистим всё
+            // 3. Убираем гхоста
             ghost.remove();
             ghost = null;
-            
-            // Возвращаем оверлей в исходное (хотя событие stop его уже должно было убить)
-            if (overlay && originalDisplay) overlay.style.display = originalDisplay;
     
-            document.querySelectorAll('.app-container').forEach(el => {
-                el.style.border = '';
-                el.style.background = '';
-            });
+            // 4. Чистим стили контейнера
+            const appContainer = document.querySelector('.app-container');
+            if (appContainer) {
+                appContainer.style.border = '';
+                appContainer.style.background = '';
+            }
         }
     };
 
