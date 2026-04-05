@@ -154,9 +154,10 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             }
 
             /* Фикс для смещения сообщений в приложении VK */
-            body.vk-app-fix .message-wrapper.user {
-                /* Возвращаем на место контейнер с сообщением пользователя, который смещается в ВК */
-                padding-right: 10px;
+            body.vk-app-fix .message.user {
+                /* Принудительно возвращаем внутренний отступ, который VK сбрасывает */
+                /* Используем !important, чтобы наш стиль имел наивысший приоритет */
+                padding-left: 12px !important;
             }
         `;
 
