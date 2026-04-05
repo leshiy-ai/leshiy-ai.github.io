@@ -508,13 +508,16 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
 };
 
 const makeDraggableToFile = (element, file) => {
-    // Предохранитель: не вешаем слушатели дважды
+    // Предохранитель, чтобы не вешать слушатели дважды
     if (element.dataset.dragAttached === "true") return () => {};
     element.dataset.dragAttached = "true";
+    
+    // Говорим браузеру не пытаться обрабатывать жесты для этого элемента
+    element.style.touchAction = 'none';
 
     let longPressTimer = null;
-    let isLongPress = false;
-    let isFileDragging = false;
+    let isLongPress = false;    // Флаг, что долгое нажатие произошло
+    let isFileDragging = false; // Флаг, что мы начали двигать палец ПОСЛЕ долгого нажатия
     let ghost = null;
     let touchStartCoords = { x: 0, y: 0 };
 
@@ -528,47 +531,52 @@ const makeDraggableToFile = (element, file) => {
         isFileDragging = false;
         window.removeEventListener('touchmove', onTouchMove);
         window.removeEventListener('touchend', onTouchEnd);
-        window.dispatchEvent(new Event('mobile-drag-stop')); // Убираем подсветку
+        window.removeEventListener('touchcancel', onTouchEnd);
+        window.dispatchEvent(new Event('mobile-drag-stop'));
     };
 
     const onTouchMove = (e) => {
         const touch = e.touches[0];
         const movedX = Math.abs(touch.clientX - touchStartCoords.x);
         const movedY = Math.abs(touch.clientY - touchStartCoords.y);
-        
-        // Если палец сдвинулся до того, как сработал таймер, это скролл. Отменяем.
+
+        // Если палец сдвинулся до того, как сработал таймер — это скролл. Отменяем всё.
         if (!isLongPress && (movedX > 10 || movedY > 10)) {
             cleanup();
             return;
         }
 
-        // Если долгое нажатие было и мы начали движение - это драг.
-        if (isLongPress) {
-            // Блокируем скролл ТОЛЬКО когда реально тащим файл
-            e.preventDefault(); 
+        // Если долгое нажатие было, и мы обнаружили первое движение
+        if (isLongPress && !isFileDragging) {
+            // Это и есть НАЧАЛО перетаскивания.
             isFileDragging = true;
             
-            if (!ghost) {
-                window.dispatchEvent(new Event('mobile-drag-start'));
-                if (navigator.vibrate) navigator.vibrate(50);
-                ghost = document.createElement('div');
-                ghost.className = 'drag-ghost-mobile';
-                ghost.innerHTML = `🎙️ ${file.name}`;
-                document.body.appendChild(ghost);
-            }
+            // *** КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: МГНОВЕННО БЛОКИРУЕМ БРАУЗЕР ***
+            // Это предотвратит ошибку "Ignored attempt to cancel"
+            e.preventDefault(); 
+            
+            // Теперь создаем "призрак" и сообщаем приложению о начале перетаскивания
+            window.dispatchEvent(new Event('mobile-drag-start'));
+            if (navigator.vibrate) navigator.vibrate(50);
+            
+            ghost = document.createElement('div');
+            ghost.className = 'drag-ghost-mobile';
+            ghost.innerHTML = `🎙️ ${file.name}`;
+            document.body.appendChild(ghost);
+        }
 
+        // Если мы уже в режиме перетаскивания, просто двигаем "призрак"
+        if (isFileDragging && ghost) {
             ghost.style.left = `${touch.clientX}px`;
             ghost.style.top = `${touch.clientY - 40}px`;
         }
     };
 
     const onTouchEnd = (e) => {
-        // *** ЛОГИКА ЗАВЕРШЕНИЯ ДРОПА ***
-        // Срабатывает, только если мы действительно тащили файл
+        // Логика "бросания" файла. Срабатывает, только если мы реально его тащили.
         if (isFileDragging) {
             const touch = e.changedTouches[0];
             
-            // Временно прячем "призрака", чтобы он не мешал определить элемент под ним
             if (ghost) ghost.style.display = 'none';
             const elementAtPoint = document.elementFromPoint(touch.clientX, touch.clientY);
             if (ghost) ghost.style.display = '';
@@ -576,35 +584,35 @@ const makeDraggableToFile = (element, file) => {
             const dropZone = elementAtPoint?.closest('.input-area-container');
     
             if (dropZone) {
-                // Используем стандартное событие, которое приложение уже слушает
+                // Отправляем стандартное событие, которое приложение уже умеет ловить
                 const dropEvent = new CustomEvent('file-dropped', { detail: file });
                 window.dispatchEvent(dropEvent);
             }
         }
-        
-        // В любом случае очищаем всё после отпускания пальца
+        // В любом случае производим полную очистку
         cleanup();
     };
 
     const onTouchStart = (e) => {
         e.stopPropagation();
-        cleanup(); // На всякий случай чистим предыдущие слушатели
+        cleanup(); // Чистим "зависшие" слушатели от прошлых касаний
 
         touchStartCoords = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
-        // Запускаем таймер долгого нажатия. Он просто взводит флаг.
+        // Просто запускаем таймер. Он только взведет флаг isLongPress.
         longPressTimer = setTimeout(() => {
             isLongPress = true;
         }, 350); 
         
-        // Вешаем глобальные слушатели, которые будут убраны в cleanup()
+        // Вешаем глобальные слушатели на всё окно для отслеживания жеста
         window.addEventListener('touchmove', onTouchMove, { passive: false });
         window.addEventListener('touchend', onTouchEnd, { once: true });
+        window.addEventListener('touchcancel', onTouchEnd, { once: true });
     };
 
     element.addEventListener('touchstart', onTouchStart);
 
-    // Возвращаем функцию для полной очистки, если компонент будет удален
+    // Функция для очистки, если компонент будет удален
     return () => {
         element.removeEventListener('touchstart', onTouchStart);
         cleanup();
