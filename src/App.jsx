@@ -182,9 +182,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         window.addEventListener('touchcancel', handleMobileDragEndAndDrop, { once: true });
     };
 
-    // Функция движения пальца (С ВИЗУАЛЬНОЙ ДИАГНОСТИКОЙ)
+    // Функция движения пальца
     const handleMobileDragMove = (e) => {
-        // Если палец поехал до долгого нажатия - это скролл. Отменяем.
+        // 1. Логика определения скролла (остается без изменений)
         if (!isLongPress.current) {
             const movedX = Math.abs(e.touches[0].clientX - touchStartCoords.current.x);
             const movedY = Math.abs(e.touches[0].clientY - touchStartCoords.current.y);
@@ -194,20 +194,56 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             return;
         }
         
-        // Если долгое нажатие было - это перетаскивание. Захватываем управление.
+        // 2. Захватываем управление, чтобы браузер не скроллил страницу
         e.preventDefault();
 
+        // 3. Создаем "красивого призрака" при первом движении пальца
         if (!isFileDragging.current) {
             isFileDragging.current = true;
+            
+            const file = window.draggedFile;
+            // Проверка на случай, если что-то пошло не так
+            if (!file) {
+                cleanupMobileDrag();
+                return;
+            }
+
+            const type = file.type || '';
+            const name = file.name || '';
+            
+            // Определяем иконку для файла, как в самом чате
+            let icon = '📎';
+            if (type.startsWith('video/')) { icon = '🎬'; }
+            else if (name.startsWith('voice_')) { icon = '🎙️'; } // Особая иконка для голоса
+            else if (type.startsWith('audio/')) { icon = '🎵'; }
+            else if (type.startsWith('image/')) { icon = '🖼️'; }
+            else if (name.endsWith('.zip') || name.endsWith('.rar')) { icon = '📦'; }
+            else if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf')) { icon = '📄'; }
+
+            // Создаем сам элемент "призрака"
             const ghost = document.createElement('div');
-            ghost.className = 'drag-ghost-mobile';
-            // Стили для отображения отладочной информации
-            ghost.style.padding = '10px';
-            ghost.style.fontSize = '10px';
-            ghost.style.lineHeight = '1.2';
-            ghost.style.width = 'auto';
-            ghost.style.height = 'auto';
-            ghost.style.borderRadius = '8px';
+            
+            // Применяем стили прямо в коде, чтобы гарантировать идеальный вид
+            ghost.id = 'leshiy-mobile-ghost'; // Уникальный ID, чтобы избежать конфликтов
+            ghost.style.position = 'fixed';
+            ghost.style.zIndex = '99999';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.display = 'flex';
+            ghost.style.alignItems = 'center';
+            ghost.style.background = 'rgba(70, 70, 70, 0.8)'; // Стильный полупрозрачный фон
+            ghost.style.backdropFilter = 'blur(10px)'; // Эффект размытия для iOS
+            ghost.style.webkitBackdropFilter = 'blur(10px)'; // Для Safari
+            ghost.style.color = 'white';
+            ghost.style.padding = '8px 15px';
+            ghost.style.borderRadius = '12px';
+            ghost.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.3)'; // Красивая тень
+            ghost.style.fontSize = '14px';
+            ghost.style.fontFamily = 'system-ui, sans-serif';
+            ghost.style.transition = 'none';
+            
+            // Формируем красивое содержимое с иконкой и именем
+            ghost.innerHTML = `<span style="font-size: 1.4em; margin-right: 10px; line-height: 1;">${icon}</span><span>${name}</span>`;
+
             document.body.appendChild(ghost);
             dragGhostRef.current = ghost;
         }
@@ -215,43 +251,27 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         const touch = e.touches[0];
         const ghost = dragGhostRef.current;
 
+        // 4. Двигаем "призрака" вслед за пальцем
         if (ghost) {
+            // Устанавливаем позицию чуть выше пальца и центрируем
             ghost.style.left = `${touch.clientX}px`;
-            ghost.style.top = `${touch.clientY - 70}px`; // Поднимаем выше, чтобы было видно
+            ghost.style.top = `${touch.clientY - 70}px`;
+            ghost.style.transform = 'translateX(-50%)'; 
         }
         
-        // *** ДИАГНОСТИЧЕСКАЯ ЛОГИКА ***
+        // 5. Проверяем, находится ли палец над зоной для дропа (логика та же, но без отладки)
         const dropZone = document.querySelector('.input-area-container');
         let isOver = false;
-        let debugText = `Touch: (${Math.round(touch.clientX)}, ${Math.round(touch.clientY)})`;
-
         if (dropZone) {
             const rect = dropZone.getBoundingClientRect();
-            debugText += `<br>Zone: L:${Math.round(rect.left)} T:${Math.round(rect.top)} R:${Math.round(rect.right)} B:${Math.round(rect.bottom)}`;
-            
             isOver = (
                 touch.clientX >= rect.left &&
                 touch.clientX <= rect.right &&
                 touch.clientY >= rect.top &&
                 touch.clientY <= rect.bottom
             );
-            debugText += `<br>Over: ${isOver ? 'YES' : 'NO'}`;
-        } else {
-            debugText += '<br>Zone: NOT FOUND';
         }
-        
         window.isOverDropZone = isOver;
-
-        if (ghost) {
-            ghost.innerHTML = debugText; // Выводим всю инфу на "призрак"
-            if (isOver) {
-                ghost.style.backgroundColor = 'rgba(46, 204, 113, 0.9)';
-                ghost.style.color = 'white';
-            } else {
-                ghost.style.backgroundColor = ''; // default
-                ghost.style.color = ''; // default
-            }
-        }
     };
 
     // Функция отпускания пальца
