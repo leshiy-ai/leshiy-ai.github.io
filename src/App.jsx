@@ -126,7 +126,7 @@ const fileToDataURL = (file) => {
     });
 };
 
-const Message = ({ message, onSwipe, onAction, userPhoto, userName, isVK, t }) => {
+const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
     const currentX = useRef(0);
@@ -536,10 +536,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, isVK, t }) =
         >
             <div className="bubble">
                 {showAvatar && <img src={avatarUrl} className="avatar" alt="avatar" />}
-                <div 
-                    className="message-content"
-                    style={isUser && isVK ? { padding: '8px 12px' } : {}}
-                >
+                <div className="message-content">
                     <div className="user-name">{name}</div>
                     <div className="message-body">
                         {/* Сначала рендерим вложения, если они есть */}
