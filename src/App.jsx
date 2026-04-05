@@ -345,7 +345,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         <div 
             key={i} 
             className={`file-badge ${label.toLowerCase()}`}
-            draggable={isDraggable}
+            draggable={!/Mobi|Android/i.test(navigator.userAgent) && isDraggable}
             onDragStart={(e) => handleDragStart(e, fileToDrag)}
             onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
             onTouchEnd={handleTouchEnd} // Единая функция завершения
@@ -366,7 +366,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         return (
             <div 
                 className="voice-generation-wrapper"
-                draggable={!!fileToDrag}
+                draggable={!/Mobi|Android/i.test(navigator.userAgent) && !!fileToDrag}
                 onDragStart={(e) => handleDragStart(e, fileToDrag)}
                 onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
                 data-is-draggable="true" 
