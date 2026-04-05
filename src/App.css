@@ -781,6 +781,7 @@ body.sidebar-collapsed .history-item .icon {
 .message-content {
     display: flex;
     flex-direction: column;
+    padding-left: 5px;
 }
 
 .message-container.user .message-content {
