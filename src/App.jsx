@@ -182,7 +182,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         window.addEventListener('touchcancel', handleMobileDragEndAndDrop, { once: true });
     };
 
-    // Функция движения пальца
+    // Финальная, "красивая" версия функции движения пальца
     const handleMobileDragMove = (e) => {
         // 1. Логика определения скролла (остается без изменений)
         if (!isLongPress.current) {
@@ -197,12 +197,11 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         // 2. Захватываем управление, чтобы браузер не скроллил страницу
         e.preventDefault();
 
-        // 3. Создаем "красивого призрака" при первом движении пальца
+        // 3. Создаем ИДЕАЛЬНОГО "призрака" при первом движении пальца
         if (!isFileDragging.current) {
             isFileDragging.current = true;
             
             const file = window.draggedFile;
-            // Проверка на случай, если что-то пошло не так
             if (!file) {
                 cleanupMobileDrag();
                 return;
@@ -211,38 +210,67 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             const type = file.type || '';
             const name = file.name || '';
             
-            // Определяем иконку для файла, как в самом чате
-            let icon = '📎';
-            if (type.startsWith('video/')) { icon = '🎬'; }
-            else if (name.startsWith('voice_')) { icon = '🎙️'; } // Особая иконка для голоса
-            else if (type.startsWith('audio/')) { icon = '🎵'; }
-            else if (type.startsWith('image/')) { icon = '🖼️'; }
-            else if (name.endsWith('.zip') || name.endsWith('.rar')) { icon = '📦'; }
-            else if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf')) { icon = '📄'; }
-
-            // Создаем сам элемент "призрака"
-            const ghost = document.createElement('div');
+            // --- Определяем иконку, лейбл и класс для бейджа (логика, как в чате) ---
+            let icon = '📎'; 
+            let label = 'ФАЙЛ';
             
-            // Применяем стили прямо в коде, чтобы гарантировать идеальный вид
-            ghost.id = 'leshiy-mobile-ghost'; // Уникальный ID, чтобы избежать конфликтов
+            if (name.startsWith('voice_')) {
+                icon = '🎙️'; 
+                label = 'ГОЛОС'; 
+            } else if (type.startsWith('image/')) { 
+                icon = '🖼️'; 
+                label = 'ФОТО'; 
+            } else if (type.startsWith('video/')) { 
+                icon = '🎬'; 
+                label = 'ВИДЕО'; 
+            } else if (type.startsWith('audio/')) { 
+                icon = '🎵'; 
+                label = 'АУДИО'; 
+            } else if (name.endsWith('.zip') || name.endsWith('.rar')) { 
+                icon = '📦'; 
+                label = 'АРХИВ'; 
+            } else if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf')) { 
+                icon = '📄'; 
+                label = 'ДОК'; 
+            }
+
+            // --- Создаем точную копию бейджа ---
+            const ghost = document.createElement('div');
+            ghost.id = 'leshiy-mobile-ghost'; // Уникальный ID
+
+            // Применяем РОДНЫЕ классы из твоего CSS, чтобы выглядело идентично
+            ghost.className = `file-badge ${label.toLowerCase()}`;
+            if (label === 'ГОЛОС') {
+                ghost.classList.add('static-badge'); // Особый класс для бейджа голоса
+            }
+            
+            // --- Добавляем "призрачные" эффекты ---
             ghost.style.position = 'fixed';
             ghost.style.zIndex = '99999';
             ghost.style.pointerEvents = 'none';
-            ghost.style.display = 'flex';
-            ghost.style.alignItems = 'center';
-            ghost.style.background = 'rgba(70, 70, 70, 0.8)'; // Стильный полупрозрачный фон
-            ghost.style.backdropFilter = 'blur(10px)'; // Эффект размытия для iOS
-            ghost.style.webkitBackdropFilter = 'blur(10px)'; // Для Safari
-            ghost.style.color = 'white';
-            ghost.style.padding = '8px 15px';
-            ghost.style.borderRadius = '12px';
-            ghost.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.3)'; // Красивая тень
-            ghost.style.fontSize = '14px';
-            ghost.style.fontFamily = 'system-ui, sans-serif';
+            ghost.style.opacity = '0.95'; // Легкая прозрачность
+            ghost.style.transform = 'scale(1.1)'; // Слегка увеличиваем
+            ghost.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.25)'; // Красивая тень
             ghost.style.transition = 'none';
+
+            // --- Собираем внутренности бейджа ---
+            const iconSpan = document.createElement('span');
+            iconSpan.className = 'file-icon';
+            iconSpan.textContent = icon;
+            ghost.appendChild(iconSpan);
+
+            // Для обычных файлов добавляем имя, для голоса - нет (как на скриншоте)
+            if (label !== 'ГОЛОС') {
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'file-name';
+                nameSpan.textContent = name.length > 10 ? name.substring(0,7)+'...' : name;
+                ghost.appendChild(nameSpan);
+            }
             
-            // Формируем красивое содержимое с иконкой и именем
-            ghost.innerHTML = `<span style="font-size: 1.4em; margin-right: 10px; line-height: 1;">${icon}</span><span>${name}</span>`;
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'file-label';
+            labelSpan.textContent = label;
+            ghost.appendChild(labelSpan);
 
             document.body.appendChild(ghost);
             dragGhostRef.current = ghost;
@@ -253,13 +281,12 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
         // 4. Двигаем "призрака" вслед за пальцем
         if (ghost) {
-            // Устанавливаем позицию чуть выше пальца и центрируем
-            ghost.style.left = `${touch.clientX}px`;
-            ghost.style.top = `${touch.clientY - 70}px`;
-            ghost.style.transform = 'translateX(-50%)'; 
+            // Центрируем бейдж под пальцем и поднимаем чуть выше
+            ghost.style.left = `${touch.clientX - ghost.offsetWidth / 2}px`;
+            ghost.style.top = `${touch.clientY - ghost.offsetHeight - 20}px`;
         }
         
-        // 5. Проверяем, находится ли палец над зоной для дропа (логика та же, но без отладки)
+        // 5. Проверяем, находится ли палец над зоной для дропа (логика та же)
         const dropZone = document.querySelector('.input-area-container');
         let isOver = false;
         if (dropZone) {
