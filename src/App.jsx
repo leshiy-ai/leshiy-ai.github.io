@@ -329,19 +329,74 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         currentX.current = 0;
     };
 
-    // --- ЕДИНЫЙ ОБРАБОТЧИК ПЕРЕТАСКИВАНИЯ ---
-    const handleDragStart = (e, fileToDrag) => {
+    // --- ОБРАБОТЧИК ПЕРЕТАСКИВАНИЯ ДЛЯ ПК ---
+    const handleDragStart = (e, fileToDrag, badgeTypeHint = null) => {
         if (!fileToDrag) return;
-        // Используем глобальную переменную, т.к. dataTransfer не может передавать объекты
+
         window.draggedFile = fileToDrag;
         e.dataTransfer.setData('application/x-leshiy-file', 'true');
+        e.dataTransfer.effectAllowed = 'copy';
+
+        // --- ЛОГИКА СОЗДАНИЯ ИДЕАЛЬНОГО БЕЙДЖА (аналогично мобильной) ---
+        const file = fileToDrag;
+        const type = file.type || '';
+        const name = file.name || '';
         
+        let icon = '📎'; 
+        let label = 'ФАЙЛ';
+
+        // Единая логика определения типа, как мы и сделали для мобильных
+        if (badgeTypeHint === 'voice' || name.startsWith('voice_')) {
+            icon = '🎙️';
+            label = 'ГОЛОС';
+        }
+        else if (type.startsWith('image/')) { icon = '🖼️'; label = 'ФОТО'; }
+        else if (type.startsWith('video/')) { icon = '🎬'; label = 'ВИДЕО'; }
+        else if (type.startsWith('audio/')) { icon = '🎵'; label = 'АУДИО'; }
+        else if (name.endsWith('.zip') || name.endsWith('.rar')) { icon = '📦'; label = 'АРХИВ'; }
+        else if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf')) { icon = '📄'; label = 'ДОК'; }
+
+        // Создаем сам элемент "призрака"
         const dragIcon = document.createElement('div');
-        dragIcon.innerHTML = `📎 ${fileToDrag.name}`;
-        dragIcon.className = 'drag-ghost';
+        
+        // Применяем РОДНЫЕ классы, чтобы выглядело 1-в-1
+        dragIcon.className = `file-badge ${label.toLowerCase()}`;
+        if (label === 'ГОЛОС') {
+            dragIcon.classList.add('static-badge');
+        }
+
+        // Призраку нужны свои стили, чтобы он "отлепился" от курсора и был видим
+        dragIcon.style.position = 'absolute';
+        dragIcon.style.top = '-1000px'; // Прячем его за пределами экрана
+        dragIcon.style.left = '0px';
+        
+        // Собираем внутренности
+        const iconSpan = document.createElement('span');
+        iconSpan.className = 'file-icon';
+        iconSpan.textContent = icon;
+        dragIcon.appendChild(iconSpan);
+
+        if (label !== 'ГОЛОС') {
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'file-name';
+            nameSpan.textContent = name.length > 10 ? name.substring(0,7)+'...' : name;
+            dragIcon.appendChild(nameSpan);
+        }
+        
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'file-label';
+        labelSpan.textContent = label;
+        dragIcon.appendChild(labelSpan);
+
+        // Добавляем в DOM, чтобы setDragImage сработал, и тут же удаляем
         document.body.appendChild(dragIcon);
-        e.dataTransfer.setDragImage(dragIcon, 10, 10);
-        setTimeout(() => document.body.removeChild(dragIcon), 0);
+        // Центрируем бейдж относительно курсора
+        e.dataTransfer.setDragImage(dragIcon, dragIcon.offsetWidth / 2, dragIcon.offsetHeight / 2);
+
+        // Этот трюк позволяет браузеру "сфотографировать" элемент для призрака
+        setTimeout(() => {
+            document.body.removeChild(dragIcon);
+        }, 0);
     };
 
     // --- ФУНКЦИИ РЕНДЕРИНГА (ИСПРАВЛЕННЫЕ) ---
@@ -396,7 +451,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             <div 
                 className="voice-generation-wrapper"
                 draggable={!/Mobi|Android/i.test(navigator.userAgent) && !!fileToDrag}
-                onDragStart={(e) => handleDragStart(e, fileToDrag)}
+                onDragStart={(e) => handleDragStart(e, fileToDrag, 'voice')}
                 onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag, 'voice')}
                 data-is-draggable="true" 
                 style={{ cursor: fileToDrag ? 'grab' : 'default' }}
