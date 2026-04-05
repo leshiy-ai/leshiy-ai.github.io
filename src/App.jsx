@@ -197,53 +197,59 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         // Если долгое нажатие было - это перетаскивание. Захватываем управление.
         e.preventDefault();
 
-        // Создаем серого "призрака" при первом движении (твоя логика, она правильная)
         if (!isFileDragging.current) {
             isFileDragging.current = true;
             const ghost = document.createElement('div');
             ghost.className = 'drag-ghost-mobile';
-            ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
+            // Стили для отображения отладочной информации
+            ghost.style.padding = '10px';
+            ghost.style.fontSize = '10px';
+            ghost.style.lineHeight = '1.2';
+            ghost.style.width = 'auto';
+            ghost.style.height = 'auto';
+            ghost.style.borderRadius = '8px';
             document.body.appendChild(ghost);
             dragGhostRef.current = ghost;
         }
 
         const touch = e.touches[0];
-        const ghost = dragGhostRef.current; // Получаем ссылку на призрак
+        const ghost = dragGhostRef.current;
 
         if (ghost) {
-            // Двигаем "призрака"
             ghost.style.left = `${touch.clientX}px`;
-            ghost.style.top = `${touch.clientY - 40}px`;
+            ghost.style.top = `${touch.clientY - 70}px`; // Поднимаем выше, чтобы было видно
         }
         
-        // *** ПРОВЕРКА С ВИЗУАЛЬНОЙ ОБРАТНОЙ СВЯЗЬЮ ***
+        // *** ДИАГНОСТИЧЕСКАЯ ЛОГИКА ***
         const dropZone = document.querySelector('.input-area-container');
         let isOver = false;
+        let debugText = `Touch: (${Math.round(touch.clientX)}, ${Math.round(touch.clientY)})`;
 
         if (dropZone) {
             const rect = dropZone.getBoundingClientRect();
-            // Проверяем, что палец внутри прямоугольника зоны ввода
+            debugText += `<br>Zone: L:${Math.round(rect.left)} T:${Math.round(rect.top)} R:${Math.round(rect.right)} B:${Math.round(rect.bottom)}`;
+            
             isOver = (
                 touch.clientX >= rect.left &&
                 touch.clientX <= rect.right &&
                 touch.clientY >= rect.top &&
                 touch.clientY <= rect.bottom
             );
+            debugText += `<br>Over: ${isOver ? 'YES' : 'NO'}`;
+        } else {
+            debugText += '<br>Zone: NOT FOUND';
         }
         
-        // Сохраняем результат для финальной проверки в onTouchEnd
         window.isOverDropZone = isOver;
 
-        // *** ДИАГНОСТИКА: МЕНЯЕМ ЦВЕТ ПРИЗРАКА ***
         if (ghost) {
+            ghost.innerHTML = debugText; // Выводим всю инфу на "призрак"
             if (isOver) {
-                // Если код считает, что мы над зоной - призрак станет зеленым
                 ghost.style.backgroundColor = 'rgba(46, 204, 113, 0.9)';
                 ghost.style.color = 'white';
             } else {
-                // Иначе - он будет стандартного цвета (сбрасываем на дефолт из CSS)
-                ghost.style.backgroundColor = ''; 
-                ghost.style.color = '';
+                ghost.style.backgroundColor = ''; // default
+                ghost.style.color = ''; // default
             }
         }
     };
