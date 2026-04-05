@@ -331,11 +331,14 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 // Внедряем через Ref, как и свайп
                 ref={(el) => {
                     if (el && fileToDrag) {
-                        makeDraggableToFile(el, fileToDrag, (f) => {
-                            handleFileSelect({ target: { files: [f] } });
-                        });
+                        // Находим внутри нашего блока специальную "ручку" для перетаскивания
+                        const handle = el.querySelector('.file-badge'); 
+                        // И привязываем перетаскивание ТОЛЬКО К НЕЙ
+                        if (handle) {
+                            makeDraggableToFile(handle, fileToDrag);
+                        }
                     }
-                }}
+                }}                
                 className="voice-generation-wrapper clickable-drag-zone"
                 draggable={!!fileToDrag}
                 onDragStart={(e) => handleDragStart(e, fileToDrag)}
