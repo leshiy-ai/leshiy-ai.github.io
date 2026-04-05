@@ -182,7 +182,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         window.addEventListener('touchcancel', handleMobileDragEndAndDrop, { once: true });
     };
 
-    // Функция движения пальца (САМОЕ ГЛАВНОЕ ИЗМЕНЕНИЕ)
+    // Функция движения пальца (САМЫЙ НАДЕЖНЫЙ МЕТОД)
     const handleMobileDragMove = (e) => {
         // Если палец поехал до долгого нажатия - это скролл. Отменяем.
         if (!isLongPress.current) {
@@ -197,7 +197,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         // Если долгое нажатие было - это перетаскивание. Захватываем управление.
         e.preventDefault();
 
-        // Создаем серого "призрака" при первом движении
+        // Создаем серого "призрака" при первом движении (это твоя логика, она правильная)
         if (!isFileDragging.current) {
             isFileDragging.current = true;
             const ghost = document.createElement('div');
@@ -209,25 +209,28 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
         const touch = e.touches[0];
         if (dragGhostRef.current) {
+            // Двигаем "призрака"
             dragGhostRef.current.style.left = `${touch.clientX}px`;
             dragGhostRef.current.style.top = `${touch.clientY - 40}px`;
         }
         
-        // *** ПУЛЕНЕПРОБИВАЕМАЯ ПРОВЕРКА ***
-        // Находим зону для дропа прямо здесь и сейчас
-        const dropZone = document.querySelector('.input-area-container');
-        if (dropZone) {
-            const rect = dropZone.getBoundingClientRect();
-            // Просто сравниваем координаты пальца с прямоугольником зоны ввода
-            window.isOverDropZone = (
-                touch.clientX >= rect.left &&
-                touch.clientX <= rect.right &&
-                touch.clientY >= rect.top &&
-                touch.clientY <= rect.bottom
-            );
-        } else {
-            window.isOverDropZone = false;
-        }
+        // *** САМАЯ НАДЕЖНАЯ ПРОВЕРКА (elementsFromPoint) ***
+        
+        // Временно прячем нашего "призрака", чтобы он не попал в список элементов
+        if (dragGhostRef.current) dragGhostRef.current.style.display = 'none';
+        
+        // Получаем МАССИВ всех элементов под пальцем
+        const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
+        
+        // Показываем "призрака" обратно
+        if (dragGhostRef.current) dragGhostRef.current.style.display = '';
+
+        // Ищем в этом массиве нашу зону для дропа или ее дочерний элемент.
+        // Этот метод "видит насквозь" любые прозрачные оверлеи.
+        const dropZone = elements ? elements.find(el => el.closest('.input-area-container')) : null;
+        
+        // Устанавливаем флаг. Теперь onTouchEnd будет знать, где находится палец.
+        window.isOverDropZone = !!dropZone;
     };
 
     // Функция отпускания пальца
