@@ -141,8 +141,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const touchStartCoords = useRef({x: 0, y: 0});
 
     useEffect(() => {
-        // --- ИНЪЕКЦИЯ СТИЛЕЙ И ФИКСОВ ---
-        // 1. Создаем блок стилей для наших правок
+        // --- ИНЪЕКЦИЯ СТИЛЯ - ПОДСВЕТКА СИНИМ ---
         const style = document.createElement('style');
         style.id = 'gemini-dynamic-fixes'; // Даем ID, чтобы не дублировать стили
         style.innerHTML = `
@@ -152,25 +151,12 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 outline: 2px solid #55aaff;
                 outline-offset: -2px;
             }
-
-            /* Фикс для смещения сообщений в приложении VK */
-            body.vk-app-fix .message.user {
-                /* Принудительно возвращаем внутренний отступ, который VK сбрасывает */
-                /* Используем !important, чтобы наш стиль имел наивысший приоритет */
-                padding-left: 12px !important;
-            }
         `;
 
         // Добавляем стили в <head>, только если их там еще нет
         if (!document.getElementById('gemini-dynamic-fixes')) {
             document.head.appendChild(style);
         }
-
-        // 2. Проверяем, запущено ли приложение внутри WebView ВКонтакте
-        if (/VK|vkapp/i.test(navigator.userAgent)) {
-            document.body.classList.add('vk-app-fix');
-        }
-
         // Функция очистки на случай, если компонент будет размонтирован
         return () => {
             document.body.classList.remove('vk-app-fix');
@@ -550,7 +536,10 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         >
             <div className="bubble">
                 {showAvatar && <img src={avatarUrl} className="avatar" alt="avatar" />}
-                <div className="message-content">
+                <div 
+                    className="message-content"
+                    style={isUser && isVK ? { padding: '8px 12px' } : {}}
+                >
                     <div className="user-name">{name}</div>
                     <div className="message-body">
                         {/* Сначала рендерим вложения, если они есть */}
