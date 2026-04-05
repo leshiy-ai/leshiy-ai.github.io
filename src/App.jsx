@@ -182,7 +182,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         window.addEventListener('touchcancel', handleMobileDragEndAndDrop, { once: true });
     };
 
-    // Функция движения пальца (САМЫЙ НАДЕЖНЫЙ МЕТОД)
+    // Функция движения пальца (С ВИЗУАЛЬНОЙ ДИАГНОСТИКОЙ)
     const handleMobileDragMove = (e) => {
         // Если палец поехал до долгого нажатия - это скролл. Отменяем.
         if (!isLongPress.current) {
@@ -197,7 +197,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         // Если долгое нажатие было - это перетаскивание. Захватываем управление.
         e.preventDefault();
 
-        // Создаем серого "призрака" при первом движении (это твоя логика, она правильная)
+        // Создаем серого "призрака" при первом движении (твоя логика, она правильная)
         if (!isFileDragging.current) {
             isFileDragging.current = true;
             const ghost = document.createElement('div');
@@ -208,29 +208,44 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         }
 
         const touch = e.touches[0];
-        if (dragGhostRef.current) {
+        const ghost = dragGhostRef.current; // Получаем ссылку на призрак
+
+        if (ghost) {
             // Двигаем "призрака"
-            dragGhostRef.current.style.left = `${touch.clientX}px`;
-            dragGhostRef.current.style.top = `${touch.clientY - 40}px`;
+            ghost.style.left = `${touch.clientX}px`;
+            ghost.style.top = `${touch.clientY - 40}px`;
         }
         
-        // *** САМАЯ НАДЕЖНАЯ ПРОВЕРКА (elementsFromPoint) ***
-        
-        // Временно прячем нашего "призрака", чтобы он не попал в список элементов
-        if (dragGhostRef.current) dragGhostRef.current.style.display = 'none';
-        
-        // Получаем МАССИВ всех элементов под пальцем
-        const elements = document.elementsFromPoint(touch.clientX, touch.clientY);
-        
-        // Показываем "призрака" обратно
-        if (dragGhostRef.current) dragGhostRef.current.style.display = '';
+        // *** ПРОВЕРКА С ВИЗУАЛЬНОЙ ОБРАТНОЙ СВЯЗЬЮ ***
+        const dropZone = document.querySelector('.input-area-container');
+        let isOver = false;
 
-        // Ищем в этом массиве нашу зону для дропа или ее дочерний элемент.
-        // Этот метод "видит насквозь" любые прозрачные оверлеи.
-        const dropZone = elements ? elements.find(el => el.closest('.input-area-container')) : null;
+        if (dropZone) {
+            const rect = dropZone.getBoundingClientRect();
+            // Проверяем, что палец внутри прямоугольника зоны ввода
+            isOver = (
+                touch.clientX >= rect.left &&
+                touch.clientX <= rect.right &&
+                touch.clientY >= rect.top &&
+                touch.clientY <= rect.bottom
+            );
+        }
         
-        // Устанавливаем флаг. Теперь onTouchEnd будет знать, где находится палец.
-        window.isOverDropZone = !!dropZone;
+        // Сохраняем результат для финальной проверки в onTouchEnd
+        window.isOverDropZone = isOver;
+
+        // *** ДИАГНОСТИКА: МЕНЯЕМ ЦВЕТ ПРИЗРАКА ***
+        if (ghost) {
+            if (isOver) {
+                // Если код считает, что мы над зоной - призрак станет зеленым
+                ghost.style.backgroundColor = 'rgba(46, 204, 113, 0.9)';
+                ghost.style.color = 'white';
+            } else {
+                // Иначе - он будет стандартного цвета (сбрасываем на дефолт из CSS)
+                ghost.style.backgroundColor = ''; 
+                ghost.style.color = '';
+            }
+        }
     };
 
     // Функция отпускания пальца
