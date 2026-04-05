@@ -214,7 +214,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             let icon = '📎'; 
             let label = 'ФАЙЛ';
             
-            if (name.startsWith('voice_')) {
+            if (name.startsWith('voice')) {
                 icon = '🎙️'; 
                 label = 'ГОЛОС'; 
             } else if (type.startsWith('image/')) { 
@@ -248,9 +248,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             ghost.style.position = 'fixed';
             ghost.style.zIndex = '99999';
             ghost.style.pointerEvents = 'none';
-            ghost.style.opacity = '0.95'; // Легкая прозрачность
-            ghost.style.transform = 'scale(1.1)'; // Слегка увеличиваем
-            ghost.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.25)'; // Красивая тень
+            ghost.style.opacity = '1'; // Убрали прозрачность, теперь он солидный
+            ghost.style.transform = 'scale(1.05)'; // Сделали увеличение чуть более сдержанным
+            ghost.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)'; // Тень чуть более выразительная
             ghost.style.transition = 'none';
 
             // --- Собираем внутренности бейджа ---
@@ -382,7 +382,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
         
         let icon = '📎'; let label = 'ФАЙЛ';
-        if (isVid) { icon = '🎬'; label = 'ВИДЕО'; }
+        // СНАЧАЛА проверяем на голос, потому что это частный случай аудио
+        if (name.startsWith('voice_')) { icon = '🎙️'; label = 'ГОЛОС'; }
+        else if (isVid) { icon = '🎬'; label = 'ВИДЕО'; }
         else if (isAud) { icon = '🎵'; label = 'АУДИО'; }
         else if (isZip) { icon = '📦'; label = 'АРХИВ'; }
         else if (isDoc) { icon = '📄'; label = 'ДОК'; }
