@@ -155,28 +155,25 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         window.removeEventListener('touchend', handleMobileDragEndAndDrop);
         window.removeEventListener('touchcancel', handleMobileDragEndAndDrop);
         delete window.draggedFile;
-        // Сообщаем App, что перетаскивание окончено, чтобы убрать зеленую подсветку
+        delete window.draggedFileBadgeType; // Очищаем подсказку
         window.dispatchEvent(new Event('mobile-drag-stop'));
     };
 
     // Функция старта (долгое нажатие)
-    const handleTouchStartOnDraggable = (e, fileToDrag) => {
-        // Предотвращаем любые случайные действия, если уже что-то тащится
+    const handleTouchStartOnDraggable = (e, fileToDrag, badgeTypeHint = null) => {
         if (isDragging.current || isFileDragging.current) return;
-
+    
         touchStartCoords.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         window.draggedFile = fileToDrag;
+        window.draggedFileBadgeType = badgeTypeHint; // Сохраняем подсказку
         isLongPress.current = false;
         
-        // Таймер на долгое нажатие
         longPressTimer.current = setTimeout(() => {
             isLongPress.current = true;
-            // Сообщаем App, что НАДО ПОКАЗАТЬ зеленую подсветку "Бросайте сюда"
             window.dispatchEvent(new Event('mobile-drag-start'));
             if (navigator.vibrate) navigator.vibrate(50); 
         }, 400);
-
-        // Вешаем глобальные слушатели, которые будут убраны в cleanup
+    
         window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
         window.addEventListener('touchend', handleMobileDragEndAndDrop, { once: true });
         window.addEventListener('touchcancel', handleMobileDragEndAndDrop, { once: true });
@@ -184,7 +181,6 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
     // Финальная, "красивая" версия функции движения пальца
     const handleMobileDragMove = (e) => {
-        // 1. Логика определения скролла (остается без изменений)
         if (!isLongPress.current) {
             const movedX = Math.abs(e.touches[0].clientX - touchStartCoords.current.x);
             const movedY = Math.abs(e.touches[0].clientY - touchStartCoords.current.y);
@@ -194,72 +190,56 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             return;
         }
         
-        // 2. Захватываем управление, чтобы браузер не скроллил страницу
         e.preventDefault();
-
-        // 3. Создаем ИДЕАЛЬНОГО "призрака" при первом движении пальца
+    
         if (!isFileDragging.current) {
             isFileDragging.current = true;
             
             const file = window.draggedFile;
+            const badgeTypeHint = window.draggedFileBadgeType;
             if (!file) {
                 cleanupMobileDrag();
                 return;
             }
-
+    
             const type = file.type || '';
             const name = file.name || '';
             
-            // --- Определяем иконку, лейбл и класс для бейджа (логика, как в чате) ---
             let icon = '📎'; 
             let label = 'ФАЙЛ';
             
-            if (name.startsWith('voice')) {
-                icon = '🎙️'; 
-                label = 'ГОЛОС'; 
-            } else if (type.startsWith('image/')) { 
-                icon = '🖼️'; 
-                label = 'ФОТО'; 
-            } else if (type.startsWith('video/')) { 
-                icon = '🎬'; 
-                label = 'ВИДЕО'; 
-            } else if (type.startsWith('audio/')) { 
-                icon = '🎵'; 
-                label = 'АУДИО'; 
-            } else if (name.endsWith('.zip') || name.endsWith('.rar')) { 
-                icon = '📦'; 
-                label = 'АРХИВ'; 
-            } else if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf')) { 
-                icon = '📄'; 
-                label = 'ДОК'; 
+            // ВЫСШИЙ ПРИОРИТЕТ: Проверяем подсказку, переданную при старте
+            if (badgeTypeHint === 'voice' || name.startsWith('voice')) {
+                icon = '🎙️';
+                label = 'ГОЛОС';
             }
-
-            // --- Создаем точную копию бейджа ---
+            // Стандартная логика для остальных файлов
+            else if (type.startsWith('image/')) { icon = '🖼️'; label = 'ФОТО'; }
+            else if (type.startsWith('video/')) { icon = '🎬'; label = 'ВИДЕО'; }
+            else if (type.startsWith('audio/')) { icon = '🎵'; label = 'АУДИО'; }
+            else if (name.endsWith('.zip') || name.endsWith('.rar')) { icon = '📦'; label = 'АРХИВ'; }
+            else if (name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.pdf')) { icon = '📄'; label = 'ДОК'; }
+    
             const ghost = document.createElement('div');
-            ghost.id = 'leshiy-mobile-ghost'; // Уникальный ID
-
-            // Применяем РОДНЫЕ классы из твоего CSS, чтобы выглядело идентично
+            ghost.id = 'leshiy-mobile-ghost';
             ghost.className = `file-badge ${label.toLowerCase()}`;
             if (label === 'ГОЛОС') {
-                ghost.classList.add('static-badge'); // Особый класс для бейджа голоса
+                ghost.classList.add('static-badge');
             }
             
-            // --- Добавляем "призрачные" эффекты ---
             ghost.style.position = 'fixed';
             ghost.style.zIndex = '99999';
             ghost.style.pointerEvents = 'none';
-            ghost.style.opacity = '1'; // Убрали прозрачность, теперь он солидный
-            ghost.style.transform = 'scale(1.05)'; // Сделали увеличение чуть более сдержанным
-            ghost.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)'; // Тень чуть более выразительная
+            ghost.style.opacity = '1';
+            ghost.style.transform = 'scale(1.05)';
+            ghost.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
             ghost.style.transition = 'none';
-
-            // --- Собираем внутренности бейджа ---
+    
             const iconSpan = document.createElement('span');
             iconSpan.className = 'file-icon';
             iconSpan.textContent = icon;
             ghost.appendChild(iconSpan);
-
-            // Для обычных файлов добавляем имя, для голоса - нет (как на скриншоте)
+    
             if (label !== 'ГОЛОС') {
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'file-name';
@@ -271,22 +251,20 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
             labelSpan.className = 'file-label';
             labelSpan.textContent = label;
             ghost.appendChild(labelSpan);
-
+    
             document.body.appendChild(ghost);
             dragGhostRef.current = ghost;
         }
-
+    
         const touch = e.touches[0];
         const ghost = dragGhostRef.current;
-
-        // 4. Двигаем "призрака" вслед за пальцем
+    
+        // ИСПРАВЛЕНИЕ ПОЗИЦИИ: Центрируем "призрака" ТОЧНО под пальцем
         if (ghost) {
-            // Центрируем бейдж под пальцем и поднимаем чуть выше
             ghost.style.left = `${touch.clientX - ghost.offsetWidth / 2}px`;
-            ghost.style.top = `${touch.clientY - ghost.offsetHeight - 20}px`;
+            ghost.style.top = `${touch.clientY - ghost.offsetHeight / 2}px`;
         }
         
-        // 5. Проверяем, находится ли палец над зоной для дропа (логика та же)
         const dropZone = document.querySelector('.input-area-container');
         let isOver = false;
         if (dropZone) {
@@ -380,10 +358,12 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
         // Рисуем img только если есть живое превью
         if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
-        
         let icon = '📎'; let label = 'ФАЙЛ';
-        // СНАЧАЛА проверяем на голос, потому что это частный случай аудио
-        if (name.startsWith('voice_')) { icon = '🎙️'; label = 'ГОЛОС'; }
+        // Применяем ту же самую единую логику, что и для "призрака"
+        if (name.startsWith('voice_')) {
+            icon = '🎙️';
+            label = 'ГОЛОС';
+        }
         else if (isVid) { icon = '🎬'; label = 'ВИДЕО'; }
         else if (isAud) { icon = '🎵'; label = 'АУДИО'; }
         else if (isZip) { icon = '📦'; label = 'АРХИВ'; }
@@ -417,7 +397,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 className="voice-generation-wrapper"
                 draggable={!/Mobi|Android/i.test(navigator.userAgent) && !!fileToDrag}
                 onDragStart={(e) => handleDragStart(e, fileToDrag)}
-                onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
+                onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag, 'voice')}
                 data-is-draggable="true" 
                 style={{ cursor: fileToDrag ? 'grab' : 'default' }}
             >
@@ -582,124 +562,6 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
       panel.removeEventListener('touchend', onTouchEnd);
     };
 };
-
-/*const makeDraggableToFile = (element, file) => {
-    // Предохранитель, чтобы не вешать слушатели дважды
-    if (element.dataset.dragAttached === "true") return () => {};
-    element.dataset.dragAttached = "true";
-    
-    // Критически важно: отключаем стандартную обработку касаний браузером для этого элемента
-    element.style.touchAction = 'none';
-
-    let longPressTimer = null;
-    let isLongPress = false;
-    let isFileDragging = false;
-    let isOverDropZone = false; // <<< НАДЕЖНЫЙ ФЛАГ, который обновляется во время движения
-    let ghost = null;
-    let touchStartCoords = { x: 0, y: 0 };
-
-    // Единая функция для полной очистки всех состояний и слушателей
-    const cleanup = () => {
-        clearTimeout(longPressTimer);
-        if (ghost) {
-            ghost.remove();
-            ghost = null;
-        }
-        isLongPress = false;
-        isFileDragging = false;
-        isOverDropZone = false;
-        window.removeEventListener('touchmove', onTouchMove);
-        window.removeEventListener('touchend', onTouchEnd);
-        window.removeEventListener('touchcancel', onTouchEnd);
-        // Сообщаем приложению, что перетаскивание закончилось (чтобы убрать подсветку)
-        window.dispatchEvent(new Event('mobile-drag-stop'));
-    };
-
-    const onTouchMove = (e) => {
-        // Если долгое нажатие не было зафиксировано, мы ничего не делаем
-        if (!isLongPress) {
-            // Если палец сдвинулся до срабатывания таймера - это был скролл, отменяем всё
-            const movedX = Math.abs(e.touches[0].clientX - touchStartCoords.x);
-            const movedY = Math.abs(e.touches[0].clientY - touchStartCoords.y);
-            if (movedX > 10 || movedY > 10) {
-                cleanup();
-            }
-            return;
-        }
-        
-        // Если долгое нажатие было, и мы начали движение - это старт перетаскивания
-        if (!isFileDragging) {
-            isFileDragging = true;
-            e.preventDefault(); // Захватываем управление у браузера, чтобы он не скроллил
-            
-            // Запускаем события для UI (вибрация, подсветка)
-            window.dispatchEvent(new Event('mobile-drag-start'));
-            if (navigator.vibrate) navigator.vibrate(50);
-            
-            // Создаем "призрака"
-            ghost = document.createElement('div');
-            ghost.className = 'drag-ghost-mobile';
-            ghost.innerHTML = `🎙️ ${file.name}`;
-            document.body.appendChild(ghost);
-        }
-
-        // Если мы в режиме перетаскивания, обновляем позицию "призрака"
-        if (isFileDragging && ghost) {
-            const touch = e.touches[0];
-            ghost.style.left = `${touch.clientX}px`;
-            ghost.style.top = `${touch.clientY - 40}px`;
-
-            // *** ГЛАВНОЕ РЕШЕНИЕ: ПРОВЕРКА ВО ВРЕМЯ ДВИЖЕНИЯ ***
-            // Временно прячем "призрака", чтобы он не мешал определить элемент под пальцем
-            ghost.style.display = 'none';
-            const elementUnderFinger = document.elementFromPoint(touch.clientX, touch.clientY);
-            ghost.style.display = '';
-
-            const dropZone = elementUnderFinger?.closest('.input-area-container');
-            
-            // Просто обновляем флаг. Да/Нет.
-            isOverDropZone = !!dropZone;
-        }
-    };
-
-    const onTouchEnd = (e) => {
-        // *** ПРОСТОЕ И НАДЕЖНОЕ ЗАВЕРШЕНИЕ ***
-        // Мы больше не делаем здесь сложных проверок. Просто смотрим на флаг.
-        if (isFileDragging && isOverDropZone) {
-            // Если флаг true - значит, палец был отпущен над нужной зоной.
-            const dropEvent = new CustomEvent('file-dropped', { detail: file });
-            window.dispatchEvent(dropEvent);
-        }
-        
-        // Вне зависимости от успеха, производим полную очистку.
-        cleanup();
-    };
-
-    const onTouchStart = (e) => {
-        e.stopPropagation();
-        cleanup(); // Сразу чистим любые "зависшие" слушатели от прошлых касаний
-
-        touchStartCoords = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-
-        // Запускаем таймер. Если пользователь удержит палец, isLongPress станет true.
-        longPressTimer = setTimeout(() => {
-            isLongPress = true;
-        }, 350); 
-        
-        // Вешаем глобальные слушатели на всё окно для отслеживания жеста
-        window.addEventListener('touchmove', onTouchMove, { passive: false });
-        window.addEventListener('touchend', onTouchEnd, { once: true });
-        window.addEventListener('touchcancel', onTouchEnd, { once: true });
-    };
-
-    element.addEventListener('touchstart', onTouchStart);
-
-    // Возвращаем функцию очистки, чтобы React мог убрать слушатели при размонтировании
-    return () => {
-        element.removeEventListener('touchstart', onTouchStart);
-        cleanup();
-    };
-};*/
 
 function App() {
     const [messages, setMessages] = useState([]);
