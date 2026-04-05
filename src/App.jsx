@@ -140,6 +140,41 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const isLongPress = useRef(false);
     const touchStartCoords = useRef({x: 0, y: 0});
 
+    useEffect(() => {
+        // --- ИНЪЕКЦИЯ СТИЛЕЙ И ФИКСОВ ---
+        // 1. Создаем блок стилей для наших правок
+        const style = document.createElement('style');
+        style.id = 'gemini-dynamic-fixes'; // Даем ID, чтобы не дублировать стили
+        style.innerHTML = `
+            /* Подсветка "живых", перетаскиваемых файлов */
+            .file-badge.is-draggable {
+                /* Используем outline, чтобы не ломать размеры блока и он был поверх */
+                outline: 2px solid #55aaff;
+                outline-offset: -2px;
+            }
+
+            /* Фикс для смещения сообщений в приложении VK */
+            body.vk-app-fix .message-wrapper.user {
+                /* Возвращаем на место контейнер с сообщением пользователя, который смещается в ВК */
+                padding-right: 10px;
+            }
+        `;
+
+        // Добавляем стили в <head>, только если их там еще нет
+        if (!document.getElementById('gemini-dynamic-fixes')) {
+            document.head.appendChild(style);
+        }
+
+        // 2. Проверяем, запущено ли приложение внутри WebView ВКонтакте
+        if (/VK|vkapp/i.test(navigator.userAgent)) {
+            document.body.classList.add('vk-app-fix');
+        }
+
+        // Функция очистки на случай, если компонент будет размонтирован
+        return () => {
+            document.body.classList.remove('vk-app-fix');
+        };
+    }, []); // Пустой массив зависимостей = выполнить один раз при старте
 
     // --- УЛУЧШЕННАЯ ЛОГИКА для Mobile Touch-n-Drag (Long Press + Drag) ---
     // Функция полной очистки
@@ -428,7 +463,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         return (
         <div 
             key={i} 
-            className={`file-badge ${label.toLowerCase()}`}
+            className={`file-badge ${label.toLowerCase()} ${isDraggable ? 'is-draggable' : ''}`}
             draggable={!/Mobi|Android/i.test(navigator.userAgent) && isDraggable}
             onDragStart={(e) => handleDragStart(e, fileToDrag)}
             onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
