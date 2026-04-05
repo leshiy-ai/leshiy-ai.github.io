@@ -153,9 +153,11 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         // Удаляем глобальные слушатели
         window.removeEventListener('touchmove', handleMobileDragMove);
         window.removeEventListener('touchend', handleMobileDragEndAndDrop);
+        // Чистим глобальные переменные
         delete window.draggedFile;
+        delete window.isOverDropZone; 
     };
-
+   
     const handleTouchStartOnDraggable = (e, fileToDrag) => {
         // УБИРАЕМ stopPropagation — даем браузеру шанс показать меню
         if (isDragging.current) return;
@@ -181,16 +183,18 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         const movedX = Math.abs(touch.clientX - touchStartCoords.current.x);
         const movedY = Math.abs(touch.clientY - touchStartCoords.current.y);
     
-        // Если палец двинулся ДО лонг-пресса — это скролл. Сбрасываем всё.
         if (!isLongPress.current && (movedX > 10 || movedY > 10)) {
             cleanupMobileDrag();
             return;
         }
     
-        // Если лонг-пресс был и мы начали движение
         if (isLongPress.current && (movedX > 5 || movedY > 5)) {
-            isFileDragging.current = true;
-            e.preventDefault(); // Блокируем скролл ТОЛЬКО когда реально тащим файл
+            if (!isFileDragging.current) {
+                 isFileDragging.current = true;
+                 window.dispatchEvent(new Event('mobile-drag-start'));
+            }
+            
+            e.preventDefault(); 
     
             if (!dragGhostRef.current) {
                 const ghost = document.createElement('div');
@@ -202,31 +206,38 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     
             if (dragGhostRef.current) {
                 dragGhostRef.current.style.left = `${touch.clientX}px`;
-                dragGhostRef.current.style.top = `${touch.clientY - 40}px`; // Сдвиг выше пальца
+                dragGhostRef.current.style.top = `${touch.clientY - 40}px`;
+            }
+            
+            // *** ФИНАЛЬНОЕ РЕШЕНИЕ: ПРОВЕРКА ПО КООРДИНАТАМ ***
+            if (window.dropZoneRect) {
+                const rect = window.dropZoneRect;
+                // Проверяем, что координаты пальца находятся внутри прямоугольника зоны ввода
+                window.isOverDropZone = (
+                    touch.clientX >= rect.left &&
+                    touch.clientX <= rect.right &&
+                    touch.clientY >= rect.top &&
+                    touch.clientY <= rect.bottom
+                );
+            } else {
+                window.isOverDropZone = false;
             }
         }
-    };
+    };     
     
     const handleMobileDragEndAndDrop = (e) => {
-        if (isFileDragging.current && window.draggedFile) {
-            const touch = e.changedTouches[0];
-            
-            // Магия для поиска зоны дропа
-            if (dragGhostRef.current) dragGhostRef.current.style.display = 'none';
-            const target = document.elementFromPoint(touch.clientX, touch.clientY);
-            if (dragGhostRef.current) dragGhostRef.current.style.display = 'block';
-    
-            // Ищем контейнер ввода (проверяем саму зону и её родителей)
-            const dropZone = target?.closest('.input-area-container');
-    
-            if (dropZone) {
-                const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
-                window.dispatchEvent(dropEvent);
-                if (navigator.vibrate) navigator.vibrate([30, 30]); // Двойной клик на успех
-            }
+        // *** УПРОЩЕННОЕ И НАДЕЖНОЕ ЗАВЕРШЕНИЕ ***
+        // Просто проверяем флаг, который мы установили в onTouchMove
+        if (isFileDragging.current && window.isOverDropZone) {
+            const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
+            window.dispatchEvent(dropEvent);
+            if (navigator.vibrate) navigator.vibrate([30, 30]);
         }
+        
+        // В любом случае, вызываем полную очистку.
+        // Она также отправит 'mobile-drag-stop', чтобы убрать подсветку.
         cleanupMobileDrag();
-    };
+    };    
 
     const handleTouchStart = (e) => {
         // ИЗМЕНЕНИЕ: Не начинаем свайп, если касание на файле.
@@ -667,6 +678,7 @@ function App() {
     const isPulled = useRef(false);
     const welcomeMessageIdRef = useRef(null);
     const textareaRef = useRef(null);
+    const inputAreaRef = useRef(null); 
     const modelSelectorRef = useRef(null);
     const restartTimeoutRef = useRef(null);
 
@@ -1113,10 +1125,19 @@ function App() {
     }, [handleFileSelect]);
 
     useEffect(() => {
-        const startDrag = () => setIsDragging(true);
-        const stopDrag = () => setIsDragging(false);
+        const startDrag = () => {
+            setIsDragging(true);
+            // *** ДОБАВЛЯЕМ ЗАМЕР КООРДИНАТ ***
+            if (inputAreaRef.current) {
+                window.dropZoneRect = inputAreaRef.current.getBoundingClientRect();
+            }
+        };
+        const stopDrag = () => {
+            setIsDragging(false);
+            // *** И ОЧИСТКУ ***
+            delete window.dropZoneRect;
+        };
     
-        // Слушаем глобальные события
         window.addEventListener('mobile-drag-start', startDrag);
         window.addEventListener('mobile-drag-stop', stopDrag);
     
@@ -1124,7 +1145,7 @@ function App() {
             window.removeEventListener('mobile-drag-start', startDrag);
             window.removeEventListener('mobile-drag-stop', stopDrag);
         };
-    }, []);
+    }, []);    
 
     useEffect(() => {
         const handleFileDropEvent = (event) => {
@@ -2024,7 +2045,7 @@ function App() {
     };
 
     const startVoiceLongPress = (e) => {
-        if (e.type === 'touchstart') e.preventDefault();
+        //if (e.type === 'touchstart') e.preventDefault();
     
         if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
