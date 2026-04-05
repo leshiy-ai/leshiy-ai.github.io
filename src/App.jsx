@@ -150,18 +150,17 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         }
         isLongPress.current = false;
         isFileDragging.current = false;
-        // Удаляем глобальные слушатели
         window.removeEventListener('touchmove', handleMobileDragMove);
         window.removeEventListener('touchend', handleMobileDragEndAndDrop);
-        // Чистим глобальные переменные
+        window.removeEventListener('touchcancel', handleMobileDragEndAndDrop);
         delete window.draggedFile;
-        delete window.isOverDropZone; 
+        // ВАЖНО: Сообщаем App, что перетаскивание окончено, чтобы убрать оверлей
+        window.dispatchEvent(new Event('mobile-drag-stop'));
     };
-   
+
     const handleTouchStartOnDraggable = (e, fileToDrag) => {
-        // УБИРАЕМ stopPropagation — даем браузеру шанс показать меню
         if (isDragging.current) return;
-    
+
         touchStartCoords.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         window.draggedFile = fileToDrag;
         isLongPress.current = false;
@@ -169,75 +168,71 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         
         longPressTimer.current = setTimeout(() => {
             isLongPress.current = true;
-            // ТАКТИЛЬНЫЙ ОТКЛИК: теперь ты поймешь, что драг начался
+            // Диспетчеризуем событие НАЧАЛА. App его услышит и замерит координаты.
+            window.dispatchEvent(new Event('mobile-drag-start'));
             if (navigator.vibrate) navigator.vibrate(50); 
-        }, 600); // Чуть увеличили задержку для системного меню
-    
+        }, 400);
+
         window.addEventListener('touchmove', handleMobileDragMove, { passive: false });
         window.addEventListener('touchend', handleMobileDragEndAndDrop, { once: true });
+        window.addEventListener('touchcancel', handleMobileDragEndAndDrop, { once: true });
     };
-    
+
     const handleMobileDragMove = (e) => {
-        if (!window.draggedFile) return;
-        const touch = e.touches[0];
-        const movedX = Math.abs(touch.clientX - touchStartCoords.current.x);
-        const movedY = Math.abs(touch.clientY - touchStartCoords.current.y);
-    
-        if (!isLongPress.current && (movedX > 10 || movedY > 10)) {
-            cleanupMobileDrag();
+        // Если долгое нажатие не случилось, а палец уже поехал - это скролл. Отменяем.
+        if (!isLongPress.current) {
+            const movedX = Math.abs(e.touches[0].clientX - touchStartCoords.current.x);
+            const movedY = Math.abs(e.touches[0].clientY - touchStartCoords.current.y);
+            if (movedX > 10 || movedY > 10) {
+                cleanupMobileDrag();
+            }
             return;
         }
-    
-        if (isLongPress.current && (movedX > 5 || movedY > 5)) {
-            if (!isFileDragging.current) {
-                 isFileDragging.current = true;
-                 window.dispatchEvent(new Event('mobile-drag-start'));
-            }
-            
-            e.preventDefault(); 
-    
-            if (!dragGhostRef.current) {
-                const ghost = document.createElement('div');
-                ghost.className = 'drag-ghost-mobile';
-                ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
-                document.body.appendChild(ghost);
-                dragGhostRef.current = ghost;
-            }
-    
-            if (dragGhostRef.current) {
-                dragGhostRef.current.style.left = `${touch.clientX}px`;
-                dragGhostRef.current.style.top = `${touch.clientY - 40}px`;
-            }
-            
-            // *** ФИНАЛЬНОЕ РЕШЕНИЕ: ПРОВЕРКА ПО КООРДИНАТАМ ***
-            if (window.dropZoneRect) {
-                const rect = window.dropZoneRect;
-                // Проверяем, что координаты пальца находятся внутри прямоугольника зоны ввода
-                window.isOverDropZone = (
-                    touch.clientX >= rect.left &&
-                    touch.clientX <= rect.right &&
-                    touch.clientY >= rect.top &&
-                    touch.clientY <= rect.bottom
-                );
-            } else {
-                window.isOverDropZone = false;
-            }
+        
+        // Если долгое нажатие было - это перетаскивание. Захватываем управление.
+        e.preventDefault();
+
+        if (!isFileDragging.current) {
+            isFileDragging.current = true;
+            // Создаем серого призрака (твой стиль)
+            const ghost = document.createElement('div');
+            ghost.className = 'drag-ghost-mobile';
+            ghost.innerHTML = `📎 ${window.draggedFile?.name || 'Файл'}`;
+            document.body.appendChild(ghost);
+            dragGhostRef.current = ghost;
         }
-    };     
-    
+
+        const touch = e.touches[0];
+        if (dragGhostRef.current) {
+            dragGhostRef.current.style.left = `${touch.clientX}px`;
+            dragGhostRef.current.style.top = `${touch.clientY - 40}px`;
+        }
+        
+        // *** НАДЕЖНАЯ ПРОВЕРКА ПО КООРДИНАТАМ ***
+        if (window.dropZoneRect) {
+            const rect = window.dropZoneRect;
+            // Просто сравниваем координаты пальца с прямоугольником зоны ввода
+            window.isOverDropZone = (
+                touch.clientX >= rect.left &&
+                touch.clientX <= rect.right &&
+                touch.clientY >= rect.top &&
+                touch.clientY <= rect.bottom
+            );
+        } else {
+            window.isOverDropZone = false;
+        }
+    };
+
     const handleMobileDragEndAndDrop = (e) => {
-        // *** УПРОЩЕННОЕ И НАДЕЖНОЕ ЗАВЕРШЕНИЕ ***
-        // Просто проверяем флаг, который мы установили в onTouchMove
+        // В конце просто смотрим на готовый флаг
         if (isFileDragging.current && window.isOverDropZone) {
             const dropEvent = new CustomEvent('file-dropped', { detail: window.draggedFile });
             window.dispatchEvent(dropEvent);
-            if (navigator.vibrate) navigator.vibrate([30, 30]);
         }
-        
-        // В любом случае, вызываем полную очистку.
-        // Она также отправит 'mobile-drag-stop', чтобы убрать подсветку.
+        // И в любом случае убираем за собой
         cleanupMobileDrag();
-    };    
+    };
+
 
     const handleTouchStart = (e) => {
         // ИЗМЕНЕНИЕ: Не начинаем свайп, если касание на файле.
@@ -339,22 +334,10 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     
         return (
             <div 
-                // Внедряем через Ref, как и свайп
-                ref={(el) => {
-                    if (el && fileToDrag) {
-                        // Находим внутри нашего блока специальную "ручку" для перетаскивания
-                        const handle = el.querySelector('.file-badge'); 
-                        // И привязываем перетаскивание ТОЛЬКО К НЕЙ
-                        if (handle) {
-                            makeDraggableToFile(handle, fileToDrag);
-                        }
-                    }
-                }}                
-                className="voice-generation-wrapper clickable-drag-zone"
+                className="voice-generation-wrapper"
                 draggable={!!fileToDrag}
                 onDragStart={(e) => handleDragStart(e, fileToDrag)}
-                // Эти обработчики больше не нужны для мобилы, их заменит makeDraggableToFile
-                // Но можно оставить для совместимости, если они не конфликтуют
+                onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag)}
                 data-is-draggable="true" 
                 style={{ cursor: fileToDrag ? 'grab' : 'default' }}
             >
@@ -363,7 +346,6 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                         <span className="file-icon">🎙</span>
                         <span className="file-label">ГОЛОС</span>
                     </div>
-    
                     <div className="audio-body-zone">
                         <audio 
                             src={message.audioUrl} 
@@ -376,7 +358,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                     </div>
                 </div>
             </div>
-        );
+        );        
     };
     
     const textToRender = message.text || message.content;
@@ -521,7 +503,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     };
 };
 
-const makeDraggableToFile = (element, file) => {
+/*const makeDraggableToFile = (element, file) => {
     // Предохранитель, чтобы не вешать слушатели дважды
     if (element.dataset.dragAttached === "true") return () => {};
     element.dataset.dragAttached = "true";
@@ -637,7 +619,7 @@ const makeDraggableToFile = (element, file) => {
         element.removeEventListener('touchstart', onTouchStart);
         cleanup();
     };
-};
+};*/
 
 function App() {
     const [messages, setMessages] = useState([]);
@@ -1127,14 +1109,14 @@ function App() {
     useEffect(() => {
         const startDrag = () => {
             setIsDragging(true);
-            // *** ДОБАВЛЯЕМ ЗАМЕР КООРДИНАТ ***
+            // В момент начала перетаскивания замеряем координаты зоны и сохраняем глобально
             if (inputAreaRef.current) {
                 window.dropZoneRect = inputAreaRef.current.getBoundingClientRect();
             }
         };
         const stopDrag = () => {
             setIsDragging(false);
-            // *** И ОЧИСТКУ ***
+            // В конце подчищаем
             delete window.dropZoneRect;
         };
     
@@ -1145,7 +1127,7 @@ function App() {
             window.removeEventListener('mobile-drag-start', startDrag);
             window.removeEventListener('mobile-drag-stop', stopDrag);
         };
-    }, []);    
+    }, []);  
 
     useEffect(() => {
         const handleFileDropEvent = (event) => {
@@ -2290,8 +2272,7 @@ function App() {
                 <div ref={chatEndRef} />
             </div>
             
-            <div className="input-area-container" onPaste={handlePaste}>
-
+            <div className="input-area-container" ref={inputAreaRef} onPaste={handlePaste}>
                 <div className="input-area">
                     {(isRecording || isRecordingFile || files.length > 0 || currentMode === 3) && (
                         <div className="file-preview-container">
