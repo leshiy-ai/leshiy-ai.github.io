@@ -126,7 +126,7 @@ const fileToDataURL = (file) => {
     });
 };
 
-const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
+const Message = ({ message, onSwipe, onAction, userPhoto, userName, isVK, t }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
     const currentX = useRef(0);
