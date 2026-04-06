@@ -71,6 +71,11 @@ const MODELS_SELECTORS = {
     ]
 };
 
+const VIDEO_MODES = [
+    { id: 'text', name: 'Распознать', icon: '📝' },
+    { id: 'analysis', name: 'Анализировать', icon: '🔬' }
+];
+
 
 const TRANSLATIONS = {
     ru: {
@@ -688,6 +693,7 @@ function App() {
     const [textCaseMode, setTextCaseMode] = useState('normal');
     const [currentMode, setCurrentMode] = useState(1);
     const [currentVoiceId, setCurrentVoiceId] = useState(null);
+    const [videoProcessingMode, setVideoProcessingMode] = useState('text'); // 'text' или 'analysis'
 
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
@@ -800,6 +806,7 @@ function App() {
         IMAGE_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_IMAGE_TO_TEXT') || 'IMAGE_TO_TEXT_CLOUDFLARE',
         AUDIO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_AUDIO_TO_TEXT') || 'AUDIO_TO_TEXT_CLOUDFLARE',
         VIDEO_TO_TEXT: localStorage.getItem('ACTIVE_MODEL_VIDEO_TO_TEXT') || 'VIDEO_TO_TEXT_CLOUDFLARE',
+        VIDEO_TO_ANALYSIS: localStorage.getItem('ACTIVE_MODEL_VIDEO_TO_ANALYSIS') || 'VIDEO_TO_ANALYSIS_BOTHUB',
         TEXT_TO_AUDIO: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_AUDIO') || 'TEXT_TO_AUDIO_CLOUDFLARE',
         TEXT_TO_IMAGE: localStorage.getItem('ACTIVE_MODEL_TEXT_TO_IMAGE') || 'TEXT_TO_IMAGE_CLOUDFLARE',
         IMAGE_TO_IMAGE: localStorage.getItem('ACTIVE_MODEL_IMAGE_TO_IMAGE') || 'IMAGE_TO_IMAGE_CLOUDFLARE',
@@ -837,6 +844,45 @@ function App() {
         setIsModelSelectorOpen(false);
     };
     
+        // --- УМНЫЙ СЛУШАТЕЛЬ РЕЖИМОВ ---
+    // Этот блок следит за сменой контекста (режим, файлы) и автоматически
+    // выбирает модель по умолчанию, если она еще не была выбрана.
+    useEffect(() => {
+        // 1. Определяем текущий контекстный тип сервиса
+        let serviceType = LESHIY_MODES.find(m => m.id === currentMode)?.serviceType;
+        if (currentMode === 1 && files.length > 0) {
+            const firstFileType = files[0]?.file?.type || '';
+            if (firstFileType.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
+            else if (firstFileType.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
+            else if (firstFileType.startsWith('video/')) {
+                serviceType = (videoProcessingMode === 'analysis') ? 'VIDEO_TO_ANALYSIS' : 'VIDEO_TO_TEXT';
+            }
+        }
+
+        // Если контекст не определен, выходим
+        if (!serviceType) return;
+
+        // 2. Проверяем, выбрана ли уже модель для этого контекста
+        const activeModel = getActiveModelKeyGeneric(serviceType);
+        
+        // Если модель уже есть, ничего делать не нужно
+        if (activeModel) return;
+
+        // 3. Если модели нет — выбираем первую из доступных и сохраняем
+        const availableModels = MODELS_SELECTORS[serviceType] || [];
+        if (availableModels.length > 0) {
+            const defaultModelKey = availableModels[0].key;
+            const localStorageKey = SERVICE_TYPE_MAP[serviceType]?.kvKey;
+
+            if (localStorageKey) {
+                console.log(`[useEffect] Авто-выбор для "${serviceType}": ${defaultModelKey}`);
+                localStorage.setItem(localStorageKey, defaultModelKey);
+                setActiveModels(prev => ({ ...prev, [serviceType]: defaultModelKey }));
+            }
+        }
+    // Зависимости: этот код будет срабатывать при их изменении
+    }, [currentMode, files, videoProcessingMode, getActiveModelKeyGeneric, setActiveModels]);
+
     useEffect(() => {
         function handleClickOutside(event) {
             // --- 1. Логика для меню РЕЖИМОВ (1, 2, 3, 4) ---
@@ -1369,7 +1415,8 @@ function App() {
                     mimeType: f.mimeType
                 })),
                 currentMode: currentMode,
-                voiceId: currentVoiceId
+                voiceId: currentVoiceId,
+                videoProcessingMode: videoProcessingMode
             });
 
             const assistantMsg = {
@@ -2458,7 +2505,24 @@ function App() {
                             )}
                         </div>
                     )}
-                    
+                    {/* ===== НАЧАЛО НОВОГО МЕНЮ ДЛЯ ВИДЕО ===== */}
+                    {files.length > 0 && files[0].file.type.startsWith('video/') && (
+                        <div className="voice-selector-container"> {/* Используем тот же класс для стилей */}
+                            <p className="voice-selector-title">Режим обработки видео:</p>
+                            <div className="hints-scroll">
+                                {VIDEO_MODES.map(mode => (
+                                    <button 
+                                        key={mode.id} 
+                                        className={`hint-btn ${videoProcessingMode === mode.id ? 'active-mode' : ''}`}
+                                        onClick={() => setVideoProcessingMode(mode.id)}
+                                    >
+                                        {mode.icon} {mode.name}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {/* ===== КОНЕЦ НОВОГО МЕНЮ ДЛЯ ВИДЕО ===== */}
                     {currentMode === 3 && availableVoices.length > 0 && (
                         <div className="voice-selector-container">
                             <>
@@ -2543,7 +2607,10 @@ function App() {
                             } else if (firstFileType.startsWith('audio/')) {
                                 contextualServiceType = 'AUDIO_TO_TEXT';
                             } else if (firstFileType.startsWith('video/')) {
-                                contextualServiceType = 'VIDEO_TO_TEXT';
+                                // Учитываем выбор пользователя из нового меню
+                                contextualServiceType = (videoProcessingMode === 'analysis') 
+                                    ? 'VIDEO_TO_ANALYSIS' 
+                                    : 'VIDEO_TO_TEXT';
                             }
                         }
 

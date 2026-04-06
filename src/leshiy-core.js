@@ -139,9 +139,10 @@ const SYSTEM_PROMPT = `Ты — многофункциональный AI-асс
 Твоя задача — вести диалог, отвечать на вопросы и помогать пользователю с функциями приложения.
 Ответы должны быть информативными и доброжелательными со смайликами и на русском языке.`;
 
-export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false, currentMode = 1 }) => {
+export const askLeshiy = async ({ text, files = [], history = [], isSystemTask = false, currentMode = 1, videoProcessingMode = 'text' }) => {
     let userQuery = text?.trim() || "";
     let lowerQuery = userQuery.toLowerCase();
+    let serviceType = 'TEXT_TO_TEXT';
     const hasFiles = files.length > 0;
 
     // --- НОВАЯ ЛОГИКА РЕЖИМОВ ---
@@ -158,24 +159,34 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         }
     }
 
-    // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа (ТОЛЬКО в режиме "Общение") ---
+    // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа ---
     if (currentMode === 1 && hasFiles) {
         const firstFile = files[0];
         // Если текста нет ИЛИ текст — это просто имя файла
         if (!userQuery || userQuery === firstFile.file.name) {
-            if (firstFile.file.type.startsWith('image/')) {
+            const firstFileType = firstFile.file.type; // Проверяем тип файла прямо здесь
+            
+            if (firstFileType.startsWith('image/')) {
                 userQuery = "Опиши это изображение.";
-            } else if (firstFile.file.type.startsWith('audio/')) {
+            } else if (firstFileType.startsWith('audio/')) {
                 userQuery = "Расшифруй это аудио.";
-            } else if (firstFile.file.type.startsWith('video/')) {
-                userQuery = "Что на этом видео?";
+            } else if (firstFileType.startsWith('video/')) {
+                // Для видео смотрим на режим обработки
+                if (videoProcessingMode === 'analysis') {
+                    userQuery = "Опиши это видео в деталях. Расскажи, что происходит в каждой сцене, какие объекты и люди присутствуют. Если есть речь, транскрибируй ключевые фразы или кратко перескажи их суть. В конце сделай общий вывод о содержании видео.";
+                } else { // По умолчанию 'text' (Распознавание)
+                    userQuery = "Расшифруй это видео.";
+                }
             }
+            
             // Обновляем lowerQuery только если мы изменили userQuery
             if (userQuery !== text?.trim()) {
-                 lowerQuery = userQuery.toLowerCase();
+                    lowerQuery = userQuery.toLowerCase();
             }
         }
     }
+    
+    
     
     // 1. ПЕРЕМЕННЫЕ
     const SITE_APP_ID = "54467300"; // ID для авторизации на сайте
@@ -741,7 +752,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     let url, body, authHeader;
     let isRawBody = false;
     let config;
-    let serviceType = 'TEXT_TO_TEXT';
 
     if (isSystemTask) {
         // Принудительно используем Cloudflare для системных задач, как и было указано.
@@ -796,7 +806,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         if (firstFileObj) {
             if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
             else if (firstFileObj.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
-            else if (firstFileObj.type.startsWith('video/')) serviceType = 'VIDEO_TO_TEXT';
+            else if (firstFileObj.type.startsWith('video/')) serviceType = (videoProcessingMode === 'analysis') ? 'VIDEO_TO_ANALYSIS' : 'VIDEO_TO_TEXT';
             console.log("🧩 [DEBUG] Файл определен:", {
                 name: firstFileObj?.name,
                 type: firstFileObj?.type,
@@ -812,6 +822,33 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         console.log(`🧠 AI-Модель для ${serviceType}: ${friendlyModelName}`);
         
         // ==========================================================
+        // КОНВЕРТАЦИЯ В BASE64
+        // ==========================================================
+        let cleanBase64 = "";
+        // КОНВЕРТАЦИЯ: Если есть файл, но нет Base64 — достаем его
+        if (firstFileObj) {
+            if (files[0].base64) {
+                const raw = files[0].base64;
+                cleanBase64 = raw.includes(',') ? raw.split(',')[1] : raw;
+            } else {
+                // ЧИТАЕМ БЫСТРО И АСИНХРОННО
+                try {
+                    cleanBase64 = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const res = reader.result;
+                            resolve(res.split(',')[1]); // Сразу отрезаем заголовок
+                        };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(firstFileObj); // Это ОЧЕНЬ быстро
+                    });
+                } catch (e) {
+                    console.error("❌ Ошибка FileReader:", e);
+                }
+            }
+        }
+
+        // ==========================================================
         // 3. ФОРМИРОВАНИЕ BODY ПОД ПРОВАЙДЕРА
         // ==========================================================
         switch (config.SERVICE) {
@@ -820,71 +857,62 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
                 // 1. Предварительная подготовка данных
                 const geminiHistory = history || [];
-                let cleanBase64 = "";
-
-                // 1. КОНВЕРТАЦИЯ: Если есть файл, но нет Base64 — достаем его
-                if (firstFileObj) {
-                    if (files[0].base64) {
-                        const raw = files[0].base64;
-                        cleanBase64 = raw.includes(',') ? raw.split(',')[1] : raw;
-                    } else {
-                        // ЧИТАЕМ БЫСТРО И АСИНХРОННО
-                        try {
-                            cleanBase64 = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => {
-                                    const res = reader.result;
-                                    resolve(res.split(',')[1]); // Сразу отрезаем заголовок
-                                };
-                                reader.onerror = reject;
-                                reader.readAsDataURL(firstFileObj); // Это ОЧЕНЬ быстро
-                            });
-                        } catch (e) {
-                            console.error("❌ Ошибка FileReader:", e);
-                        }
-                    }
-                }
                 
                 // 2. Формируем части сообщения (текст пользователя)
                 let currentUserParts = [];
                 if (userQuery) currentUserParts.push({ text: userQuery });
 
-                // 3. Распределяем логику по типу сервиса
-                if (firstFileObj && (serviceType.includes('AUDIO') || serviceType.includes('VIDEO'))) {
-                    const isVideo = serviceType.includes('VIDEO');
-                    const systemPrompt = `РОЛЬ: Ты эксперт по распознаванию речи. ТВОЯ ЦЕЛЬ: Транскрибировать ${isVideo ? 'видео' : 'аудио'} файл СТРОГО на РУССКОМ языке. Верни ТОЛЬКО текст.`;
+                // 3. Распределяем логику по типу сервиса, построенную вокруг наличия файла
+                if (firstFileObj) {
+                    // Если есть файл, определяем, что с ним делать, по serviceType
+                    if (serviceType === 'IMAGE_TO_TEXT') {
+                        // --- ВАШ КОД ДЛЯ КАРТИНОК ---
+                        console.log("👁 Gemini: Режим VISION (Image)");
+                        currentUserParts.push({ 
+                            inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } 
+                        });
+                        body = { 
+                            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                            contents: [{ role: 'user', parts: currentUserParts }],
+                            generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
+                        };
+                    } else if (serviceType === 'VIDEO_TO_ANALYSIS') {
+                        // --- ЛОГИКА АНАЛИЗА ВИДЕО (по аналогии с картинками) ---
+                        console.log("👀 Gemini: Режим аналитики Analysis (Video)");
+                        const systemInstructionText = "РОЛЬ: Действуй как 'Видеоаналитик'. Общение СТРОГО на РУССКОМ языке. ЦЕЛЬ: Предоставить подробный и точный анализ видеоконтента, включая ключевые действия, объекты и события. Твой ответ должен быть только анализом, без приветствий и объяснений.";
+                        const promptText = "Проанализируй видеоролик покадрово и аудиодорожку. Предоставь полное описание происходящего, включая распознавание действий, ключевых объектов и хронометраж. Отдельно опиши содержание аудиодорожки, включая точную транскрипцию и возможный контекст (цитаты, источники). Ответь только текстом анализа, используя четкую структуру";
+                    
+                        body = {
+                            systemInstruction: { parts: [{ text: systemInstructionText }] }, 
+                            contents: [{
+                                parts: [
+                                    { text: promptText },
+                                    { inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } } // <-- Используем mimeType видео
+                                ]
+                            }],
+                            generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
+                        };
 
-                    body = {
-                        system_instruction: { parts: [{ text: systemPrompt }] },
-                        contents: [{
-                            role: 'user',
-                            parts: [
-                                { text: `Транскрибируй этот ${isVideo ? 'видео' : 'аудио'} файл.` },
-                                { 
-                                    inlineData: { 
-                                        mimeType: firstFileObj.type, // Тот самый из твоего дебага
-                                        data: cleanBase64 
-                                    } 
-                                }
-                            ]
-                        }],
-                        generationConfig: { temperature: 0.1 }
-                    };
-                    console.log(`📡 [GEMINI] AUDIO_TO_TEXT: ${firstFileObj.name} (${cleanBase64.length} симв.)`);
-
-                } else if (firstFileObj && serviceType.includes('IMAGE')) {
-                    // Добавляем картинку в части сообщения
-                    currentUserParts.push({ 
-                        inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } 
-                    });
-
-                    body = { 
-                        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                        contents: [{ role: 'user', parts: currentUserParts }],
-                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
-                    };
-                    console.log("👁 Gemini: Режим VISION (Image)");
-
+                    } else if (serviceType === 'AUDIO_TO_TEXT' || serviceType === 'VIDEO_TO_TEXT') {
+                        // --- ЛОГИКА ТРАНСКРИБАЦИИ ---
+                        console.log(`📡 [GEMINI] TRANSCRIPTION: ${firstFileObj.name}`);
+                        const isVideo = serviceType === 'VIDEO_TO_TEXT';
+                        
+                        body = {
+                            system_instruction: { 
+                                parts: [{ text: `РОЛЬ: Ты эксперт по распознаванию речи. ТВОЯ ЦЕЛЬ: Транскрибировать ${isVideo ? 'видео' : 'аудио'} файл СТРОГО на РУССКОМ языке. Верни ТОЛЬКО текст.` }] 
+                            },
+                            contents: [{
+                                role: 'user',
+                                parts: [
+                                    { text: `Транскрибируй этот ${isVideo ? 'видео' : 'аудио'} файл.` },
+                                    { inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } }
+                                ]
+                            }],
+                            generationConfig: { temperature: 0.1 }
+                        };
+                    }
+                
                 } else {
                     // --- ОБЫЧНЫЙ ЧАТ ---
                     body = { 
@@ -950,9 +978,17 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 }
                 
                 const userContent = [{ type: 'text', text: userQuery }];
-                files.forEach(f => {
-                    if (f.base64) userContent.push({ type: 'image_url', image_url: { url: `data:${f.mimeType};base64,${f.base64}` } });
-                });
+                
+                // Если есть файл (и `cleanBase64` для него), маскируем его под image_url
+                if (cleanBase64 && firstFileObj) {
+                    userContent.push({
+                        type: 'image_url', // ВСЕГДА image_url, как в вашем примере
+                        image_url: {
+                            // И собираем полный data URL
+                            url: `data:${firstFileObj.type};base64,${cleanBase64}`
+                        }
+                    });
+                }
                 
                 botHubMessages.push({ role: 'user', content: userContent });
                 body = { model: config.MODEL, messages: botHubMessages };
@@ -1365,14 +1401,17 @@ async function translateLeshiy(text, targetLang = "ru") {
  * ГЕНЕРАТОР ЛЕШИЙ: Единая точка входа для всех типов контента
  * @param {Object} params - Объект с данными (текст, файлы, режим)
  */
-export const generateLeshiy = async ({ text, files = [], history = [], currentMode = 1, voiceId = null }) => {
+export const generateLeshiy = async ({ text, files = [], history = [], currentMode = 1, voiceId = null, isSystemTask = false, videoProcessingMode = 'text' }) => {
     const prompt = text?.trim() || "";
+
+    // Этот console.log покажет нам, что данные наконец дошли до цели
+    console.log(`[generateLeshiy] ПОЛУЧИЛ: videoProcessingMode="${videoProcessingMode}"`);
 
     // Логика выбора режима
     switch (Number(currentMode)) {
         case 1: // ОБЩЕНИЕ (Твой текущий askLeshiy)
         case 2: // ХРАНИЛКА
-            return await askLeshiy({ text: prompt, files, history, currentMode });
+        return await askLeshiy({ text: prompt, files, history, currentMode, isSystemTask, videoProcessingMode });
         
         case 3: // ГОЛОС (TTS)
             console.log("Режим: Генерация голоса");
@@ -1387,7 +1426,7 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
             return await generateVideo(prompt, files);
 
         default:
-            return await askLeshiy({ text: prompt, files, history });
+            return await askLeshiy({ text: prompt, files, history, currentMode, isSystemTask, videoProcessingMode });
     }
 };
 
