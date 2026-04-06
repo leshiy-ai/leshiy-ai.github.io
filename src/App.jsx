@@ -50,6 +50,7 @@ const MODELS_SELECTORS = {
     ],
     'VIDEO_TO_ANALYSIS': [
         { key: 'VIDEO_TO_ANALYSIS_GEMINI', name: 'Качественная', icon: '✨' },
+        { key: 'VIDEO_TO_ANALYSIS_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
         { key: 'VIDEO_TO_ANALYSIS_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
     // --- СЕКЦИИ ДЛЯ ГЕНЕРАЦИИ (остаются без изменений) ---

@@ -1061,7 +1061,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     body = formData;
                     isRawBody = true; 
                 } else {
-                    // --- CHAT (Gemini / OpenAI) ---
+                    // --- CHAT (Gemini / OpenAI / Vision) ---
                     url = `${config.BASE_URL}/v1/chat/completions`;
                     const messages = [];
 
@@ -1082,19 +1082,37 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         });
                     }
 
-                    // 4. ТЕКУЩЕЕ СООБЩЕНИЕ
-                    // Важно: в боте это messageText, в askLeshiy это prompt!
-                    messages.push({ 
-                        role: "user", 
-                        content: userQuery.length > 0 ? userQuery : "Привет" 
-                    });
+                    // 3. Текущее сообщение (Логика Vision / Мультимодальность)
+                    let userContent;
 
-                    // 5. ФОРМИРОВАНИЕ BODY (копия из примера)
+                    // Если есть файл (картинка или видео-анализ)
+                    if (firstFileObj && (serviceType === 'IMAGE_TO_TEXT' || serviceType === 'VIDEO_TO_ANALYSIS')) {
+                        userContent = [
+                            { 
+                                type: "text", 
+                                text: userQuery.length > 0 ? userQuery : "Проанализируй этот файл на русском языке." 
+                            },
+                            { 
+                                type: "image_url", 
+                                image_url: { 
+                                    url: `data:${firstFileObj.type};base64,${cleanBase64}` 
+                                } 
+                            }
+                        ];
+                    } else {
+                        // Обычный текст
+                        userContent = userQuery.length > 0 ? userQuery : "Привет";
+                    }
+
+                    messages.push({ role: "user", content: userContent });
+
+                    // 4. Формирование Body по документации Pollinations
                     body = {
                         model: config.MODEL,
                         messages: messages,
                         temperature: 0.7,
                         max_tokens: 2048,
+                        seed: Math.floor(Math.random() * 1000000), // Полезно для Pollinations
                         stream: false
                     };
                 }

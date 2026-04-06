@@ -239,6 +239,13 @@ export const AI_MODELS = {
         API_KEY: 'POLLINATIONS_API_KEY', 
         BASE_URL: 'https://gen.pollinations.ai'
     },
+    VIDEO_TO_ANALYSIS_POLLINATIONS: { 
+        SERVICE: 'POLLINATIONS', 
+        MODEL: 'gemini-fast', 
+        API_KEY: 'POLLINATIONS_API_KEY', 
+        //BASE_URL: 'https://gen.pollinations.ai/v1/chat/completions'
+        BASE_URL: 'https://gen.pollinations.ai'
+    },
 
     TEXT_TO_AUDIO_VOICERSS: { 
         SERVICE: 'VOICERSS', 
