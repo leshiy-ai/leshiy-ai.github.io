@@ -576,7 +576,9 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     }
 
     // ЗАГРУЗКА ФАЙЛОВ (Умный режим)
-    if (lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
+    // Условие 1: Режим "Хранилка" (2) и есть прикрепленные файлы.
+    // Условие 2: В любом режиме дана команда "сохрани" или "/upload".
+    if ((currentMode === 2 && hasFiles) || lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
     
         // Если команда есть, а файла нет — ругаемся
         if (!hasFiles) return { type: 'text', text: "Прикрепите файл, который нужно сохранить! 📎" };
@@ -1362,12 +1364,9 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
     // Логика выбора режима
     switch (Number(currentMode)) {
         case 1: // ОБЩЕНИЕ (Твой текущий askLeshiy)
-            return await askLeshiy({ text: prompt, files, history });
-
         case 2: // ХРАНИЛКА
-            console.log("Режим: Сохранения в облако");
-            return await askLeshiy({ text: prompt, files, history });
-
+            return await askLeshiy({ text: prompt, files, history, currentMode });
+        
         case 3: // ГОЛОС (TTS)
             console.log("Режим: Генерация голоса");
             return await generateAudio(prompt, voiceId);
