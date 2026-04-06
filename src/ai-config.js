@@ -174,6 +174,7 @@ export const AI_MODELS = {
         API_KEY: 'BOTHUB_API_KEY', 
         //BASE_URL: 'https://bothub.chat/api/v2/openai/v1/images/generations'
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1',
+        API_PATH: '/images/generations'
     },
     // [T2I gemini-2.5-flash-image] (Через BotHub API, ПЛАТНЫЙ)
     TEXT_TO_IMAGE_BOTHUB: { 
@@ -182,12 +183,15 @@ export const AI_MODELS = {
         API_KEY: 'BOTHUB_API_KEY', // Имя переменной окружения
         //BASE_URL: 'https://bothub.chat/api/v2/openai/v1/chat/completions'
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1',
+        API_PATH: '/chat/completions'
     }, 
     IMAGE_TO_IMAGE_BOTHUB: { 
         SERVICE: 'BOTHUB', 
         MODEL: 'gemini-2.5-flash-image', 
         API_KEY: 'BOTHUB_API_KEY',
-        BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
+        //BASE_URL: 'https://bothub.chat/api/v2/openai/v1/chat/completions'
+        BASE_URL: 'https://bothub.chat/api/v2/openai/v1',
+        API_PATH: '/chat/completions'
     }, 
     VIDEO_TO_TEXT_BOTHUB: { 
         SERVICE: 'BOTHUB', 
