@@ -963,90 +963,140 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 break;
 
             case 'BOTHUB':
-                url = `${config.BASE_URL}/chat/completions`;
                 authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-                
-                const botHubMessages = [{ role: 'system', content: SYSTEM_PROMPT }];
+                // 1. ЕСЛИ ЭТО АНАЛИТИКА ВИДЕО (Vision / Gemini Flash)
+                if (serviceType === 'VIDEO_TO_ANALYSIS') {
+                    url = `${config.BASE_URL}/chat/completions`;
 
-                if (history && history.length > 0) {
-                    history.forEach(h => {
-                        const role = h.role === 'model' ? 'assistant' : 'user';
-                        if (h.parts && h.parts[0] && h.parts[0].text) {
-                            botHubMessages.push({ role, content: h.parts[0].text });
-                        }
-                    });
-                }
-                
-                const userContent = [{ type: 'text', text: userQuery }];
-
-                // Если есть файл (и `cleanBase64` для него), маскируем его под image_url
-                if (cleanBase64 && firstFileObj) {
-                    userContent.push({
-                        type: 'image_url', // ВСЕГДА image_url, как в вашем примере
-                        image_url: {
-                            // И собираем полный data URL
-                            url: `data:${firstFileObj.type};base64,${cleanBase64}`
-                        }
-                    });
-                }
-                
-                botHubMessages.push({ role: 'user', content: userContent });
-                body = { model: config.MODEL, messages: botHubMessages };
-                break;
-
-            case 'POLLINATIONS':
-                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-
-                if (serviceType.includes('AUDIO')) {
-                    // --- РЕАЛИЗАЦИЯ ДЛЯ АУДИО (основана на вашем callPollinationsSTT) ---
-                    url = `${config.BASE_URL}/v1/audio/transcriptions`;
+                    // Нам нужен Base64 видео
+                    const base64Video = cleanBase64; // Берём уже очищенный base64 из твоего загрузчика
                     
-                    // 1. Создаем FormData, как в вашем рабочем примере
+                    const systemMessage = "Действуй как 'Мультимодальный Видеоаналитик'. Общение СТРОГО на РУССКОМ языке...";
+                    const userPrompt = "Проанализируй видеоролик. Предоставь полное описание...";
+
+                    body = {
+                        model: config.MODEL,
+                        messages: [
+                            { role: "system", content: systemMessage },
+                            { 
+                                role: "user", 
+                                content: [
+                                    { type: "text", text: userPrompt },
+                                    { 
+                                        type: "image_url", 
+                                        image_url: { url: `data:${firstFileObj.type};base64,${base64Video}` } 
+                                    }
+                                ]
+                            }
+                        ],
+                        temperature: 0.7
+                    };
+                    isRawBody = false; // Это обычный JSON запрос
+                } 
+                // 2. ЕСЛИ ЭТО ПРОСТО ТЕКСТ (Whisper)
+                else if (serviceType.includes('AUDIO') || serviceType.includes('VIDEO')) {
+                    // 1. Строим URL
+                    url = `${config.BASE_URL}/audio/transcriptions`;
+            
+                    // 2. Используем нативный FormData (в браузере это лучше всего)
                     const formData = new FormData();
                     const firstFileData = files[0];
+            
+                    // Добавляем файл. Мы берем файл прямо из объекта files, который пришел с фронта
+                    formData.append('file', firstFileData.file, 'voice.ogg');
+                    formData.append('model', config.MODEL);
                     
-                    // 2. Превращаем файл в Blob
-                    const audioBlob = await firstFileData.file.arrayBuffer().then(buffer => new Blob([buffer], { type: firstFileData.file.type || 'audio/mpeg' }));
-                    
-                    // 3. Добавляем поля в форму
-                    formData.append('file', audioBlob, firstFileData.file.name || 'audio.mp3');
-                    formData.append('model', config.MODEL || 'whisper');
-                    formData.append('language', 'ru'); // Жестко задаем русский, как в вашем примере
-                    formData.append('response_format', 'json');
-
-                    // 4. Передаем FormData как "сырое" тело.
-                    // Функция sendAIRequest передаст его в fetch, который сам установит
-                    // правильный Content-Type: multipart/form-data с нужными границами.
                     body = formData;
-                    isRawBody = true; 
-
+                    isRawBody = true;
                 } else {
-                    // --- РЕАЛИЗАЦИЯ ДЛЯ ЧАТА И КАРТИНОК (остается без изменений) ---
-                    url = `${config.BASE_URL}/v1/chat/completions`;
-                    const pollinationsMessages = [{ role: 'system', content: SYSTEM_PROMPT }];
+                    // ВЕТКА 3: Обычный текстовый чат
+                    url = `${config.BASE_URL}/chat/completions`;
+                    authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                    
+                    const botHubMessages = [{ role: 'system', content: SYSTEM_PROMPT }];
 
                     if (history && history.length > 0) {
                         history.forEach(h => {
                             const role = h.role === 'model' ? 'assistant' : 'user';
                             if (h.parts && h.parts[0] && h.parts[0].text) {
-                                pollinationsMessages.push({ role, content: h.parts[0].text });
+                                botHubMessages.push({ role, content: h.parts[0].text });
                             }
                         });
                     }
-
+                    
                     const userContent = [{ type: 'text', text: userQuery }];
 
-                    if (cleanBase64 && firstFileObj && serviceType.includes('IMAGE')) {
+                    // Если есть файл (и `cleanBase64` для него), маскируем его под image_url
+                    if (cleanBase64 && firstFileObj) {
                         userContent.push({
-                            type: 'image_url',
+                            type: 'image_url', // ВСЕГДА image_url, как в вашем примере
                             image_url: {
+                                // И собираем полный data URL
                                 url: `data:${firstFileObj.type};base64,${cleanBase64}`
                             }
                         });
                     }
                     
-                    pollinationsMessages.push({ role: 'user', content: userContent });
-                    body = { model: config.MODEL, messages: pollinationsMessages, stream: false };
+                    botHubMessages.push({ role: 'user', content: userContent });
+                    body = { model: config.MODEL, messages: botHubMessages };
+                }
+                break;
+
+            case 'POLLINATIONS':
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+            
+                if (serviceType.includes('AUDIO')) {
+                    // --- STT (Whisper / Scribe) ---
+                    url = `${config.BASE_URL}/v1/audio/transcriptions`;
+                    const formData = new FormData();
+                    const firstFileData = files[0];
+                    
+                    // Используем напрямую файл, если это возможно, или создаем Blob
+                    const fileToUpload = firstFileData.file;
+                    formData.append('file', fileToUpload, fileToUpload.name || 'audio.mp3');
+                    formData.append('model', config.MODEL || 'whisper');
+                    formData.append('language', 'ru');
+                    formData.append('response_format', 'json');
+            
+                    body = formData;
+                    isRawBody = true; 
+                } else {
+                    // --- CHAT (Gemini / OpenAI) ---
+                    url = `${config.BASE_URL}/v1/chat/completions`;
+                    const messages = [];
+
+                    // 2. СИСТЕМНЫЙ ПРОМПТ ПЕРВЫМ
+                    messages.push({ role: "system", content: SYSTEM_PROMPT });
+
+                    // 3. МАППИНГ ИСТОРИИ (строго по твоему рабочему примеру)
+                    if (history && history.length > 0) {
+                        history.forEach(msg => {
+                            // Берем только если есть текст, чтобы не плодить пустые объекты
+                            const contentText = msg.text || (msg.parts && msg.parts[0] && msg.parts[0].text);
+                            if (contentText) {
+                                messages.push({
+                                    role: msg.role === 'model' ? 'assistant' : 'user',
+                                    content: String(contentText)
+                                });
+                            }
+                        });
+                    }
+
+                    // 4. ТЕКУЩЕЕ СООБЩЕНИЕ
+                    // Важно: в боте это messageText, в askLeshiy это prompt!
+                    messages.push({ 
+                        role: "user", 
+                        content: userQuery.length > 0 ? userQuery : "Привет" 
+                    });
+
+                    // 5. ФОРМИРОВАНИЕ BODY (копия из примера)
+                    body = {
+                        model: config.MODEL,
+                        messages: messages,
+                        temperature: 0.7,
+                        max_tokens: 2048,
+                        stream: false
+                    };
                 }
                 break;
 
@@ -1168,8 +1218,12 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // Логирование ответа от прокси и ИИ
         console.log("DEBUG RECEIVED PROXY:", data);
 
-        if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        // 1. УНИВЕРСАЛЬНАЯ ПРОВЕРКА НА AUDIO (Whisper)
+        // Если в ответе есть прямое поле text (как пришло от Pollinations)
+        if (data.text && !data.choices) resultText = data.text;
+        else if (config.SERVICE === 'GEMINI') resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
         else if (config.SERVICE === 'BOTHUB') resultText = data.choices?.[0]?.message?.content;
+        else if (config.SERVICE === 'POLLINATIONS') resultText = data.choices?.[0]?.message?.content;
         else if (config.SERVICE === 'CLOUDFLARE' || config.SERVICE === 'WORKERS_AI') {
             resultText = data.result?.response || data.result?.description || data.result?.text || data.result;
             
@@ -1236,6 +1290,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 // =================================================================
 async function sendAIRequest(config, url, body, authHeader, isRawBody = false) {
     try {
+        // Проверяем, является ли тело формой (для аудио/Whisper)
+        const isFormData = body instanceof FormData;
         const isBinary = isRawBody && (body instanceof ArrayBuffer || body instanceof Uint8Array || body === null);
         let response;
 
@@ -1244,19 +1300,36 @@ async function sendAIRequest(config, url, body, authHeader, isRawBody = false) {
             'X-Target-URL': url,
             'X-Proxy-Secret': CONFIG.PROXY_SECRET_KEY,
             // Для бинарных запросов тип контента либо уже задан, либо не нужен (как для VoiceRSS)
-            'Content-Type': isBinary ? (body ? 'application/octet-stream' : 'text/plain') : 'application/json'
+            //'Content-Type': isBinary ? (body ? 'application/octet-stream' : 'text/plain') : 'application/json'
         };
+
+        // КРИТИЧЕСКИЙ МОМЕНТ: Content-Type
+        if (isFormData) {
+            // Если это FormData, НЕ СТАВИМ Content-Type вообще! 
+            // Браузер сам выставит multipart/form-data с правильным boundary.
+        } else if (isBinary) {
+            commonProxyHeaders['Content-Type'] = body ? 'application/octet-stream' : 'text/plain';
+        } else {
+            commonProxyHeaders['Content-Type'] = 'application/json';
+        }
+
         // Добавляем авторизацию, если она нужна для целевого API
         if (authHeader) {
             commonProxyHeaders['X-Proxy-Authorization'] = authHeader;
         }
         
         // Для запросов, где тело не нужно (например, GET-запросы, обернутые в POST)
-        const requestBody = body === null ? null : (isBinary ? body : JSON.stringify(body));
+        //const requestBody = body === null ? null : (isBinary ? body : JSON.stringify(body));
+        let requestBody;
+        if (isFormData) requestBody = body; // Отправляем как есть, НЕ строим в JSON!
+        else if (body === null) requestBody = null;
+        else if (isBinary)  requestBody = body;
+        else requestBody = JSON.stringify(body);
 
         console.log("DEBUG AI REQUEST:", {
             proxy: CONFIG.PROXY_URL,
             target: url,
+            isFormData,
             isBinary,
             hasBody: requestBody !== null,
             headers: commonProxyHeaders
@@ -1524,12 +1597,19 @@ async function generateImage(prompt, files) {
         // ОСОБЫЙ СЛУЧАЙ: GEMINI (возвращает JSON с base64)
         if (config.SERVICE === 'GEMINI') {
             const url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-            let body;
-            if (isImg2Img) {
+            const i2iPrompt = `Carefully analyze the user's instruction and apply it as an edit to the provided image. The user's instruction is: "${prompt}". Preserve the original image's style and composition as much as possible, only changing what the instruction requires.`;
+            const t2iPrompt = `Сгенерируй изображение по этому описанию: ${prompt}`;
+            
+            const body = { contents: [{ parts: isImg2Img 
+                ? [{ text: i2iPrompt }, { inlineData: { mimeType: files[0].file.type, data: cleanBase64 } }] 
+                : [{ text: t2iPrompt }]
+            }] };
+
+            /*if (isImg2Img) {
                 body = { "contents": [{ "parts": [{ "text": prompt }, { "inlineData": { "mimeType": files[0].file.type, "data": cleanBase64 } }] }] };
             } else {
                 body = { "contents": [{ "parts": [{ "text": `Сгенерируй изображение по этому описанию: ${prompt}` }] }] };
-            }
+            }*/
             
             const response = await sendAIRequest(config, url, body, null, false);
             const data = await response.json();
@@ -1555,9 +1635,21 @@ async function generateImage(prompt, files) {
         } 
         // ОСОБЫЙ СЛУЧАЙ: BOTHUB (возвращает JSON с URL, требует второго запроса)
         else if (config.SERVICE === 'BOTHUB') {
-            let requestUrl = `${config.BASE_URL}${config.API_PATH}`;
+            //let requestUrl = `${config.BASE_URL}${config.API_PATH}`;
+            const i2iPrompt = `Apply the following edit instruction to the image provided. The instruction is: "${prompt}".`;
+            const t2iPrompt = `Создай картинку по описанию: ${prompt}`;
             let requestBody;
+
             if (isImg2Img) {
+                 requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": [{ "type": "text", "text": i2iPrompt }, { "type": "image_url", "image_url": { "url": `data:image/jpeg;base64,${cleanBase64}` } }] }] };
+            } else {
+                 if (config.API_PATH === '/images/generations') {
+                    requestBody = { model: config.MODEL, prompt: prompt, n: 1, size: "1024x1024" };
+                 } else {
+                    requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": t2iPrompt }] };
+                 }
+            }
+            /*if (isImg2Img) {
                  const bothubPrompt = `Maintain the exact composition, colors, and subject of the input image. ${prompt}, cinematic light, photorealistic, 8k, sharp focus.`;
                  requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": [{ "type": "text", "text": bothubPrompt }, { "type": "image_url", "image_url": { "url": `data:image/jpeg;base64,${cleanBase64}` } }] }] };
             } else {
@@ -1566,15 +1658,15 @@ async function generateImage(prompt, files) {
                  } else {
                     requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": `Создай картинку по описанию: ${prompt}` }] };
                  }
-            }
-            
+            }*/
+            const requestUrl = `${config.BASE_URL}${config.API_PATH}`;
             const initialResponse = await sendAIRequest(config, requestUrl, requestBody, `Bearer ${CONFIG[config.API_KEY]}`, false);
             const jsonData = await initialResponse.json();
 
             // ДОБАВЛЯЕМ ЛОГ, ЧТОБЫ УВИДЕТЬ, ЧТО ПРИСЫЛАЕТ BOTHUB
             console.log('>>> [DEBUG_BOTHUB] Ответ от BotHub:', JSON.stringify(jsonData, null, 2));
             
-            // --- ВАША ИДЕЯ: ИЗВЛЕКАЕМ ПОДПИСЬ ---
+            // --- ИЗВЛЕКАЕМ ПОДПИСЬ ---
             const botHubContent = jsonData?.choices?.[0]?.message?.content;
             if (botHubContent && botHubContent.trim()) {
                 aiCaption = botHubContent.trim();

@@ -2651,6 +2651,11 @@ function App() {
                                     : 'VIDEO_TO_TEXT';
                             }
                         }
+                        // Если мы в режиме "Генерация фото" (4) и прикреплен файл,
+                        // то это однозначно режим IMAGE_TO_IMAGE.
+                        else if (currentMode === 4 && files.length > 0) {
+                            contextualServiceType = 'IMAGE_TO_IMAGE';
+                        }
 
                         // 2. Получаем модели и активную модель для этого КОНТЕКСТА.
                         const availableModels = MODELS_SELECTORS[contextualServiceType] || [];
