@@ -1518,6 +1518,7 @@ async function generateImage(prompt, files) {
     try {
         let imageUrl;
         let imageFile;
+        let aiCaption = null;
         const fileName = `${prompt.split(' ').slice(0, 5).join('_') || 'leshiy_image'}.png`;
 
         // ОСОБЫЙ СЛУЧАЙ: GEMINI (возвращает JSON с base64)
@@ -1534,7 +1535,12 @@ async function generateImage(prompt, files) {
             const data = await response.json();
             
             if (data.error) throw new Error(`Gemini Error: ${data.error.message}`);
-            const base64Image = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            
+            // ВАША ИДЕЯ: Извлекаем текстовую часть ответа Gemini
+            const geminiTextPart = data?.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+            if (geminiTextPart) aiCaption = geminiTextPart;
+
+            const base64Image = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
             if (!base64Image) throw new Error(`Gemini не вернул изображение (Base64).`);
 
             const byteCharacters = atob(base64Image);
@@ -1547,7 +1553,7 @@ async function generateImage(prompt, files) {
             imageUrl = URL.createObjectURL(imageFile);
 
         } 
-        // ОСОБЫЙ СЛУЧАЙ: BOTHUB (возвращает JSON с URL)
+        // ОСОБЫЙ СЛУЧАЙ: BOTHUB (возвращает JSON с URL, требует второго запроса)
         else if (config.SERVICE === 'BOTHUB') {
             let requestUrl = `${config.BASE_URL}${config.API_PATH}`;
             let requestBody;
@@ -1564,19 +1570,50 @@ async function generateImage(prompt, files) {
             
             const initialResponse = await sendAIRequest(config, requestUrl, requestBody, `Bearer ${CONFIG[config.API_KEY]}`, false);
             const jsonData = await initialResponse.json();
+
+            // ДОБАВЛЯЕМ ЛОГ, ЧТОБЫ УВИДЕТЬ, ЧТО ПРИСЫЛАЕТ BOTHUB
+            console.log('>>> [DEBUG_BOTHUB] Ответ от BotHub:', JSON.stringify(jsonData, null, 2));
             
-            const imageUrlToFetch = jsonData?.choices?.[0]?.message?.images?.[0]?.image_url?.url || jsonData?.data?.[0]?.url;
+            // --- ВАША ИДЕЯ: ИЗВЛЕКАЕМ ПОДПИСЬ ---
+            const botHubContent = jsonData?.choices?.[0]?.message?.content;
+            if (botHubContent && botHubContent.trim()) {
+                aiCaption = botHubContent.trim();
+            }
+
+            // --- УЛУЧШЕННАЯ ЛОГИКА ИЗВЛЕЧЕНИЯ URL ---
+            let imageUrlToFetch;
+
+            // 1. Стандартный путь для DALL-E и подобных (в `data`)
+            imageUrlToFetch = jsonData?.data?.[0]?.url;
+
+            // 2. Путь для моделей, которые возвращают объект `images`
+            if (!imageUrlToFetch) {
+                imageUrlToFetch = jsonData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+            }
+
+            // 3. ПУТЬ ДЛЯ МОДЕЛЕЙ (типа Gemini), которые просто пишут URL в текстовый ответ
+            if (!imageUrlToFetch) {
+                const content = jsonData?.choices?.[0]?.message?.content;
+                if (typeof content === 'string') {
+                    // Ищем первую попавшуюся https-ссылку в тексте
+                    const urlMatch = content.match(/https?:\/\/[^\s]+/);
+                    if (urlMatch) {
+                        imageUrlToFetch = urlMatch[0];
+                    }
+                }
+            }
+            
             if (!imageUrlToFetch) throw new Error(`BotHub не вернул URL изображения.`);
 
-            // Второй fetch для скачивания картинки
+            // Второй, уже прямой fetch для скачивания картинки
             const imageResponse = await fetch(imageUrlToFetch);
             if (!imageResponse.ok) throw new Error(`Ошибка загрузки изображения с BotHub.`);
             
             const blob = await imageResponse.blob();
             imageFile = new File([blob], fileName, { type: blob.type });
             imageUrl = URL.createObjectURL(imageFile);
-            
-        } 
+        }
+
         // СТАНДАРТНАЯ ЛОГИКА (Cloudflare, Pollinations и др., кто возвращает файл напрямую)
         else {
             let url, body, authHeader;
@@ -1643,9 +1680,19 @@ async function generateImage(prompt, files) {
         // *** ЕДИНАЯ ТОЧКА ВОЗВРАТА ДЛЯ ВСЕХ СЕРВИСОВ ***
         if (!imageUrl) throw new Error('Не удалось создать URL для изображения после всех операций.');
         
+        // --- НОВАЯ ИДЕАЛЬНАЯ ЛОГИКА ФОРМИРОВАНИЯ ПОДПИСИ ---
+        const standardCaption = `✅ Ваше изображение по запросу: "${prompt}"`;
+        let finalCaption;
+
+        if (aiCaption && aiCaption.trim()) {
+            finalCaption = `${aiCaption.trim()}\n${standardCaption}`;
+        } else {
+            finalCaption = `🎨 ${standardCaption}`;
+        }
+
         return { 
             type: 'image', 
-            text: `🎨 Изображение сгенерировано по запросу: "${prompt}"`,
+            text: finalCaption,
             imageUrl: imageUrl,
             file: imageFile
         };

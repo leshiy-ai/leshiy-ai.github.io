@@ -621,8 +621,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                         {/* Рендер сгенерированного изображения */}
                         {message.imageUrl && renderGeneratedImage(message)}
 
-                        {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
-                        {!message.audioUrl && (textToRender ? (
+                        {/* Рендерим текст, ТОЛЬКО если это не сообщение с аудио И НЕ с картинкой */}
+                        {!message.audioUrl && !message.imageUrl && (textToRender ? (
                             <ReactMarkdown>
                                 {textToRender}
                             </ReactMarkdown>
