@@ -158,8 +158,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         }
     }
 
-    // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа ---
-    if (hasFiles) {
+    // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа (ТОЛЬКО в режиме "Общение") ---
+    if (currentMode === 1 && hasFiles) {
         const firstFile = files[0];
         // Если текста нет ИЛИ текст — это просто имя файла
         if (!userQuery || userQuery === firstFile.file.name) {
@@ -170,7 +170,10 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             } else if (firstFile.file.type.startsWith('video/')) {
                 userQuery = "Что на этом видео?";
             }
-            lowerQuery = userQuery.toLowerCase(); // Обновляем lowerQuery
+            // Обновляем lowerQuery только если мы изменили userQuery
+            if (userQuery !== text?.trim()) {
+                 lowerQuery = userQuery.toLowerCase();
+            }
         }
     }
     
@@ -575,43 +578,47 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         }
     }
 
-    // ЗАГРУЗКА ФАЙЛОВ (Умный режим)
+        // ЗАГРУЗКА ФАЙЛОВ (Умный режим)
     // Условие 1: Режим "Хранилка" (2) и есть прикрепленные файлы.
     // Условие 2: В любом режиме дана команда "сохрани" или "/upload".
     if ((currentMode === 2 && hasFiles) || lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
-    
-        // Если команда есть, а файла нет — ругаемся
-        if (!hasFiles) return { type: 'text', text: "Прикрепите файл, который нужно сохранить! 📎" };
+        
+        // Если дана команда на сохранение, но файлы не прикреплены — сообщаем об этом.
+        if (!hasFiles) {
+            return { type: 'text', text: "Прикрепите файл, который нужно сохранить! 📎" };
+        }
 
         try {
             for (const f of files) {
-                // 1. Читаем файл как ArrayBuffer (чистые байты), чтобы бэк не тупил
+                // 1. Читаем файл как ArrayBuffer
                 const arrayBuffer = await f.file.arrayBuffer();
-
-                // 2. Шлем на эндпоинт загрузки буфера
+                
+                // 2. Отправляем на эндпоинт загрузки
                 const uploadUrl = `${gateway}/api/upload-buffer`; 
-
                 await axios.post(uploadUrl, arrayBuffer, {
                     params: {
-                        // Передаем параметры через URL, так как тело занято байтами
                         chat_id: userId,
                         filename: f.file.name
                     },
                     headers: { 
                         'Content-Type': f.file.type || 'application/octet-stream',
                         'x-vk-user-id': userId,
-                        'x-file-name': encodeURI(f.file.name), // Бэк может брать имя отсюда
+                        'x-file-name': encodeURI(f.file.name),
                         'x-file-size': f.file.size
                     }
                 });
             }
 
+            // ВАЖНО: После успешной загрузки мы должны прервать дальнейшее выполнение,
+            // чтобы файлы не отправились на распознавание в AI.
             return { type: 'text', text: '✅ Файлы успешно улетели в облако!' };
+
         } catch (e) { 
             console.error("Критическая ошибка аплоада:", e.response?.data || e.message);
             return { type: 'error', text: '❌ Ошибка: ' + (e.response?.data?.error || e.message) }; 
         }
     }
+
 
     // ==========================================================
     // ПОИСК И СКАЧИВАНИЕ ФАЙЛОВ С ХРАНИЛКИ
