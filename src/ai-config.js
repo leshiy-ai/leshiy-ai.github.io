@@ -1,6 +1,12 @@
 // Этот файл адаптирован из рабочей конфигурации пользователя в gemini-bot и leshiy-storage-bot.
 
 export const AI_MODELS = {
+    // --- Хранилка ---
+    FILE_TO_SAVE_STORAGE: { 
+        SERVICE: 'STORAGE', 
+        MODEL: 'leshiy-storage-bot',
+        BASE_URL: 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net'
+    },
     // --- Модели Gemini ---
     TEXT_TO_TEXT_GEMINI: { 
         SERVICE: 'GEMINI', 

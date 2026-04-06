@@ -12,33 +12,62 @@ import './App.css';
 // Определяют основные режимы работы приложения и связывают их с типом сервиса
 const LESHIY_MODES = [
     { id: 1, name: 'Общение', icon: '1️⃣', serviceType: 'TEXT_TO_TEXT' },
-    { id: 2, name: 'Хранилка', icon: '2️⃣', serviceType: 'TEXT_TO_TEXT' },
-    { id: 3, name: 'Генерайия голоса', icon: '3️⃣', serviceType: 'TEXT_TO_AUDIO' },
+    { id: 2, name: 'Хранилка', icon: '2️⃣', serviceType: 'FILE_TO_SAVE' },
+    { id: 3, name: 'Генерация голоса', icon: '3️⃣', serviceType: 'TEXT_TO_AUDIO' },
     { id: 4, name: 'Генерация фото', icon: '4️⃣', serviceType: 'TEXT_TO_IMAGE' },
     { id: 5, name: 'Генерация видео', icon: '5️⃣', serviceType: 'TEXT_TO_VIDEO' }
 ];
 
 // Карта селекторов моделей для каждого типа сервиса
 const MODELS_SELECTORS = {
+    'FILE_TO_SAVE': [
+        // Режим сохранения 💾 файлов в Хранилку
+        { key: 'FILE_TO_SAVE_STORAGE', name: 'Хранилка', icon: '🗄' }
+    ],
     'TEXT_TO_TEXT': [
         { key: 'TEXT_TO_TEXT_CLOUDFLARE', name: 'Базовая', icon: '✳️' },
         { key: 'TEXT_TO_TEXT_GEMINI', name: 'Умная', icon: '✨' },
+        { key: 'TEXT_TO_TEXT_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
         { key: 'TEXT_TO_TEXT_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
+    // --- НОВЫЕ СЕКЦИИ ДЛЯ РАСПОЗНАВАНИЯ ---
+    'IMAGE_TO_TEXT': [
+        { key: 'IMAGE_TO_TEXT_CLOUDFLARE', name: 'Базовая', icon: '✳️' },
+        { key: 'IMAGE_TO_TEXT_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
+        { key: 'IMAGE_TO_TEXT_GEMINI', name: 'Умная', icon: '✨' },
+        { key: 'IMAGE_TO_TEXT_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
+    'AUDIO_TO_TEXT': [
+        { key: 'AUDIO_TO_TEXT_CLOUDFLARE', name: 'Базовая', icon: '✳️' },
+        { key: 'AUDIO_TO_TEXT_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
+        { key: 'AUDIO_TO_TEXT_GEMINI', name: 'Умная', icon: '✨' },
+        { key: 'AUDIO_TO_TEXT_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
+    'VIDEO_TO_TEXT': [
+        { key: 'VIDEO_TO_TEXT_CLOUDFLARE', name: 'Базовая', icon: '✳️' },
+        { key: 'VIDEO_TO_TEXT_GEMINI', name: 'Умная', icon: '✨' },
+        { key: 'VIDEO_TO_TEXT_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
+    'VIDEO_TO_ANALYSIS': [
+        { key: 'VIDEO_TO_ANALYSIS_GEMINI', name: 'Качественная', icon: '✨' },
+        { key: 'VIDEO_TO_ANALYSIS_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
+    // --- СЕКЦИИ ДЛЯ ГЕНЕРАЦИИ (остаются без изменений) ---
     'TEXT_TO_IMAGE': [
         { key: 'TEXT_TO_IMAGE_CLOUDFLARE', name: 'Быстрая', icon: '✳️' },
         { key: 'TEXT_TO_IMAGE_GEMINI', name: 'Качественная', icon: '✨' },
+        { key: 'TEXT_TO_IMAGE_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
         { key: 'TEXT_TO_IMAGE_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
     'TEXT_TO_AUDIO': [
-        { key: 'TEXT_TO_AUDIO_CLOUDFLARE', name: 'Быстрый', icon: '✳️' },
-        { key: 'TEXT_TO_AUDIO_VOICERSS', name: 'Обычный', icon: '⚛️' },
-        { key: 'TEXT_TO_AUDIO_GEMINI', name: 'Качественный', icon: '✨' },
-        { key: 'TEXT_TO_AUDIO_BOTHUB', name: 'Запасной', icon: '✴️' }
+        { key: 'TEXT_TO_AUDIO_CLOUDFLARE', name: 'Быстрая', icon: '✳️' },
+        { key: 'TEXT_TO_AUDIO_VOICERSS', name: 'Обычная', icon: '⚛️' },
+        { key: 'TEXT_TO_AUDIO_GEMINI', name: 'Качественная', icon: '✨' },
+        { key: 'TEXT_TO_AUDIO_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
     'TEXT_TO_VIDEO': [
-        // Задел на будущее для моделей генерации видео
-        { key: 'TEXT_TO_VIDEO_PLACEHOLDER', name: 'Скоро...', icon: '📹' }
+        // Задел на будущее для моделей генерации видео 📹
+        { key: 'TEXT_TO_VIDEO_PLACEHOLDER', name: 'Скоро...', icon: '🎬' }
     ]
 };
 
@@ -2499,46 +2528,82 @@ function App() {
                         )}
                     </div>
                     <div className="model-selector-container" ref={modelSelectorRef}>
-                        {(() => {
-                            // --- Логика для динамического выбора ---
-                            // 1. Определяем тип сервиса для текущего режима (TEXT_TO_TEXT, TEXT_TO_AUDIO...)
-                            const currentServiceType = LESHIY_MODES.find(m => m.id === currentMode)?.serviceType;
+                    {(() => {
+                        // --- УМНАЯ ЛОГИКА ДЛЯ ЭТОГО СЕЛЕКТОРА ---
 
-                            // 2. Получаем список моделей для этого сервиса
-                            const availableModels = MODELS_SELECTORS[currentServiceType] || [];
+                        // 1. Определяем КОНТЕКСТНЫЙ тип сервиса, который может меняться.
+                        let contextualServiceType = LESHIY_MODES.find(m => m.id === currentMode)?.serviceType;
 
-                            // 3. Если моделей меньше двух, просто не показываем селектор
-                            if (availableModels.length < 1) {
-                                return null;
+                        // Если мы в режиме "Общение" (1) и прикреплены файлы,
+                        // переопределяем тип сервиса в зависимости от типа ПЕРВОГО файла.
+                        if (currentMode === 1 && files.length > 0) {
+                            const firstFileType = files[0]?.file?.type || '';
+                            if (firstFileType.startsWith('image/')) {
+                                contextualServiceType = 'IMAGE_TO_TEXT';
+                            } else if (firstFileType.startsWith('audio/')) {
+                                contextualServiceType = 'AUDIO_TO_TEXT';
+                            } else if (firstFileType.startsWith('video/')) {
+                                contextualServiceType = 'VIDEO_TO_TEXT';
                             }
+                        }
 
-                            // 4. Находим активную модель, чтобы показать ее иконку
-                            const activeModelKey = getActiveModelKeyGeneric(currentServiceType);
-                            const activeModel = availableModels.find(m => m.key === activeModelKey) || availableModels[0];
-                            
-                            // --- Отрисовка JSX ---
-                            return (
-                                <>
-                                    <button id="input-model-selector" className="tool-btn model-selector-btn" title={t.tooltip_select_model} onClick={() => setIsModelSelectorOpen(prev => !prev)}>
-                                        {activeModel?.icon}
-                                    </button>
-                                    {isModelSelectorOpen && (
-                                        <div className="model-selector-dropdown">
-                                            {availableModels.map(model => (
-                                                <button
-                                                    key={model.key}
-                                                    className={`model-option ${activeModelKey === model.key ? 'active' : ''}`}
-                                                    onClick={() => handleModelSelect(model.key)}
-                                                >
-                                                    <span className="model-option-icon">{model.icon}</span>
-                                                    <span className="model-option-name">{model.name}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </>
-                            );
-                        })()}
+                        // 2. Получаем модели и активную модель для этого КОНТЕКСТА.
+                        const availableModels = MODELS_SELECTORS[contextualServiceType] || [];
+
+                        // Если моделей нет или всего одна — селектор не нужен.
+                        if (availableModels.length < 1) {
+                            return null;
+                        }
+
+                        const activeModelKey = getActiveModelKeyGeneric(contextualServiceType);
+                        const activeModel = availableModels.find(m => m.key === activeModelKey) || availableModels[0];
+                        
+                        // --- Отрисовка JSX ---
+                        return (
+                            <>
+                                <button id="input-model-selector" className="tool-btn model-selector-btn" title={t.tooltip_select_model} onClick={() => setIsModelSelectorOpen(prev => !prev)}>
+                                    {activeModel?.icon}
+                                </button>
+                                {isModelSelectorOpen && (
+                                    <div className="model-selector-dropdown">
+                                        {availableModels.map(model => (
+                                            <button
+                                                key={model.key}
+                                                className={`model-option ${activeModelKey === model.key ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    // --- ЛОКАЛЬНЫЙ ОБРАБОТЧИК ---
+                                                    // Этот код выполняется только здесь и не ломает `handleModelSelect`, который используется в админке.
+
+                                                    // 1. Находим правильный ключ для localStorage (e.g., "ACTIVE_MODEL_IMAGE_TO_TEXT")
+                                                    const localStorageKey = SERVICE_TYPE_MAP[contextualServiceType]?.kvKey;
+                                                    if (!localStorageKey) {
+                                                        console.error(`[Contextual Selector] Не удалось найти localStorageKey для: ${contextualServiceType}`);
+                                                        return;
+                                                    }
+
+                                                    // 2. Сохраняем ВЫБРАННУЮ модель под КОНТЕКСТНЫМ ключом
+                                                    localStorage.setItem(localStorageKey, model.key);
+
+                                                    // 3. Обновляем состояние React
+                                                    setActiveModels(prev => ({
+                                                        ...prev,
+                                                        [contextualServiceType]: model.key
+                                                    }));
+
+                                                    // 4. Закрываем меню
+                                                    setIsModelSelectorOpen(false);
+                                                }}
+                                            >
+                                                <span className="model-option-icon">{model.icon}</span>
+                                                <span className="model-option-name">{model.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
+
                     </div>
                      <button 
                         id="input-mic-btn" 
