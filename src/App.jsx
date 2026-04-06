@@ -504,6 +504,35 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         );
     };
     
+    // Рендер сгенерированного изображения
+    const renderGeneratedImage = (message) => {
+        if (!message.imageUrl) return null;
+        const fileToDrag = message.file;
+
+        return (
+            <div 
+                className="image-generation-wrapper"
+                draggable={!/Mobi|Android/i.test(navigator.userAgent) && !!fileToDrag}
+                onDragStart={(e) => handleDragStart(e, fileToDrag, 'image')}
+                onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag, 'image')}
+                data-is-draggable="true" 
+                style={{ cursor: fileToDrag ? 'grab' : 'default', marginTop: '10px' }}
+            >
+                <img 
+                    src={message.imageUrl} 
+                    className="generated-image" 
+                    alt={message.text || "Сгенерированное изображение"} 
+                    style={{ maxWidth: '100%', borderRadius: '12px', display: 'block' }}
+                />
+                {message.text && (
+                    <div className="image-text-caption" style={{ marginTop: '8px' }}>
+                        <ReactMarkdown>{message.text}</ReactMarkdown>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     // Рендер аудио из ответа AI (генерация голоса)
     const renderGeneratedAudio = (message) => {
         if (!message.audioUrl) return null;
@@ -588,6 +617,9 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
                         {/* Рендер аудио из ответа AI (генерация голоса) */}
                         {message.audioUrl && renderGeneratedAudio(message)}
+
+                        {/* Рендер сгенерированного изображения */}
+                        {message.imageUrl && renderGeneratedImage(message)}
 
                         {/* Рендерим текст. Если текста нет и нет вложений — только тогда ярлык */}
                         {!message.audioUrl && (textToRender ? (
@@ -1430,6 +1462,7 @@ function App() {
                 text: aiResponse.text,
                 buttons: aiResponse.buttons,
                 audioUrl: aiResponse.audioUrl,
+                imageUrl: aiResponse.imageUrl,
                 file: aiResponse.file 
             };
 
