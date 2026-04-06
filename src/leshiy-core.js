@@ -880,13 +880,12 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         // --- ЛОГИКА АНАЛИЗА ВИДЕО (по аналогии с картинками) ---
                         console.log("👀 Gemini: Режим аналитики Analysis (Video)");
                         const systemInstructionText = "РОЛЬ: Действуй как 'Видеоаналитик'. Общение СТРОГО на РУССКОМ языке. ЦЕЛЬ: Предоставить подробный и точный анализ видеоконтента, включая ключевые действия, объекты и события. Твой ответ должен быть только анализом, без приветствий и объяснений.";
-                        const promptText = "Проанализируй видеоролик покадрово и аудиодорожку. Предоставь полное описание происходящего, включая распознавание действий, ключевых объектов и хронометраж. Отдельно опиши содержание аудиодорожки, включая точную транскрипцию и возможный контекст (цитаты, источники). Ответь только текстом анализа, используя четкую структуру";
                     
                         body = {
                             systemInstruction: { parts: [{ text: systemInstructionText }] }, 
                             contents: [{
                                 parts: [
-                                    { text: promptText },
+                                    { text: userQuery },
                                     { inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } } // <-- Используем mimeType видео
                                 ]
                             }],
@@ -897,10 +896,11 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         // --- ЛОГИКА ТРАНСКРИБАЦИИ ---
                         console.log(`📡 [GEMINI] TRANSCRIPTION: ${firstFileObj.name}`);
                         const isVideo = serviceType === 'VIDEO_TO_TEXT';
+                        const systemInstructionText = `РОЛЬ: Ты эксперт по распознаванию речи. ТВОЯ ЦЕЛЬ: Транскрибировать ${isVideo ? 'видео' : 'аудио'} файл СТРОГО на РУССКОМ языке. Верни ТОЛЬКО текст.`;
                         
                         body = {
                             system_instruction: { 
-                                parts: [{ text: `РОЛЬ: Ты эксперт по распознаванию речи. ТВОЯ ЦЕЛЬ: Транскрибировать ${isVideo ? 'видео' : 'аудио'} файл СТРОГО на РУССКОМ языке. Верни ТОЛЬКО текст.` }] 
+                                parts: [{ text: systemInstructionText }] 
                             },
                             contents: [{
                                 role: 'user',
@@ -978,7 +978,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 }
                 
                 const userContent = [{ type: 'text', text: userQuery }];
-                
+
                 // Если есть файл (и `cleanBase64` для него), маскируем его под image_url
                 if (cleanBase64 && firstFileObj) {
                     userContent.push({
@@ -992,6 +992,62 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 
                 botHubMessages.push({ role: 'user', content: userContent });
                 body = { model: config.MODEL, messages: botHubMessages };
+                break;
+
+            case 'POLLINATIONS':
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+
+                if (serviceType.includes('AUDIO')) {
+                    // --- РЕАЛИЗАЦИЯ ДЛЯ АУДИО (основана на вашем callPollinationsSTT) ---
+                    url = `${config.BASE_URL}/v1/audio/transcriptions`;
+                    
+                    // 1. Создаем FormData, как в вашем рабочем примере
+                    const formData = new FormData();
+                    const firstFileData = files[0];
+                    
+                    // 2. Превращаем файл в Blob
+                    const audioBlob = await firstFileData.file.arrayBuffer().then(buffer => new Blob([buffer], { type: firstFileData.file.type || 'audio/mpeg' }));
+                    
+                    // 3. Добавляем поля в форму
+                    formData.append('file', audioBlob, firstFileData.file.name || 'audio.mp3');
+                    formData.append('model', config.MODEL || 'whisper');
+                    formData.append('language', 'ru'); // Жестко задаем русский, как в вашем примере
+                    formData.append('response_format', 'json');
+
+                    // 4. Передаем FormData как "сырое" тело.
+                    // Функция sendAIRequest передаст его в fetch, который сам установит
+                    // правильный Content-Type: multipart/form-data с нужными границами.
+                    body = formData;
+                    isRawBody = true; 
+
+                } else {
+                    // --- РЕАЛИЗАЦИЯ ДЛЯ ЧАТА И КАРТИНОК (остается без изменений) ---
+                    url = `${config.BASE_URL}/v1/chat/completions`;
+                    const pollinationsMessages = [{ role: 'system', content: SYSTEM_PROMPT }];
+
+                    if (history && history.length > 0) {
+                        history.forEach(h => {
+                            const role = h.role === 'model' ? 'assistant' : 'user';
+                            if (h.parts && h.parts[0] && h.parts[0].text) {
+                                pollinationsMessages.push({ role, content: h.parts[0].text });
+                            }
+                        });
+                    }
+
+                    const userContent = [{ type: 'text', text: userQuery }];
+
+                    if (cleanBase64 && firstFileObj && serviceType.includes('IMAGE')) {
+                        userContent.push({
+                            type: 'image_url',
+                            image_url: {
+                                url: `data:${firstFileObj.type};base64,${cleanBase64}`
+                            }
+                        });
+                    }
+                    
+                    pollinationsMessages.push({ role: 'user', content: userContent });
+                    body = { model: config.MODEL, messages: pollinationsMessages, stream: false };
+                }
                 break;
 
             case 'DEEPSEEK':
@@ -1430,11 +1486,281 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
     }
 };
 
-// Вспомогательные функции (заглушки, которые мы наполним API-логикой)
+// ФУНКЦИЯ ГЕНЕРАЦИИ ИЗОБРАЖЕНИЙ
 async function generateImage(prompt, files) {
-    // Здесь пойдет вызов модели Nano Banana 2
-    return { type: 'system', text: `🎨 Скоро... Здесь будет генерация фото по запросу: "${prompt}"...` };
+    // 1. Определяем тип задачи и загружаем соответствующий конфиг
+    const isImg2Img = files && files.length > 0;
+    const configType = isImg2Img ? 'IMAGE_TO_IMAGE' : 'TEXT_TO_IMAGE';
+    const config = loadActiveModelConfig(configType);
+    
+    if (!config) {
+        return { type: 'error', text: `Модель для режима "${configType}" не настроена.` };
+    }
+    
+    console.log(`🎨 [IMAGE_GEN] Модель: ${config.SERVICE} (${config.MODEL}) | Режим: ${configType}`);
+
+    // 2. Если это Img2Img, асинхронно читаем файл в Base64
+    let cleanBase64 = null;
+    if (isImg2Img) {
+        const fileToRead = files[0]?.file;
+        if (fileToRead) {
+            cleanBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(fileToRead);
+            });
+        } else {
+            return { type: 'error', text: 'Для режима Image-to-Image не был предоставлен файл.' };
+        }
+    }
+
+    try {
+        let imageUrl;
+        let imageFile;
+
+        const fileName = `${prompt.split(' ').slice(0, 5).join('_') || 'leshiy_image'}.png`;
+        let url, body, authHeader, isRawBody = false;
+
+        switch (config.SERVICE) {
+            case 'GEMINI': { // Используем блок, чтобы инкапсулировать всю логику
+                // Логика для Gemini, основанная на ваших примерах callGeminiText2Image и callGeminiImage2Image
+                if (!CONFIG.GEMINI_API_KEY) {
+                    throw new Error("Не настроен GEMINI_API_KEY.");
+                }
+                // URL формируется с ключом в параметрах, как в вашем примере
+                const url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
+                let body;
+
+                if (isImg2Img && cleanBase64) {
+                    // Режим Image-to-Image (из callGeminiImage2Image)
+                    body = {
+                        "contents": [{
+                            "parts": [
+                                { "text": prompt },
+                                { "inlineData": { "mimeType": files[0].file.type, "data": cleanBase64 } }
+                            ]
+                        }]
+                    };
+                } else {
+                    // Режим Text-to-Image (из callGeminiText2Image)
+                    body = {
+                        "contents": [{
+                            "parts": [
+                                {"text": `Сгенерируй изображение по этому описанию: ${prompt}`}
+                            ]
+                        }]
+                    };
+                }
+                
+                // Отправляем запрос, ожидая JSON в ответ
+                const response = await sendAIRequest(config, url, body, null, false);
+                const data = await response.json();
+
+                // Обработка ошибок и ответа, как в ваших примерах
+                if (data.error) {
+                    throw new Error(`Gemini Error (${config.MODEL}): ${data.error.message}`);
+                }
+                const safetyRatings = data.promptFeedback?.safetyRatings;
+                if (safetyRatings && safetyRatings.some(r => r.probability !== 'NEGLIGIBLE')) {
+                    const blockedCategories = safetyRatings.filter(r => r.probability !== 'NEGLIGIBLE').map(r => r.category.split('_').pop()).join(', ');
+                    throw new Error(`Генерация заблокирована фильтрами безопасности Gemini. Категории: [${blockedCategories}].`);
+                }
+
+                const base64Image = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                if (!base64Image) {
+                    throw new Error(`Gemini не вернул изображение (Base64). Проверьте логи на предмет блокировки контента.`);
+                }
+
+                // Конвертируем Base64 в Blob, чтобы вернуть стандартный результат
+                const byteCharacters = atob(base64Image);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'image/png' });
+
+                imageFile = new File([blob], fileName, { type: 'image/png' });
+                imageUrl = URL.createObjectURL(imageFile);
+
+                    // Возвращаем результат сразу, минуя общую логику обработки ответа
+                    return {
+                        type: 'image',
+                        text: `🎨 Изображение сгенерировано по запросу: "${prompt}"`,
+                        imageUrl: imageUrl,
+                        file: imageFile
+                    };
+                }
+
+            case 'CLOUDFLARE':
+                // Логика для Cloudflare, основанная на ваших примерах
+                if (!CONFIG.CLOUDFLARE_ACCOUNT_ID || !CONFIG.CLOUDFLARE_API_TOKEN) {
+                    throw new Error("Не настроены ID аккаунта или API токен Cloudflare.");
+                }
+                url = `https://api.cloudflare.com/client/v4/accounts/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
+                authHeader = `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}`;
+
+                if (isImg2Img && cleanBase64) {
+                    // Режим Image-to-Image (из callWorkersAIImg2Img)
+                    body = {
+                        "prompt": prompt || "Enhance the quality of the attached image: color it with bright, natural colors. Remove all scratches, cracks, and dust.",
+                        "negative_prompt": "bad art, ugly, deformed, blurry, low quality, unnatural colors, text, watermark, grayscale, monochrome",
+                        image_b64: cleanBase64, // Отправляем base64, как в вашем примере
+                        num_steps: 20,
+                        strength: 0.02,
+                        guidance: 12.0
+                    };
+                } else {
+                    // Режим Text-to-Image (из callWorkersAITextToImage)
+                    body = {
+                        prompt: `${prompt}, photorealistic, cinematic light, detailed background`,
+                        num_steps: 10,
+                        negative_prompt: "blurry, low quality, worst quality, deformed, mutated, cropped, text, signature, low detail",
+                    };
+                }
+                isRawBody = false; // Это всегда JSON-тело
+                break;
+
+            case 'BOTHUB': { // Используем блок, чтобы инкапсулировать всю логику
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                let imageUrlToFetch;
+                
+                // Конфигурация для первого запроса (чтобы получить URL)
+                let initialRequestConfig = {
+                    url: '',
+                    body: {},
+                    isRawBody: false
+                };
+
+                if (isImg2Img && cleanBase64) {
+                    // --- Логика для Image-to-Image (из callBotHubImage2Image) ---
+                    initialRequestConfig.url = `${config.BASE_URL}/chat/completions`;
+                    const bothubPrompt = `Maintain the exact composition, colors, and subject of the input image. ${prompt}, cinematic light, photorealistic, 8k, sharp focus.`;
+                    initialRequestConfig.body = {
+                        model: config.MODEL,
+                        messages: [{
+                            "role": "user",
+                            "content": [
+                                { "type": "text", "text": bothubPrompt },
+                                { "type": "image_url", "image_url": { "url": `data:image/jpeg;base64,${cleanBase64}` } }
+                            ]
+                        }]
+                    };
+                } else {
+                    // --- Логика для Text-to-Image ---
+                    if (config.MODEL === 'dall-e-3') {
+                        // Специальная логика для DALL-E-3 (из callBotHubText2ImgDalle)
+                        initialRequestConfig.url = `${config.BASE_URL}/images/generations`;
+                        initialRequestConfig.body = {
+                            model: config.MODEL,
+                            prompt: prompt,
+                            n: 1,
+                            size: "1024x1024"
+                        };
+                    } else {
+                        // Общая логика для других T2I моделей, например gemini-flash-image (из callBotHubText2Image)
+                        initialRequestConfig.url = `${config.BASE_URL}/chat/completions`;
+                        initialRequestConfig.body = {
+                            model: config.MODEL,
+                            messages: [{ "role": "user", "content": `Создай картинку по описанию: ${prompt}` }]
+                        };
+                    }
+                }
+
+                // 1. Выполняем первый запрос, чтобы получить JSON с URL'ом изображения
+                const initialResponse = await sendAIRequest(config, initialRequestConfig.url, initialRequestConfig.body, authHeader, initialRequestConfig.isRawBody);
+                const jsonData = await initialResponse.json();
+
+                // 2. Извлекаем URL, используя все возможные пути из ваших примеров
+                imageUrlToFetch = jsonData?.choices?.[0]?.message?.images?.[0]?.image_url?.url 
+                                || jsonData?.data?.[0]?.url;
+                if (!imageUrlToFetch) {
+                    const content = jsonData?.choices?.[0]?.message?.content;
+                    if (typeof content === 'string') {
+                        const urlMatch = content.match(/(https?:\/\/[^\s]+)/);
+                        if (urlMatch) { imageUrlToFetch = urlMatch[0]; }
+                    }
+                }
+                if (!imageUrlToFetch) {
+                    throw new Error(`BotHub не вернул URL изображения. Ответ: ${JSON.stringify(jsonData).substring(0, 200)}`);
+                }
+
+                // 3. Выполняем второй, прямой запрос для скачивания изображения по полученному URL
+                const imageResponse = await fetch(imageUrlToFetch);
+                if (!imageResponse.ok) {
+                    throw new Error(`Ошибка загрузки изображения с BotHub по URL (${imageResponse.status}).`);
+                }
+
+                const blob = await imageResponse.blob();
+                if (blob.size === 0) throw new Error('BotHub вернул пустой файл изображения.');
+
+                imageFile = new File([blob], fileName, { type: blob.type });
+                imageUrl = URL.createObjectURL(imageFile);
+
+                // 4. Возвращаем готовый результат, как в случае с Gemini
+                return {
+                    type: 'image',
+                    text: `🎨 Изображение сгенерировано по запросу: "${prompt}"`,
+                    imageUrl: imageUrl,
+                    file: imageFile
+                };
+            }
+
+            case 'POLLINATIONS':
+                // Логика для Pollinations (пока только Text-to-Image)
+                if (isImg2Img) {
+                    return { type: 'error', text: `Режим Image-to-Image для Pollinations еще не поддерживается.` };
+                }
+                const encodedPrompt = encodeURIComponent(prompt);
+                const requestUrl = new URL(`${config.BASE_URL}/image/${encodedPrompt}`);
+                requestUrl.searchParams.set('model', config.MODEL || 'flux');
+                requestUrl.searchParams.set('seed', String(Math.floor(Math.random() * 999999999)));
+                requestUrl.searchParams.set('aspect_ratio', '1:1');
+                requestUrl.searchParams.set('nologo', 'true');
+                requestUrl.searchParams.set('key', CONFIG[config.API_KEY]); 
+                url = requestUrl.toString();
+                authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                body = null;
+                isRawBody = true;
+                break;
+
+            default:
+                return { type: 'error', text: `Генерация изображений для сервиса ${config.SERVICE} еще не поддерживается.` };
+        }
+        
+        // Отправляем запрос через центральную прокси-функцию
+        const response = await sendAIRequest(config, url, body, authHeader, isRawBody);
+        
+        // Обработка ответа (остается без изменений)
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.startsWith('image')) {
+            const errorText = await response.text();
+            throw new Error(`Сервер вернул не изображение. Ответ: ${errorText.substring(0, 300)}`);
+        }
+
+        const blob = await response.blob();
+        if (blob.size === 0) throw new Error('Сервер вернул пустой файл изображения.');
+        
+        imageFile = new File([blob], fileName, { type: contentType });
+        imageUrl = URL.createObjectURL(imageFile);
+
+        if (!imageUrl) throw new Error('Не удалось создать URL для изображения.');
+        
+        return { 
+            type: 'image', 
+            text: `🎨 Изображение сгенерировано по запросу: "${prompt}"`,
+            imageUrl: imageUrl,
+            file: imageFile
+        };
+        
+    } catch (error) {
+        console.error("❌ [generateImage] Ошибка:", error);
+        return handleAiError(error);
+    }
 }
+
+
 
 async function generateAudio(prompt, voiceId) {
     const config = loadActiveModelConfig('TEXT_TO_AUDIO');

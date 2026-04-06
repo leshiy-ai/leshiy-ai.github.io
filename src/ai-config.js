@@ -236,13 +236,6 @@ export const AI_MODELS = {
         BASE_URL: 'https://gen.pollinations.ai'
     },
 
-    // --- Прочие модели ---
-    TEXT_TO_IMAGE_KANDINSKY: { 
-        SERVICE: 'FUSIONBRAIN', 
-        MODEL: 'kandinsky', 
-        API_KEY: 'FUSIONBRAIN_API_KEY',
-        BASE_URL: 'https://api-key.fusionbrain.ai'
-    },
     TEXT_TO_AUDIO_VOICERSS: { 
         SERVICE: 'VOICERSS', 
         MODEL: 'hl=ru-ru&c=MP3',

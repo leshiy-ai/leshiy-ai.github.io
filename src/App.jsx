@@ -59,6 +59,11 @@ const MODELS_SELECTORS = {
         { key: 'TEXT_TO_IMAGE_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
         { key: 'TEXT_TO_IMAGE_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
+    'IMAGE_TO_IMAGE': [
+        { key: 'IMAGE_TO_IMAGE_CLOUDFLARE', name: 'Быстрая', icon: '✳️' },
+        { key: 'IMAGE_TO_IMAGE_GEMINI', name: 'Качественная', icon: '✨' },
+        { key: 'IMAGE_TO_IMAGE_BOTHUB', name: 'Запасная', icon: '✴️' }
+    ],
     'TEXT_TO_AUDIO': [
         { key: 'TEXT_TO_AUDIO_CLOUDFLARE', name: 'Быстрая', icon: '✳️' },
         { key: 'TEXT_TO_AUDIO_VOICERSS', name: 'Обычная', icon: '⚛️' },
