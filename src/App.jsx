@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { CONFIG } from './config';
-import { askLeshiy, generateLeshiy } from './leshiy-core';
+import { askLeshiy, generateLeshiy, convertWavToMp3 } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric, loadActiveModelConfig } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
@@ -12,9 +12,10 @@ import './App.css';
 // Определяют основные режимы работы приложения и связывают их с типом сервиса
 const LESHIY_MODES = [
     { id: 1, name: 'Общение', icon: '1️⃣', serviceType: 'TEXT_TO_TEXT' },
-    { id: 2, name: 'Генерация фото', icon: '2️⃣', serviceType: 'TEXT_TO_IMAGE' },
-    { id: 3, name: 'Синтез речи', icon: '3️⃣', serviceType: 'TEXT_TO_AUDIO' },
-    { id: 4, name: 'Генерация видео', icon: '4️⃣', serviceType: 'TEXT_TO_VIDEO' }
+    { id: 2, name: 'Хранилка', icon: '2️⃣', serviceType: 'TEXT_TO_TEXT' },
+    { id: 3, name: 'Генерайия голоса', icon: '3️⃣', serviceType: 'TEXT_TO_AUDIO' },
+    { id: 4, name: 'Генерация фото', icon: '4️⃣', serviceType: 'TEXT_TO_IMAGE' },
+    { id: 5, name: 'Генерация видео', icon: '5️⃣', serviceType: 'TEXT_TO_VIDEO' }
 ];
 
 // Карта селекторов моделей для каждого типа сервиса
@@ -2064,21 +2065,49 @@ function App() {
                 if (event.data.size > 0) audioChunksRef.current.push(event.data);
             };
     
-            mediaRecorderRef.current.onstop = () => {
+            mediaRecorderRef.current.onstop = async () => { // <--- Добавляем async
                 if (audioChunksRef.current.length === 0) return;
-    
+            
                 const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
                 const audioFile = new File([audioBlob], `voice_${Date.now()}.wav`, { type: 'audio/wav' });
-                
-                setFiles(prev => [...prev, {
-                    id: Date.now(),
-                    file: audioFile,
-                    preview: null
-                }]);
-    
-                setIsRecordingFile(false);
+            
+                // Останавливаем стрим и индикатор записи
                 stream.getTracks().forEach(track => track.stop());
+                setIsRecordingFile(false);
+            
+                // --- НОВАЯ ЛОГИКА: КОНВЕРТАЦИЯ В MP3 ---
+                try {
+                    // Показываем сообщение о конвертации
+                    setMessages(prev => [...prev, { id: Date.now(), role: 'ai', text: '🎙️ Конвертирую запись в MP3...' }]);
+            
+                    // Вызываем нашу новую функцию из leshiy-core.js
+                    const mp3Buffer = await convertWavToMp3(audioFile);
+                    
+                    // Создаем новый MP3 файл из полученного буфера
+                    const mp3Blob = new Blob([mp3Buffer], { type: 'audio/mpeg' });
+                    const mp3File = new File([mp3Blob], `voice_${Date.now()}.mp3`, { type: 'audio/mpeg' });
+            
+                    // Создаем объект для отображения и отправки
+                    const assistantMsg = {
+                        id: Date.now() + 1,
+                        role: 'ai audio', // Используем специальную роль для аудио-сообщений
+                        text: `🎵 Запись с микрофона готова`,
+                        audioUrl: URL.createObjectURL(mp3Blob),
+                        file: mp3File 
+                    };
+            
+                    // Добавляем готовое MP3-сообщение в чат
+                    setMessages(prev => [...prev.filter(m => m.text !== '🎙️ Конвертирую запись в MP3...'), assistantMsg]);
+            
+                } catch (err) {
+                    console.error("Ошибка конвертации WAV в MP3:", err);
+                    setMessages(prev => [
+                        ...prev.filter(m => m.text !== '🎙️ Конвертирую запись в MP3...'),
+                        { id: Date.now(), role: 'ai error', text: `❌ Ошибка конвертации: ${err.message}` }
+                    ]);
+                }
             };
+            
     
             mediaRecorderRef.current.start();
         } catch (err) {

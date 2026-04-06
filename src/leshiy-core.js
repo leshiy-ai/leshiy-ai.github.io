@@ -23,35 +23,116 @@ function base64ToArrayBuffer(base64) {
 }
 
 /**
+ * 🟢 ЦЕНТРАЛИЗОВАННАЯ ФУНКЦИЯ ДЛЯ ВЫЗОВА КОНВЕРТЕРА (версия для браузера)
+ * @param {string} endpoint - Конечная точка (например, '/converter/pcm2mp3').
+ * @param {object} fetchOptions - Объект опций для fetch.
+ * @param {object} queryParams - Параметры URL.
+ * @returns {Promise<ArrayBuffer>} - Возвращает ArrayBuffer готового файла.
+ */
+async function callLeshiyConverter(endpoint, fetchOptions, queryParams = {}) {
+    const RENDER_HOST_URL = CONFIG.MP3_CONVERTER_URL;
+    if (!RENDER_HOST_URL) {
+        throw new Error("URL для конвертера не настроен в CONFIG.MP3_CONVERTER_URL");
+    }
+    // Убираем слэш в конце, если он есть, чтобы не было двойных //
+    const BASE_URL = RENDER_HOST_URL.endsWith('/') ? RENDER_HOST_URL.slice(0, -1) : RENDER_HOST_URL;
+    const timeoutSeconds = 120;
+
+    const urlParams = new URLSearchParams(queryParams);
+    const finalUrl = `${BASE_URL}${endpoint}?${urlParams.toString()}`;
+
+    const signal = fetchOptions.signal || AbortSignal.timeout(timeoutSeconds * 1000);
+    const finalOptions = {
+        method: 'POST',
+        ...fetchOptions,
+        signal: signal
+    };
+
+    try {
+        console.log(`[CONVERTER_CALL] Вызов: ${finalUrl}`);
+        const response = await fetch(finalUrl, finalOptions);
+
+        if (!response.ok) {
+            const errorDetails = await response.text().catch(() => 'No response body');
+            const status = response.status;
+            console.error(`[CONVERTER_ERROR] Статус ${status}. Детали: ${errorDetails.substring(0, 300)}`);
+            
+            let userError = `Ошибка конвертера (HTTP ${status}).`;
+            if (errorDetails.includes("FFmpeg failed")) {
+                userError = "Ошибка FFmpeg на сервере. Проверьте формат.";
+            } else if (status === 503) {
+                userError = "🔄 Сервис конвертации был в спячке. Повторите запрос через ~15 секунд.";
+            }
+            throw new Error(userError);
+        }
+
+        return await response.arrayBuffer();
+
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            throw new Error(`🔄 Таймаут ответа от конвертера (дольше ${timeoutSeconds} секунд).`);
+        }
+        throw e;
+    }
+}
+
+/**
  * Отправляет сырой PCM ArrayBuffer на сервер для конвертации в MP3.
- * @param {ArrayBuffer} pcmBuffer - Сырые PCM-данные.
+ * Корректно вызывает эндпоинт /converter/pcm2mp3.
+ * @param {ArrayBuffer} pcmBuffer - Сырые PCM-данные от Gemini.
  * @returns {Promise<ArrayBuffer>} - ArrayBuffer с MP3-данными.
  */
 async function convertPcmToMp3(pcmBuffer) {
-    if (!CONFIG.MP3_CONVERTER_URL) {
-        throw new Error("URL для PCM->MP3 конвертера не настроен в CONFIG.MP3_CONVERTER_URL");
-    }
-    try {
-        console.log(`[MP3_CONVERTER] Отправка ${pcmBuffer.byteLength} байт PCM на ${CONFIG.MP3_CONVERTER_URL}`);
-        const response = await fetch(CONFIG.MP3_CONVERTER_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/octet-stream' },
-            body: pcmBuffer,
-            signal: AbortSignal.timeout(30000) // 30 секунд таймаут
-        });
+    // Эндпоинт для конвертации PCM, который добавится к базовому URL из конфига.
+    // Так как в конфиге уже есть /converter, здесь указываем только сам метод.
+    const endpoint = '/pcm2mp3';
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Сервис конвертации MP3 вернул ошибку ${response.status}: ${errorText}`);
-        }
-        
-        const mp3Buffer = await response.arrayBuffer();
-        console.log(`[MP3_CONVERTER] Успешно получено ${mp3Buffer.byteLength} байт MP3.`);
-        return mp3Buffer;
-    } catch (error) {
-        console.error("❌ Критическая ошибка конвертации PCM в MP3:", error);
-        throw error;
-    }
+    // Gemini TTS возвращает аудио в формате PCM s16le с частотой 24000 Hz.
+    const queryParams = {
+        sampleRate: 24000,
+        channels: 1,
+        format: 's16le'
+    };
+
+    const fetchOptions = {
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: pcmBuffer,
+    };
+    
+    console.log(`[PCM_CONVERTER] Отправка ${pcmBuffer.byteLength} байт PCM на ${endpoint}`);
+
+    // Вызываем централизованную функцию
+    return await callLeshiyConverter(endpoint, fetchOptions, queryParams);
+}
+
+/**
+ * Отправляет WAV-файл (Blob/File) на сервер для конвертации в MP3.
+ * Идеально подходит для записей с микрофона.
+ * @param {Blob|File} wavFile - WAV-файл, записанный с микрофона.
+ * @returns {Promise<ArrayBuffer>} - ArrayBuffer с MP3-данными.
+ */
+export async function convertWavToMp3(wavFile) {
+    // Эндпоинт для конвертации WAV в MP3 из вашего серверного кода.
+    const endpoint = '/wav2mp3';
+
+    // Для отправки файлов используется специальный объект FormData.
+    const formData = new FormData();
+    // Имя поля 'audio' должно совпадать с тем, что ожидает multer на сервере:
+    // upload.single('audio')
+    formData.append('audio', wavFile, 'recording.wav');
+
+    // Опции для fetch.
+    // ВАЖНО: Content-Type не указываем вручную. Браузер сделает это сам,
+    // когда увидит, что в теле запроса находится FormData.
+    const fetchOptions = {
+        body: formData,
+    };
+    
+    console.log(`[WAV_CONVERTER] Отправка WAV-файла (${(wavFile.size / 1024).toFixed(1)} KB) на эндпоинт ${endpoint}`);
+
+    // Вызываем нашу универсальную функцию-обертку.
+    // queryParams здесь не нужны.
+    return await callLeshiyConverter(endpoint, fetchOptions);
 }
 
 const SYSTEM_PROMPT = `Ты — многофункциональный AI-ассистент Gemini AI от Leshiy, отвечающий на русском языке.
@@ -66,11 +147,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     // --- НОВАЯ ЛОГИКА РЕЖИМОВ ---
     if (!isSystemTask) { // Системные задачи (типа заголовков) не трогаем
         if (currentMode === 2) {
-            console.log("Движок: Генерация фото");
+            console.log("Движок: Режим Хранилки");
             // Тут позже прикрутим вызов генератора картинок
         } else if (currentMode === 3) {
-            console.log("Движок: Генерация аудио");
+            console.log("Движок: Генерация голоса");
         } else if (currentMode === 4) {
+            console.log("Движок: Генерация фото");
+        } else if (currentMode === 5) {
             console.log("Движок: Генерация видео");
         }
     }
@@ -1281,15 +1364,19 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
         case 1: // ОБЩЕНИЕ (Твой текущий askLeshiy)
             return await askLeshiy({ text: prompt, files, history });
 
-        case 2: // ФОТО
+        case 2: // ХРАНИЛКА
+            console.log("Режим: Сохранения в облако");
+            return await askLeshiy({ text: prompt, files, history });
+
+        case 3: // ГОЛОС (TTS)
+            console.log("Режим: Генерация голоса");
+            return await generateAudio(prompt, voiceId);
+
+        case 4: // ФОТО
             console.log("Режим: Генерация изображения");
             return await generateImage(prompt, files);
 
-        case 3: // ГОЛОС (TTS)
-            console.log("Режим: Генерация аудио");
-            return await generateAudio(prompt, voiceId);
-
-        case 4: // ВИДЕО
+        case 5: // ВИДЕО
             console.log("Режим: Генерация видео");
             return await generateVideo(prompt, files);
 
