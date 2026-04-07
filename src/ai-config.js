@@ -206,32 +206,39 @@ export const AI_MODELS = {
         BASE_URL: 'https://bothub.chat/api/v2/openai/v1'
     },
 
-    // Pollinations.ai - 0.010 pollen самовосстанавливающиеся каждый час.
+    // Pollinations.ai - при старте 0.010 pollen самовосстанавливающиеся каждый час.
 
-    // [Pollinations.ai: Gemini-fast для чата] (0.01 /M pollen)
+    // [Pollinations.ai: Gemini-fast для чата] (1.2 /M pollen)
     TEXT_TO_TEXT_POLLINATIONS: { 
         SERVICE: 'POLLINATIONS', 
-        MODEL: 'gemini-fast', 
+        //MODEL: 'gemini-fast', 
+        MODEL: 'grok', 
         API_KEY: 'POLLINATIONS_API_KEY', 
         //BASE_URL: 'https://gen.pollinations.ai/v1/chat/completions'
         BASE_URL: 'https://gen.pollinations.ai'
     },
-    // [Pollinations.ai: Gemini-fast для распознавания фото]
+    // [Pollinations.ai: Gemini-fast для распознавания фото (1.2 /M)]
     IMAGE_TO_TEXT_POLLINATIONS: { 
         SERVICE: 'POLLINATIONS', 
         MODEL: 'gemini-fast', 
         API_KEY: 'POLLINATIONS_API_KEY', 
         BASE_URL: 'https://gen.pollinations.ai'
     },
-    // [Pollinations.ai: Flux - /create] (0.010 pollen)
+    // [Pollinations.ai: Flux - Txt2Img] (0.001 pollen)
     TEXT_TO_IMAGE_POLLINATIONS: { 
         SERVICE: 'POLLINATIONS', 
         MODEL: 'flux', 
         API_KEY: 'POLLINATIONS_API_KEY', // Имя переменной окружения
-        BASE_URL: 'https://gen.pollinations.ai',
-        pricing: 4 // СТАТИЧЕСКАЯ ЦЕНА
+        BASE_URL: 'https://gen.pollinations.ai'
     },
-    // [Pollinations.ai: Whisper для голосовых]
+    // [Pollinations.ai: Flux - Img2Img] (0.01 pollen)
+    IMAGE_TO_IMAGE_POLLINATIONS: { 
+        SERVICE: 'POLLINATIONS', 
+        MODEL: 'p-image-edit', // 👁 означает Vision-способности или Context-awareness (умение видеть входную картинку).
+        API_KEY: 'POLLINATIONS_API_KEY', // Имя переменной окружения
+        BASE_URL: 'https://gen.pollinations.ai'
+    },
+    // [Pollinations.ai: Whisper для голосовых 0.00004 /sec]
     AUDIO_TO_TEXT_POLLINATIONS: { 
         SERVICE: 'POLLINATIONS', 
         // MODEL: 'scribe', // ElevenLabs Scribe v2
@@ -239,6 +246,7 @@ export const AI_MODELS = {
         API_KEY: 'POLLINATIONS_API_KEY', 
         BASE_URL: 'https://gen.pollinations.ai'
     },
+    // [Pollinations.ai: gemini-fast - 👁 Vision] (💬 1.2 /M pollen)
     VIDEO_TO_ANALYSIS_POLLINATIONS: { 
         SERVICE: 'POLLINATIONS', 
         MODEL: 'gemini-fast', 

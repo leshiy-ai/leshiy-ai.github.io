@@ -63,6 +63,7 @@ const MODELS_SELECTORS = {
     'IMAGE_TO_IMAGE': [
         { key: 'IMAGE_TO_IMAGE_CLOUDFLARE', name: 'Быстрая', icon: '✳️' },
         { key: 'IMAGE_TO_IMAGE_GEMINI', name: 'Качественная', icon: '✨' },
+        { key: 'IMAGE_TO_IMAGE_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
         { key: 'IMAGE_TO_IMAGE_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
     'TEXT_TO_AUDIO': [

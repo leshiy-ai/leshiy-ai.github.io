@@ -1552,7 +1552,7 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
     const prompt = text?.trim() || "";
 
     // Этот console.log покажет нам, что данные наконец дошли до цели
-    console.log(`[generateLeshiy] ПОЛУЧИЛ: videoProcessingMode="${videoProcessingMode}"`);
+    //console.log(`[generateLeshiy] ПОЛУЧИЛ: videoProcessingMode="${videoProcessingMode}"`);
 
     // Логика выбора режима
     switch (Number(currentMode)) {
@@ -1622,12 +1622,6 @@ async function generateImage(prompt, files) {
                 ? [{ text: i2iPrompt }, { inlineData: { mimeType: files[0].file.type, data: cleanBase64 } }] 
                 : [{ text: t2iPrompt }]
             }] };
-
-            /*if (isImg2Img) {
-                body = { "contents": [{ "parts": [{ "text": prompt }, { "inlineData": { "mimeType": files[0].file.type, "data": cleanBase64 } }] }] };
-            } else {
-                body = { "contents": [{ "parts": [{ "text": `Сгенерируй изображение по этому описанию: ${prompt}` }] }] };
-            }*/
             
             const response = await sendAIRequest(config, url, body, null, false);
             const data = await response.json();
@@ -1656,6 +1650,8 @@ async function generateImage(prompt, files) {
             //let requestUrl = `${config.BASE_URL}${config.API_PATH}`;
             const i2iPrompt = `Apply the following edit instruction to the image provided. The instruction is: "${prompt}".`;
             const t2iPrompt = `Создай картинку по описанию: ${prompt}`;
+            const authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+            let initialResponse;
             let requestBody;
 
             if (isImg2Img) {
@@ -1667,18 +1663,18 @@ async function generateImage(prompt, files) {
                     requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": t2iPrompt }] };
                  }
             }
-            /*if (isImg2Img) {
-                 const bothubPrompt = `Maintain the exact composition, colors, and subject of the input image. ${prompt}, cinematic light, photorealistic, 8k, sharp focus.`;
-                 requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": [{ "type": "text", "text": bothubPrompt }, { "type": "image_url", "image_url": { "url": `data:image/jpeg;base64,${cleanBase64}` } }] }] };
-            } else {
-                 if (config.API_PATH === '/images/generations') {
-                    requestBody = { model: config.MODEL, prompt: prompt, n: 1, size: "1024x1024" };
-                 } else {
-                    requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": `Создай картинку по описанию: ${prompt}` }] };
-                 }
-            }*/
+            
             const requestUrl = `${config.BASE_URL}${config.API_PATH}`;
-            const initialResponse = await sendAIRequest(config, requestUrl, requestBody, `Bearer ${CONFIG[config.API_KEY]}`, false);
+            //const initialResponse = await sendAIRequest(config, requestUrl, requestBody, authHeader, false);
+            initialResponse = await fetch(requestUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': authHeader,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
             const jsonData = await initialResponse.json();
 
             // ДОБАВЛЯЕМ ЛОГ, ЧТОБЫ УВИДЕТЬ, ЧТО ПРИСЫЛАЕТ BOTHUB
@@ -1739,8 +1735,8 @@ async function generateImage(prompt, files) {
                             "negative_prompt": "bad art, ugly, deformed, blurry, low quality, unnatural colors, text, watermark, grayscale",
                             image_b64: cleanBase64,
                             num_steps: 20,
-                            strength: 0.02,
-                            guidance: 12.0
+                            strength: 0.02, // Сила изменения
+                            guidance: 12.0, // Точность промпта
                         };
                     } else {
                          body = {
@@ -1752,23 +1748,133 @@ async function generateImage(prompt, files) {
                     isRawBody = false;
                     break;
                 case 'POLLINATIONS':
-                    if (isImg2Img) throw new Error("Img2Img для Pollinations не поддерживается");
-                    const encodedPrompt = encodeURIComponent(prompt);
-                    url = new URL(`${config.BASE_URL}/image/${encodedPrompt}`);
-                    url.searchParams.set('model', config.MODEL || 'flux');
-                    url.searchParams.set('seed', String(Math.floor(Math.random() * 999999999)));
-                    url.searchParams.set('aspect_ratio', '1:1');
-                    url.searchParams.set('nologo', 'true');
-                    url.searchParams.set('key', CONFIG[config.API_KEY]);
+                    if (isImg2Img) {
+                        // --- ЛОГИКА ДЛЯ IMAGE-TO-IMAGE (POST-запрос) ---
+                        const authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                        let response;
+                        // --- РЕЖИМ EDIT / I2I (Strict OpenAI Compatibility) ---
+                        console.log("🎨 Pollinations: Режим EDIT (FormData)");
+                        
+                        // Согласно доке OpenAI, для правок используем /edits
+                        const editUrl = `${config.BASE_URL}/v1/images/edits`;
+                        
+                        const formData = new FormData();
+                        // ВАЖНО: OpenAI требует именно PNG для эндпоинта edits
+                        formData.append('image', files[0].file); 
+                        formData.append('prompt', prompt);
+                        formData.append('model', config.MODEL); // или dall-e-2
+                        formData.append('n', 1);
+                        formData.append('size', '1024x1024');
+                        formData.append('response_format', 'b64_json');
+
+                        response = await fetch(editUrl, {
+                            method: 'POST',
+                            headers: { 'Authorization': authHeader },
+                            body: formData 
+                            // Content-Type НЕ СТАВИМ, браузер сам влепит multipart/form-data + boundary
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`Pollinations I2I Error: ${response.status} - ${errorText}`);
+                        }
+
+                        // Парсим JSON от /edits
+                        const json = await response.json();
+                        if (!json.data || !json.data[0]) throw new Error("Pollinations не вернул данные изображения");
+                        
+                        const b64 = json.data[0].b64_json;
+                        const blob = await (await fetch(`data:image/png;base64,${b64}`)).blob();
+
+                        imageFile = new File([blob], fileName, { type: 'image/png' });
+                        console.log('>>> [DEBUG_IMG] File создан.', imageFile);
+                        imageUrl = URL.createObjectURL(imageFile);
+                        console.log('>>> [DEBUG_IMG] Blob URL создан.', imageUrl);
                     
-                    body = null;
-                    isRawBody = true;
-                    authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
-                    break;
+                        // *** ЕДИНАЯ ТОЧКА ВОЗВРАТА ДЛЯ ВСЕХ СЕРВИСОВ ***
+                        if (!imageUrl) throw new Error('Не удалось создать URL для изображения после всех операций.');
+                        
+                        // --- НОВАЯ ИДЕАЛЬНАЯ ЛОГИКА ФОРМИРОВАНИЯ ПОДПИСИ ---
+                        const standardCaption = `✅ Ваше изображение по запросу: "${prompt}"`;
+                        let finalCaption;
+
+                        if (aiCaption && aiCaption.trim()) {
+                            finalCaption = `${aiCaption.trim()}\n${standardCaption}`;
+                        } else {
+                            finalCaption = `🎨 ${standardCaption}`;
+                        }
+
+                        return { 
+                            type: 'image', 
+                            text: finalCaption,
+                            imageUrl: imageUrl,
+                            file: imageFile
+                        };
+                    } else {
+                        // --- ЛОГИКА ДЛЯ TEXT-TO-IMAGE (GET-запрос) ---
+                        const authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
+                        console.log("Pollinations: Режим Text-to-Image (GET)");
+                        const encodedPrompt = encodeURIComponent(prompt);
+                        url = new URL(`${config.BASE_URL}/image/${encodedPrompt}`);
+                        url.searchParams.set('model', config.MODEL || 'flux');
+                        url.searchParams.set('seed', String(Math.floor(Math.random() * 999999999)));
+                        url.searchParams.set('aspect_ratio', '1:1');
+                        url.searchParams.set('nologo', 'true');
+                        url.searchParams.set('key', CONFIG[config.API_KEY]);
+                        
+                        // Прямой GET-запрос в Pollinations, как в вашем коде из бота
+                        const response = await fetch(url.toString(), {
+                            method: 'GET',
+                            headers: { 
+                                'Authorization': authHeader,
+                                'Accept': 'image/jpeg, image/png, image/*'
+                            }
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`Pollinations T2I API Error: ${response.status} - ${errorText.substring(0, 300)}`);
+                        }
+
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.startsWith('image')) {
+                            const errorText = await response.text();
+                            throw new Error(`Сервер Pollinations вернул не изображение. Ответ: ${errorText.substring(0, 300)}`);
+                        }
+
+                        const blob = await response.blob();
+                        if (blob.size === 0) throw new Error('Сервер Pollinations вернул пустой файл изображения.');
+                        
+                        imageFile = new File([blob], fileName, { type: contentType });
+                        console.log('>>> [DEBUG_IMG] File создан.', imageFile);
+                        imageUrl = URL.createObjectURL(imageFile);
+                        console.log('>>> [DEBUG_IMG] Blob URL создан.', imageUrl);
+                    
+                        // *** ЕДИНАЯ ТОЧКА ВОЗВРАТА ДЛЯ ВСЕХ СЕРВИСОВ ***
+                        if (!imageUrl) throw new Error('Не удалось создать URL для изображения после всех операций.');
+                        
+                        // --- НОВАЯ ИДЕАЛЬНАЯ ЛОГИКА ФОРМИРОВАНИЯ ПОДПИСИ ---
+                        const standardCaption = `✅ Ваше изображение по запросу: "${prompt}"`;
+                        let finalCaption;
+
+                        if (aiCaption && aiCaption.trim()) {
+                            finalCaption = `${aiCaption.trim()}\n${standardCaption}`;
+                        } else {
+                            finalCaption = `🎨 ${standardCaption}`;
+                        }
+
+                        return { 
+                            type: 'image', 
+                            text: finalCaption,
+                            imageUrl: imageUrl,
+                            file: imageFile
+                        };
+                    }
+
                 default:
                     throw new Error(`Генерация изображений для сервиса ${config.SERVICE} не настроена в стандартном блоке.`);
             }
-
+            
             // *** ОБЩИЙ БЛОК для стандартных сервисов (раскомментируйте, если нужно) ***
             const response = await sendAIRequest(config, url.toString(), body, authHeader, isRawBody);
         
