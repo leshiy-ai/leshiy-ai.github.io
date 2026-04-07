@@ -208,7 +208,7 @@ export const AI_MODELS = {
 
     // Pollinations.ai - при старте 0.010 pollen самовосстанавливающиеся каждый час.
 
-    // [Pollinations.ai: Gemini-fast для чата] (1.2 /M pollen)
+    // [Pollinations.ai: Grok для чата] (0.5 /M pollen)
     TEXT_TO_TEXT_POLLINATIONS: { 
         SERVICE: 'POLLINATIONS', 
         //MODEL: 'gemini-fast', 

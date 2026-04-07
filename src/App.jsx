@@ -27,7 +27,7 @@ const MODELS_SELECTORS = {
     'TEXT_TO_TEXT': [
         { key: 'TEXT_TO_TEXT_CLOUDFLARE', name: 'Базовая', icon: '✳️' },
         { key: 'TEXT_TO_TEXT_GEMINI', name: 'Умная', icon: '✨' },
-        { key: 'TEXT_TO_TEXT_POLLINATIONS', name: 'Возобнавляемая', icon: '☯️' },
+        { key: 'TEXT_TO_TEXT_POLLINATIONS', name: 'Дерзкая', icon: '☯️' },
         { key: 'TEXT_TO_TEXT_BOTHUB', name: 'Запасная', icon: '✴️' }
     ],
     // --- НОВЫЕ СЕКЦИИ ДЛЯ РАСПОЗНАВАНИЯ ---
