@@ -841,7 +841,7 @@ function App() {
    */
   const startInAppAuth = async (provider) => {
     // 1. Формируем ссылку на ваш бэкенд для авторизации
-    const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`;
+    const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}&platform=android`;
     console.log(`[Capacitor Auth] Starting In-App Auth for ${provider}`);
   
     // 2. Создаем слушатель, который сработает, когда ОС вернет управление приложению через Deep Link
