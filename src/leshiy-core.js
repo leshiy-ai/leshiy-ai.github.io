@@ -1820,7 +1820,7 @@ async function generateImage(prompt, files) {
                         url.searchParams.set('seed', String(Math.floor(Math.random() * 999999999)));
                         url.searchParams.set('aspect_ratio', '1:1');
                         url.searchParams.set('nologo', 'true');
-                        url.searchParams.set('key', CONFIG[config.API_KEY]);
+                        //url.searchParams.set('key', CONFIG[config.API_KEY]);
                         
                         // Прямой GET-запрос в Pollinations, как в вашем коде из бота
                         const response = await fetch(url.toString(), {

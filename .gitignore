@@ -1,3 +1,13 @@
+# Google IDX
+.idx/
+.vscode/
+
+# Сборка и логи
+dist/
+dist-ssr
+build/
+node_modules/
+
 # Logs
 logs
 *.log
@@ -7,11 +17,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-projects/
+# Секреты
 .env
+projects/
 *.local
 
 # Editor directories and files
@@ -24,3 +32,9 @@ projects/
 *.njsproj
 *.sln
 *.sw?
+
+# Android (Capacitor)
+android/
+# Если решишь хранить папку android в гите (чтобы настройки не слетали), 
+# то внутри неё игнорируй хотя бы папку с билдами:
+# android/app/build/
