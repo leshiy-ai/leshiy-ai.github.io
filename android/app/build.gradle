@@ -7,15 +7,23 @@ android {
         applicationId "com.leshiy_ai.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+    } 
+    // Задаём имя файла:
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            // Задаем имя файла: имя-проекта-версия-тип.apk
+            outputFileName = "leshiy-ai-v${variant.versionName}-${variant.buildType.name}.apk"
+        }
     }
+
     buildTypes {
         release {
             minifyEnabled false
