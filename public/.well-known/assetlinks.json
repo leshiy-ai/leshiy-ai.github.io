@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.leshiy_ai.app",
+    "sha256_cert_fingerprints": [
+      "5E:13:92:D1:BC:59:8A:8B:45:EB:5E:37:C5:CE:01:1E:06:8F:42:F0:78:33:E9:A6:A0:86:B1:E7:CF:28:29:72"
+    ]
+  }
+}]
