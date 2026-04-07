@@ -849,7 +849,8 @@ function App() {
       console.log('[Capacitor Auth] App received URL:', event.url);
   
       // 3. Проверяем, что это именно тот URL, который мы ждем после успешной авторизации
-      if (event.url.includes('leshiy-ai.github.io')) {
+      // if (event.url.includes('leshiy-ai.github.io')) {
+    if (event.url.includes('code=')) {
         console.log('[Capacitor Auth] Detected redirect URL. Closing browser.');
         
         // 4. Закрываем окно In-App Browser
