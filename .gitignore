@@ -34,7 +34,13 @@ projects/
 *.sw?
 
 # Android (Capacitor)
-android/
-# Если решишь хранить папку android в гите (чтобы настройки не слетали), 
-# то внутри неё игнорируй хотя бы папку с билдами:
-# android/app/build/
+# Саму папку НЕ игнорируем, чтобы сохранить настройки
+# android/
+
+# Игнорируем только билды и локальный мусор внутри Android
+android/app/build/
+android/capacitor-cordova-android-plugins/
+android/.gradle/
+android/local.properties
+android/captures/
+android/app/release/
