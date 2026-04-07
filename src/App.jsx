@@ -7,6 +7,9 @@ import { askLeshiy, generateLeshiy, convertWavToMp3 } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric, loadActiveModelConfig } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
+import { Capacitor as Apk } from '@capacitor/core';
+import { Browser as apkBrowser } from '@capacitor/browser';
+import { App as apkApp } from '@capacitor/app';
 
 // --- КОНСТАНТЫ ---
 // Определяют основные режимы работы приложения и связывают их с типом сервиса
@@ -831,6 +834,44 @@ function App() {
                 return text.replace(/(^|[.!?]\s+)([а-яёa-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
         }
     }, []);
+
+    /**
+   * Запускает нативную авторизацию через In-App Browser (только для Capacitor).
+   * @param {'vk' | 'tg'} provider - Провайдер авторизации.
+   */
+  const startInAppAuth = async (provider) => {
+    // 1. Формируем ссылку на ваш бэкенд для авторизации
+    const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`;
+    console.log(`[Capacitor Auth] Starting In-App Auth for ${provider}`);
+  
+    // 2. Создаем слушатель, который сработает, когда ОС вернет управление приложению через Deep Link
+    const urlListener = await apkApp.addListener('appUrlOpen', async (event) => {
+      console.log('[Capacitor Auth] App received URL:', event.url);
+  
+      // 3. Проверяем, что это именно тот URL, который мы ждем после успешной авторизации
+      if (event.url.includes('leshiy-ai.github.io')) {
+        console.log('[Capacitor Auth] Detected redirect URL. Closing browser.');
+        
+        // 4. Закрываем окно In-App Browser
+        await apkBrowser.close();
+        
+        // 5. Удаляем слушатель, чтобы он не сработал повторно
+        urlListener.remove();
+  
+        // 6. Имитируем событие 'focus' для перепроверки статуса логина.
+        // Это заставит приложение проверить localStorage и обновить UI.
+        console.log('[Capacitor Auth] Simulating focus to re-check auth status.');
+        window.dispatchEvent(new Event('focus'));
+      }
+    });
+  
+    // 7. Открываем In-App Browser с нужным URL
+    await apkBrowser.open({ 
+      url: authUrl,
+      windowName: '_self', // Это важно для Android
+      toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC' // Цвет под стиль платформы
+    });
+  };
 
     useEffect(() => {
         isNumberModeRef.current = isNumberMode;
@@ -1657,8 +1698,18 @@ function App() {
 
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
-            sessionStorage.setItem('waiting_for_auth', 'true');
-            window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
+            //sessionStorage.setItem('waiting_for_auth', 'true');
+            //window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
+            // --- НОВАЯ ПРОВЕРКА ---
+            // Проверяем, запущено ли приложение как нативное
+            if (Apk.isNativePlatform()) {
+                // Используем новый метод для нативного приложения
+                startInAppAuth(provider);
+            } else {
+                // Оставляем старую логику для Web, VK Mini App и TG Web App
+                sessionStorage.setItem('waiting_for_auth', 'true');
+                window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
+            }
         } else {
             const command = action.startsWith('/') ? action : `/${action}`;
             handleSend(command); 
@@ -1849,6 +1900,15 @@ function App() {
         };
     
         const handleVkAuth = () => {
+            // --- НОВАЯ ПРОВЕРКА ---
+            // Если это нативное приложение, запускаем In-App Browser немедленно.
+            if (Apk.isNativePlatform()) {
+                console.log('[Auth] Native platform detected. Starting In-App Auth for VK.');
+                startInAppAuth('vk');
+                return; // Важно, чтобы не выполнился старый код
+            }
+
+            // --- СТАРАЯ ЛОГИКА (для Web, VK Mini App и т.д.) ---
             const userId = localStorage.getItem('vk_user_id');
             if (!userId || userId === 'null') {
                 const overlay = document.getElementById('vk_auth_overlay');
@@ -1858,6 +1918,14 @@ function App() {
         };
 
         const handleTgAuth = () => {
+            // --- НОВАЯ ПРОВЕРКА ---
+            if (Apk.isNativePlatform()) {
+                console.log('[Auth] Native platform detected. Starting In-App Auth for TG.');
+                startInAppAuth('tg');
+                return; 
+            }
+            
+            // --- СТАРЫЙ КОД ---
             const userId = localStorage.getItem('vk_user_id');
             if (!userId || userId === 'null') {
                 const overlay_vk = document.getElementById('vk_auth_overlay');
