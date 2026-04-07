@@ -3,16 +3,23 @@
 <head><meta charset="utf-8"></head>
 <body>
     <script>
-        // Берем параметры (code, state и т.д.)
         const params = window.location.search;
-        // Прыгаем по схеме, которую Chrome НЕ умеет открывать сам
-        // Используем твой ID приложения
-        window.location.href = "com.leshiy_ai.app://auth" + params;
+        // Важно: никакой конкатенации путей, только чистая схема!
+        const targetUrl = "com.leshiy_ai.app://auth" + params;
         
-        // На всякий случай кнопка, если авто-прыжок заблокирован
+        // Попытка прыжка
+        window.location.replace(targetUrl);
+
+        // Если через секунду мы всё еще тут - рисуем кнопку-спасатель
         setTimeout(() => {
-            document.body.innerHTML = '<center><a href="com.leshiy_ai.app://auth' + params + '" style="font-size:20px;">ВЕРНУТЬСЯ В ПРИЛОЖЕНИЕ</a></center>';
-        }, 500);
+            document.body.innerHTML = `
+                <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+                    <h2>Авторизация...</h2>
+                    <a href="${targetUrl}" style="padding:15px 25px; background:#0077FF; color:white; text-decoration:none; border-radius:8px; display:inline-block;">
+                        ВЕРНУТЬСЯ В ПРИЛОЖЕНИЕ
+                    </a>
+                </div>`;
+        }, 1000);
     </script>
 </body>
 </html>
