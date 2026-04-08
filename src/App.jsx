@@ -837,35 +837,41 @@ function App() {
 
     // Создаем слушатель, который сработает, когда ОС вернет управление приложению через Deep Link
     useEffect(() => {
-        // 1. Создаем глобальный слушатель Deep Link
-        const setupDeepLinks = async () => {
-            const urlListener = await apkApp.addListener('appUrlOpen', async (event) => {
-                console.log('🔗 [DeepLink] Прилетел URL:', event.url);
-                
-                // Проверяем наличие кода (или твоего домена, или vk_user_id)
-                if (event.url.includes('vk_user_id=')) {
-                    console.log('[DeepLink] Данные обнаружены, закрываем браузер и обновляем данные');
-
-                    const parsedUrl = new URL(event.url);
-                    const userId = parsedUrl.searchParams.get('vk_user_id');
-                    
-                    if (userId) {
-                        localStorage.setItem('vk_user_id', userId);
-                        localStorage.setItem('auth_provider', 'VK');
-                        if (window.fetchUserStatus) window.fetchUserStatus();
-                        // Пушим событие, чтобы виджет входа понял: пора исчезнуть
-                        window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: { vk_user_id: userId } }));
-                    }
-
-                    // Твой оригинальный код закрытия и фокуса
-                    await apkBrowser.close().catch(() => {}); 
-                    window.dispatchEvent(new Event('focus'));
+        // Общая функция обработки, чтобы не дублировать код
+        const handleUrl = async (url) => {
+            if (url.includes('vk_user_id=')) {
+                const parsedUrl = new URL(url);
+                const userId = parsedUrl.searchParams.get('vk_user_id');
+                if (userId) {
+                    setCurrentUserId(userId);
+                    localStorage.setItem('vk_user_id', userId);
+                    localStorage.setItem('auth_provider', 'VK');
+                    if (window.fetchUserStatus) window.fetchUserStatus();
+                    window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: { vk_user_id: userId } }));
                 }
+                await apkBrowser.close().catch(() => {});
+                // Добавляем фокус, чтобы приложение "всплыло" корректно
+                window.dispatchEvent(new Event('focus'));
+            }
+        };
+
+        const setupDeepLinks = async () => {
+            // 1. Проверяем, не запущено ли приложение ПРЯМО СЕЙЧАС по ссылке (Холодный старт)
+            const launchUrl = await apkApp.getLaunchUrl();
+            if (launchUrl && launchUrl.url) {
+                console.log('🚀 [DeepLink] Приложение запущено по ссылке:', launchUrl.url);
+                handleUrl(launchUrl.url); // Выносим логику обработки в отдельную функцию
+            }
+    
+            // 2. Слушаем ссылки, если приложение уже в фоне (Горячий старт)
+            const urlListener = await apkApp.addListener('appUrlOpen', (event) => {
+                console.log('🔗 [DeepLink] Прилетел URL из фона:', event.url);
+                handleUrl(event.url);
             });
     
             return urlListener;
         };
-
+    
         const listenerPromise = setupDeepLinks();
         return () => {
             listenerPromise.then(l => l.remove());
