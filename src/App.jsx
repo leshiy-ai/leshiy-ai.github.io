@@ -856,25 +856,39 @@ function App() {
         };
 
         const setupDeepLinks = async () => {
-            // 1. Проверяем, не запущено ли приложение ПРЯМО СЕЙЧАС по ссылке (Холодный старт)
+            // 1. Холодный старт (приложение было закрыто)
             const launchUrl = await apkApp.getLaunchUrl();
-            if (launchUrl && launchUrl.url) {
-                console.log('🚀 [DeepLink] Приложение запущено по ссылке:', launchUrl.url);
-                handleUrl(launchUrl.url); // Выносим логику обработки в отдельную функцию
+            if (launchUrl?.url) {
+                handleUrl(launchUrl.url);
             }
     
-            // 2. Слушаем ссылки, если приложение уже в фоне (Горячий старт)
+            // 2. Горячий старт (приложение в фоне)
             const urlListener = await apkApp.addListener('appUrlOpen', (event) => {
-                console.log('🔗 [DeepLink] Прилетел URL из фона:', event.url);
                 handleUrl(event.url);
             });
     
-            return urlListener;
+            // 3. 🔥 СТРАХОВКА: Слушаем возвращение фокуса (AppState)
+            // Когда ты возвращаешься из ТГ или Браузера, isActive станет true
+            const stateListener = await apkApp.addListener('appStateChange', async ({ isActive }) => {
+                if (isActive) {
+                    const currentUrl = await apkApp.getLaunchUrl();
+                    if (currentUrl?.url) {
+                        console.log('🔄 [AppState] Проверка URL при возврате:', currentUrl.url);
+                        handleUrl(currentUrl.url);
+                    }
+                }
+            });
+    
+            return { urlListener, stateListener };
         };
     
-        const listenerPromise = setupDeepLinks();
+        const listeners = setupDeepLinks();
+        
         return () => {
-            listenerPromise.then(l => l.remove());
+            listeners.then(l => {
+                l.urlListener.remove();
+                l.stateListener.remove();
+            });
         };
     }, []);
     
