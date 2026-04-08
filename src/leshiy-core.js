@@ -285,7 +285,14 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const lastStatus = window.lastServerResponse?.status || 'Unknown' // Ответ от get-status
         const currentUrl = window.location.href;
         const testParams = `?code=test_code&state=debug_${Date.now()}`;
+        const pkg = "com.leshiy_ai.app";
 
+        // Определяем платформу без плагина Device
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isAndroid = userAgent.includes("android");
+        const isCapacitor = !!window.Capacitor;
+        const platform = isCapacitor ? (isAndroid ? "Android (Capacitor)" : "iOS (Capacitor)") : "Web Browser";
+        
         const debugTemplate = `
     🛠 **DEBUG INFO**
     --------------------------
@@ -296,12 +303,12 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         authProvider === 'VK' ? '🟦 VKontakte' : 
         '🟫 Anonymous'
     }
+    📱 **Platform:** ${platform}
     📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
     📦 **Version:** v${currentVersion}
     🌐 **Current URL:** \`${currentUrl}\`
-
     🔗 **TEST LINKS (Click to check):**
     1. [Test HTTPS (App Link)](https://leshiy-ai.github.io/done${testParams})
     2. [Test Custom Scheme](leshiyauth://done${testParams})
@@ -312,7 +319,12 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             id: Date.now(),
             text: debugTemplate,
             sender: 'bot',
-            type: 'system_debug'
+            type: 'system_debug',
+            buttons: [
+                { text: '🔗 HTTPS (App Link)', action: `https://leshiy-ai.github.io/done${testParams}` },
+                { text: '🚀 Custom Scheme', action: `leshiyauth://done${testParams}` },
+                { text: '📑 Intent (System)', action: `intent://leshiy-ai.github.io/done${testParams}#Intent;scheme=https;package=${pkg};end` },
+            ]
         }
     }
 
