@@ -291,7 +291,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const isAndroid = userAgent.includes("android");
         const isCapacitor = !!window.Capacitor;
         const platform = isCapacitor ? (isAndroid ? "Android (Capacitor)" : "iOS (Capacitor)") : "Web Browser";
-        const debugLastUrl = localStorage.getItem('DEBUG_last_url') || 'None';
         
         const debugTemplate = `
     🛠 **DEBUG INFO**
@@ -310,7 +309,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
     📦 **Version:** v${currentVersion}
     🌐 **Current URL:** \`${currentUrl}\`
-    🔗 **Last URL:** \`${debugLastUrl}\`
      `.trim();
 
         return {
