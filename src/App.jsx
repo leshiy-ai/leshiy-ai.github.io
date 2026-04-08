@@ -851,6 +851,8 @@ function App() {
                     
                     if (userId) {
                         localStorage.setItem('vk_user_id', userId);
+                        localStorage.setItem('auth_provider', 'VK');
+                        if (window.fetchUserStatus) window.fetchUserStatus();
                         // Пушим событие, чтобы виджет входа понял: пора исчезнуть
                         window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: { vk_user_id: userId } }));
                     }

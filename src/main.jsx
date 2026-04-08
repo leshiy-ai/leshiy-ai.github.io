@@ -10,7 +10,7 @@ let modalRoot = null;
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
 
 // --- Возврат из ВК --- Выполняется один раз при загрузке страницы
-const handleVKRedirect = () => {
+window.handleVKRedirect = () => {
   const params = new URLSearchParams(window.location.search);
   const vkUserId = params.get('vk_user_id');
   
@@ -23,6 +23,7 @@ const handleVKRedirect = () => {
       console.log("VK ID сохранен из редиректа:", vkUserId);
   }
 };
+window.handleVKRedirect();
 
 // --- Возврат из TELEGRAM --- Выполняется один раз при загрузке страницы
 const handleTelegramRedirect = () => {
