@@ -285,7 +285,12 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const lastStatus = window.lastServerResponse?.status || 'Unknown' // Ответ от get-status
         const currentUrl = window.location.href;
         const testParams = `?code=test_code&state=debug_${Date.now()}`;
+        const domain = "leshiy-ai.github.io";
         const pkg = "com.leshiy_ai.app";
+
+        // Ссылки для проверки
+        const httpsLink = `https://${domain}/${testParams}`;
+        const intentLink = `intent://${domain}/${testParams}#Intent;scheme=https;package=${pkg};S.browser_fallback_url=https://google.com;end`;
 
         // Определяем платформу без плагина Device
         const userAgent = navigator.userAgent.toLowerCase();
@@ -304,15 +309,17 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         '🟫 Anonymous'
     }
     📱 **Platform:** ${platform}
+    📦 **Package:** ${pkg}
     📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
     📦 **Version:** v${currentVersion}
     🌐 **Current URL:** \`${currentUrl}\`
     🔗 **TEST LINKS (Click to check):**
-    1. [Test HTTPS (App Link)](https://leshiy-ai.github.io/done${testParams})
-    2. [Test Custom Scheme](leshiyapp://done${testParams})
-    3. [Test Intent](intent://leshiy-ai.github.io/done${testParams}#Intent;scheme=https;package=com.leshiy_ai.app;end)
+    1. [Test HTTPS (App Link)](${httpsLink})
+    2. [Test Custom Scheme](https://leshiy-ai.github.io/${testParams})
+    3. [Test Intent](${intentLink})
+    4. [AssetLinks](https://${domain}/.well-known/assetlinks.json)
     `.trim();
 
         return {
@@ -321,9 +328,10 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             sender: 'bot',
             type: 'system_debug',
             buttons: [
-                { text: '🔗 HTTPS (App Link)', action: `https://leshiy-ai.github.io/done${testParams}` },
-                { text: '🚀 Custom Scheme', action: `leshiyapp://done${testParams}` },
-                { text: '📑 Intent (System)', action: `intent://leshiy-ai.github.io/done${testParams}#Intent;scheme=https;package=${pkg};end` },
+                { text: '🔗 HTTPS (App Link)', action: `https://leshiy-ai.github.io${testParams}` },
+                { text: '🚀 Custom Scheme', action: `https://leshiy-ai.github.io${testParams}` },
+                { text: '📑 Intent (System)', action: `intent://leshiy-ai.github.io${testParams}#Intent;scheme=https;package=${pkg};end` },
+                { text: '🔑 Проверка SHA-256', action: `https://${domain}/.well-known/assetlinks.json` }
             ]
         }
     }
