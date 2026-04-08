@@ -283,6 +283,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const userName = localStorage.getItem('vk_user_name') || 'Guest';
         const authProvider = localStorage.getItem('auth_provider') || 'Anonymous';
         const lastStatus = window.lastServerResponse?.status || 'Unknown' // Ответ от get-status
+        const currentUrl = window.location.href;
+        const testParams = `?code=test_code&state=debug_${Date.now()}`;
 
         const debugTemplate = `
     🛠 **DEBUG INFO**
@@ -298,7 +300,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
     📦 **Version:** v${currentVersion}
-            `.trim();
+    🌐 **Current URL:** \`${currentUrl}\`
+
+    🔗 **TEST LINKS (Click to check):**
+    1. [Test HTTPS (App Link)](https://leshiy-ai.github.io/done${testParams})
+    2. [Test Custom Scheme](leshiyauth://done${testParams})
+    3. [Test Intent](intent://leshiy-ai.github.io/done${testParams}#Intent;scheme=https;package=com.leshiy_ai.app;end)
+    `.trim();
 
         return {
             id: Date.now(),
