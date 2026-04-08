@@ -170,36 +170,7 @@ const fileToDataURL = (file) => {
         reader.readAsDataURL(file);
     });
 };
-
-// Создаем слушатель, который сработает, когда ОС вернет управление приложению через Deep Link
-useEffect(() => {
-    // 1. Создаем глобальный слушатель Deep Link
-    const setupDeepLinks = async () => {
-      const urlListener = await apkApp.addListener('appUrlOpen', async (event) => {
-        console.log('🔗 [DeepLink] Прилетел URL:', event.url);
-        // Проверяем наличие кода (или твоего домена)
-        if (event.url.includes('code=')) {
-          console.log('[DeepLink] Код обнаружен, закрываем браузер и обновляем данные');
-          // Закрываем браузер (если он был открыт через Browser.open)
-          await apkBrowser.close().catch(() => {}); 
-          // Имитируем фокус для обновления стейта
-          window.dispatchEvent(new Event('focus'));
-          // Опционально: если нужно пробросить код в стейт вручную
-          // const url = new URL(event.url);
-          // const code = url.searchParams.get('code');
-          // if (code) handleLoginWithCode(code);
-        }
-      });
-  
-      return urlListener;
-    };
-    const listenerPromise = setupDeepLinks();
-    // Чистим при размонтировании (хотя для App.jsx это редкость)
-    return () => {
-      listenerPromise.then(l => l.remove());
-    };
-  }, []);
-  
+ 
 const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
@@ -864,22 +835,51 @@ function App() {
         }
     }, []);
 
-   /**
-   * Запускает нативную авторизацию через In-App Browser (только для Capacitor).
-   * @param {'vk' | 'tg'} provider - Провайдер авторизации.
-   */
-  const startInAppAuth = async (provider) => {
+    // Создаем слушатель, который сработает, когда ОС вернет управление приложению через Deep Link
+    useEffect(() => {
+        // 1. Создаем глобальный слушатель Deep Link
+        const setupDeepLinks = async () => {
+        const urlListener = await apkApp.addListener('appUrlOpen', async (event) => {
+            console.log('🔗 [DeepLink] Прилетел URL:', event.url);
+            // Проверяем наличие кода (или твоего домена)
+            if (event.url.includes('code=')) {
+            console.log('[DeepLink] Код обнаружен, закрываем браузер и обновляем данные');
+            // Закрываем браузер (если он был открыт через Browser.open)
+            await apkBrowser.close().catch(() => {}); 
+            // Имитируем фокус для обновления стейта
+            window.dispatchEvent(new Event('focus'));
+            // Опционально: если нужно пробросить код в стейт вручную
+            // const url = new URL(event.url);
+            // const code = url.searchParams.get('code');
+            // if (code) handleLoginWithCode(code);
+            }
+        });
+    
+        return urlListener;
+        };
+        const listenerPromise = setupDeepLinks();
+        // Чистим при размонтировании (хотя для App.jsx это редкость)
+        return () => {
+        listenerPromise.then(l => l.remove());
+        };
+    }, []);
+    
+    /**
+     * Запускает нативную авторизацию через In-App Browser (только для Capacitor).
+     * @param {'vk' | 'tg'} provider - Провайдер авторизации.
+     */
+    const startInAppAuth = async (provider) => {
     // 1. Формируем ссылку на ваш бэкенд для авторизации
     const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}&platform=android`;
     console.log(`[Capacitor Auth] Starting In-App Auth for ${provider}`);
         
     // Открываем In-App Browser с нужным URL
     await apkBrowser.open({ 
-      url: authUrl,
-      windowName: '_self', // Это важно для Android
-      toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC' // Цвет под стиль платформы
-    });
-  };
+        url: authUrl,
+        windowName: '_self', // Это важно для Android
+        toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC' // Цвет под стиль платформы
+        });
+    };
 
     useEffect(() => {
         isNumberModeRef.current = isNumberMode;
