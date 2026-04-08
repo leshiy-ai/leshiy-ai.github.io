@@ -1857,11 +1857,22 @@ function App() {
 
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
-    const closeApp = () => {
+    const closeApp = async () => {
+        // 1. Твоя логика очистки (сброс сообщений)
         const welcomeId = Date.now();
         welcomeMessageIdRef.current = welcomeId;
         setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
+        
+        // 2. Выполняем софт-релоад (если нужно перед выходом)
         softReload();
+
+        // 3. А теперь РЕАЛЬНО ЗАКРЫВАЕМ APK
+        if (Apk.isNativePlatform()) {
+            console.log("Выход из Приложения...");
+            await apkApp.exitApp(); 
+        } else {
+            console.log("Это веб, просто очистили стейт");
+        }
     };
 
     useEffect(() => {
