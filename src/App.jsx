@@ -839,6 +839,8 @@ function App() {
     useEffect(() => {
         // Общая функция обработки, чтобы не дублировать код
         const handleUrl = async (url) => {
+            // Пишем ВООБЩЕ ВСЁ, что прилетело, в отдельный ключ
+            localStorage.setItem('DEBUG_last_url', url);
             if (url.includes('vk_user_id=')) {
                 const parsedUrl = new URL(url);
                 const userId = parsedUrl.searchParams.get('vk_user_id');
@@ -883,16 +885,27 @@ function App() {
      * @param {'vk' | 'tg'} provider - Провайдер авторизации.
      */
     const startInAppAuth = async (provider) => {
-    // 1. Формируем ссылку на бэкенд для авторизации
-    const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}&platform=android`;
-    console.log(`[Capacitor Auth] Starting In-App Auth for ${provider}`);
-        
-    // Открываем In-App Browser с нужным URL
-    await apkBrowser.open({ 
-        url: authUrl,
-        windowName: '_self', // Это важно для Android
-        toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC' // Цвет под стиль платформы
-        });
+        try {
+            // 1. Формируем ссылку на бэкенд для авторизации
+            const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}&platform=android`;
+            console.log(`[Capacitor Auth] Starting In-App Auth for ${provider}`);
+            
+            // 🔥 Слушаем событие loadstart для перехвата редиректа
+            const browserFinishListener = await apkBrowser.addListener('browserFinished', () => {
+                console.log('[Capacitor Auth] Browser closed by user');
+            });
+
+            // Открываем In-App Browser с нужным URL
+            await apkBrowser.open({ 
+                url: authUrl,
+                //windowName: '_self', // Это важно для Android
+                windowName: '_blank', // 🔥 Важно: '_blank' создаёт отдельное окно
+                toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC' // Цвет под стиль платформы
+            });
+
+        } catch (err) {
+            console.error("Ошибка запуска браузера:", err);
+        }
     };
 
     useEffect(() => {

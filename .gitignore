@@ -39,7 +39,7 @@ projects/
 
 # Игнорируем только билды и локальный мусор внутри Android
 android/app/build/
-android/capacitor-cordova-android-plugins/
+# android/capacitor-cordova-android-plugins/
 android/.gradle/
 android/local.properties
 android/captures/
