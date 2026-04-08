@@ -839,28 +839,34 @@ function App() {
     useEffect(() => {
         // 1. Создаем глобальный слушатель Deep Link
         const setupDeepLinks = async () => {
-        const urlListener = await apkApp.addListener('appUrlOpen', async (event) => {
-            console.log('🔗 [DeepLink] Прилетел URL:', event.url);
-            // Проверяем наличие кода (или твоего домена)
-            if (event.url.includes('code=')) {
-            console.log('[DeepLink] Код обнаружен, закрываем браузер и обновляем данные');
-            // Закрываем браузер (если он был открыт через Browser.open)
-            await apkBrowser.close().catch(() => {}); 
-            // Имитируем фокус для обновления стейта
-            window.dispatchEvent(new Event('focus'));
-            // Опционально: если нужно пробросить код в стейт вручную
-            // const url = new URL(event.url);
-            // const code = url.searchParams.get('code');
-            // if (code) handleLoginWithCode(code);
-            }
-        });
+            const urlListener = await apkApp.addListener('appUrlOpen', async (event) => {
+                console.log('🔗 [DeepLink] Прилетел URL:', event.url);
+                
+                // Проверяем наличие кода (или твоего домена, или vk_user_id)
+                if (event.url.includes('vk_user_id=')) {
+                    console.log('[DeepLink] Данные обнаружены, закрываем браузер и обновляем данные');
+
+                    const parsedUrl = new URL(event.url);
+                    const userId = parsedUrl.searchParams.get('vk_user_id');
+                    
+                    if (userId) {
+                        localStorage.setItem('vk_user_id', userId);
+                        // Пушим событие, чтобы виджет входа понял: пора исчезнуть
+                        window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: { vk_user_id: userId } }));
+                    }
+
+                    // Твой оригинальный код закрытия и фокуса
+                    await apkBrowser.close().catch(() => {}); 
+                    window.dispatchEvent(new Event('focus'));
+                }
+            });
     
-        return urlListener;
+            return urlListener;
         };
+
         const listenerPromise = setupDeepLinks();
-        // Чистим при размонтировании (хотя для App.jsx это редкость)
         return () => {
-        listenerPromise.then(l => l.remove());
+            listenerPromise.then(l => l.remove());
         };
     }, []);
     
@@ -869,7 +875,7 @@ function App() {
      * @param {'vk' | 'tg'} provider - Провайдер авторизации.
      */
     const startInAppAuth = async (provider) => {
-    // 1. Формируем ссылку на ваш бэкенд для авторизации
+    // 1. Формируем ссылку на бэкенд для авторизации
     const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}&platform=android`;
     console.log(`[Capacitor Auth] Starting In-App Auth for ${provider}`);
         

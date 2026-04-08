@@ -284,13 +284,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         const authProvider = localStorage.getItem('auth_provider') || 'Anonymous';
         const lastStatus = window.lastServerResponse?.status || 'Unknown' // Ответ от get-status
         const currentUrl = window.location.href;
-        const testParams = `?code=test_code&state=debug_${Date.now()}`;
-        const domain = "leshiy-ai.github.io";
         const pkg = "com.leshiy_ai.app";
-
-        // Ссылки для проверки
-        const httpsLink = `https://${domain}/${testParams}`;
-        const intentLink = `intent://${domain}/${testParams}#Intent;scheme=https;package=${pkg};S.browser_fallback_url=https://google.com;end`;
 
         // Определяем платформу без плагина Device
         const userAgent = navigator.userAgent.toLowerCase();
@@ -315,24 +309,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
     📦 **Version:** v${currentVersion}
     🌐 **Current URL:** \`${currentUrl}\`
-    🔗 **TEST LINKS (Click to check):**
-    1. [Test HTTPS (App Link)](${httpsLink})
-    2. [Test Custom Scheme](https://leshiy-ai.github.io/${testParams})
-    3. [Test Intent](${intentLink})
-    4. [AssetLinks](https://${domain}/.well-known/assetlinks.json)
-    `.trim();
+     `.trim();
 
         return {
             id: Date.now(),
             text: debugTemplate,
             sender: 'bot',
             type: 'system_debug',
-            buttons: [
-                { text: '🔗 HTTPS (App Link)', action: `https://leshiy-ai.github.io${testParams}` },
-                { text: '🚀 Custom Scheme', action: `https://leshiy-ai.github.io${testParams}` },
-                { text: '📑 Intent (System)', action: `intent://leshiy-ai.github.io${testParams}#Intent;scheme=https;package=${pkg};end` },
-                { text: '🔑 Проверка SHA-256', action: `https://${domain}/.well-known/assetlinks.json` }
-            ]
         }
     }
 

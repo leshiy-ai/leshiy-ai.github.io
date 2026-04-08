@@ -69,42 +69,50 @@
     </script>
     <script>
       (function handleVKAuth() {
-          const hash = window.location.hash.substring(1);
-          if (hash) {
-              const params = new URLSearchParams(hash);
-              const userId = params.get('user_id');
-              const accessToken = params.get('access_token'); // Получаем токен из хэша
+        // --- ДОБАВЛЕНО ДЛЯ APK (Хранилка шлет сюда) ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const vkIdFromSearch = urlParams.get('vk_user_id');
+        if (vkIdFromSearch) {
+            localStorage.setItem('vk_user_id', vkIdFromSearch);
+            window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: { vk_user_id: vkIdFromSearch } }));
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            const params = new URLSearchParams(hash);
+            const userId = params.get('user_id');
+            const accessToken = params.get('access_token'); // Получаем токен из хэша
 
-              if (userId && accessToken) {
-                  localStorage.setItem('vk_user_id', userId);
+            if (userId && accessToken) {
+                localStorage.setItem('vk_user_id', userId);
 
-                  // Делаем JSONP запрос к ВК, чтобы обойти CORS и получить данные профиля
-                  const script = document.createElement('script');
-                  script.src = `https://api.vk.com/method/users.get?user_ids=${userId}&fields=photo_100&access_token=${accessToken}&v=5.131&callback=vkCallback`;
-                  document.head.appendChild(script);
+                // Делаем JSONP запрос к ВК, чтобы обойти CORS и получить данные профиля
+                const script = document.createElement('script');
+                script.src = `https://api.vk.com/method/users.get?user_ids=${userId}&fields=photo_100&access_token=${accessToken}&v=5.131&callback=vkCallback`;
+                document.head.appendChild(script);
 
-                  window.vkCallback = function(response) {
-                    if (response.response && response.response[0]) {
-                      const user = response.response[0];
-                      const userData = {
-                          vk_user_id: userId,
-                          userName: `${user.first_name} ${user.last_name}`,
-                          userPhoto: user.photo_100
-                      };
+                window.vkCallback = function(response) {
+                  if (response.response && response.response[0]) {
+                    const user = response.response[0];
+                    const userData = {
+                        vk_user_id: userId,
+                        userName: `${user.first_name} ${user.last_name}`,
+                        userPhoto: user.photo_100
+                    };
 
-                      localStorage.setItem('vk_user_id', userData.vk_user_id);
-                      localStorage.setItem('vk_user_name', userData.userName);
-                      localStorage.setItem('vk_user_photo', userData.userPhoto);
-                      
-                      // ПЕРЕДАЕМ ВЕСЬ ОБЪЕКТ, а не только ID
-                      window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: userData }));
-                    }
-                      delete window.vkCallback;
-                      script.remove();
-                  };
+                    localStorage.setItem('vk_user_id', userData.vk_user_id);
+                    localStorage.setItem('vk_user_name', userData.userName);
+                    localStorage.setItem('vk_user_photo', userData.userPhoto);
+                    
+                    // ПЕРЕДАЕМ ВЕСЬ ОБЪЕКТ, а не только ID
+                    window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: userData }));
+                  }
+                    delete window.vkCallback;
+                    script.remove();
+                };
 
-                  window.history.replaceState({}, document.title, window.location.pathname);
-              }
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
           }
       })();
     </script>
