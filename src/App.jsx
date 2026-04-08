@@ -890,7 +890,7 @@ function App() {
                 l.stateListener.remove();
             });
         };
-    }, [setCurrentUserId]);
+    }, []);
     
     /**
      * Запускает нативную авторизацию через In-App Browser (только для Capacitor).
