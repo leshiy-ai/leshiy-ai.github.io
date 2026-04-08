@@ -887,7 +887,7 @@ function App() {
     const startInAppAuth = async (provider) => {
         try {
             // 1. Формируем ссылку на бэкенд для авторизации
-            const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}&platform=android`;
+            const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/vk/callback?state=${currentUserId}&platform=android`;
             console.log(`[Capacitor Auth] Starting In-App Auth for ${provider}`);
             
             // 🔥 Слушаем событие loadstart для перехвата редиректа
@@ -1734,7 +1734,7 @@ function App() {
         if (action.startsWith('auth_')) {
             const provider = action.replace('auth_', '');
             //sessionStorage.setItem('waiting_for_auth', 'true');
-            //window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
+            //window.open(`${CONFIG.STORAGE_GATEWAY}/auth/vk/callback?state=${currentUserId}`, '_blank');
             // --- НОВАЯ ПРОВЕРКА ---
             // Проверяем, запущено ли приложение как нативное
             if (Apk.isNativePlatform()) {
@@ -1743,7 +1743,7 @@ function App() {
             } else {
                 // Оставляем старую логику для Web, VK Mini App и TG Web App
                 sessionStorage.setItem('waiting_for_auth', 'true');
-                window.open(`${CONFIG.STORAGE_GATEWAY}/auth/${provider}?state=${currentUserId}`, '_blank');
+                window.open(`${CONFIG.STORAGE_GATEWAY}/auth/vk/callback?state=${currentUserId}`, '_blank');
             }
         } else {
             const command = action.startsWith('/') ? action : `/${action}`;
