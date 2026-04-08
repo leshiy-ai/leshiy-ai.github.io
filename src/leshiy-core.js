@@ -311,7 +311,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     🌐 **Current URL:** \`${currentUrl}\`
     🔗 **TEST LINKS (Click to check):**
     1. [Test HTTPS (App Link)](https://leshiy-ai.github.io/done${testParams})
-    2. [Test Custom Scheme](leshiyauth://done${testParams})
+    2. [Test Custom Scheme](leshiyapp://done${testParams})
     3. [Test Intent](intent://leshiy-ai.github.io/done${testParams}#Intent;scheme=https;package=com.leshiy_ai.app;end)
     `.trim();
 
@@ -322,7 +322,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             type: 'system_debug',
             buttons: [
                 { text: '🔗 HTTPS (App Link)', action: `https://leshiy-ai.github.io/done${testParams}` },
-                { text: '🚀 Custom Scheme', action: `leshiyauth://done${testParams}` },
+                { text: '🚀 Custom Scheme', action: `leshiyapp://done${testParams}` },
                 { text: '📑 Intent (System)', action: `intent://leshiy-ai.github.io/done${testParams}#Intent;scheme=https;package=${pkg};end` },
             ]
         }

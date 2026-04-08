@@ -24,7 +24,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="leshiy-ai.github.io" android:pathPrefix="/done" />
+                <data android:scheme="leshiyapp" android:host="done" />
             </intent-filter>
 
             <intent-filter>
