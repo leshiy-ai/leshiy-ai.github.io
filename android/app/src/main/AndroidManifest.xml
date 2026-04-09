@@ -24,7 +24,6 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.leshiy_ai.app" />
                 <data android:scheme="https" android:host="leshiy-ai.github.io" />
             </intent-filter>
             

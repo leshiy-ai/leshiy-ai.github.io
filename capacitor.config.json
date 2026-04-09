@@ -4,7 +4,7 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
-    "hostname": "localhost",
+    "hostname": "leshiy-ai.github.io",
     "cleartext": true
   }
 }
