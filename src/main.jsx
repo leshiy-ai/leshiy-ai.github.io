@@ -11,70 +11,69 @@ import { Capacitor } from '@capacitor/core';
 import { Toast } from '@capacitor/toast';
 let modalRoot = null;
 
-// --- ОБРАБОТЧИКИ РЕДИРЕКТА 
+// --- КНОПКА НАЗАД (РЕГИСТРИРУЕМ ВНЕ ВСЕХ ФУНКЦИЙ) ---
+let lastTimeBackPress = 0;
 
-// ФУНКЦИЯ ПЕРЕХВАТА (Твой код с микро-правкой стабильности)
-const checkDeepLink = async () => {
-    // 1. Проверка платформы через window.Capacitor для надежности
+// Важно: не используем await перед addListener, вешаем его синхронно
+apkApp.addListener('backButton', async (data) => {
+    // canGoBack — если в WebView есть история переходов (например, открыта папка)
+    // Если хочешь всегда выходить, data.canGoBack можно игнорировать
+    
+    const currentTime = Date.now();
+    
+    if (currentTime - lastTimeBackPress < 2000) {
+        // Если нажали второй раз за 2 секунды — закрываем
+        await apkApp.exitApp();
+    } else {
+        // Первый клик
+        lastTimeBackPress = currentTime;
+        
+        // Пытаемся показать Toast, если не выйдет (нет прав) — бьем alert
+        Toast.show({
+            text: 'Нажмите еще раз, чтобы выйти',
+            duration: 'short',
+            position: 'bottom'
+        }).catch(() => {
+            // Резервный вариант, если плагин Toast не отвечает
+            alert("Нажмите еще раз для выхода");
+        });
+    }
+});
+
+// 2. РЕГИСТРИРУЕМ ГОРЯЧИЙ СТАРТ
+apkApp.addListener('appUrlOpen', (event) => {
+    if (event.url && event.url.includes('user_id=')) {
+        const urlObj = new URL(event.url);
+        if (window.location.search !== urlObj.search) {
+            window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+        }
+    }
+});
+
+// 3. ПРОВЕРКА ХОЛОДНОГО СТАРТА И ПРИВЕТСТВИЕ
+const initNative = async () => {
     if (!Capacitor.isNativePlatform()) return;
 
+    // Проверка связи
+    await Toast.show({ text: 'Связь с Android: OK ✅' }).catch(() => {});
+
     try {
-        // Даем Capacitor время проснуться
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Сразу подаем сигнал жизни (пробуем alert если Toast молчит)
-        Toast.show({ text: 'Проверка связи с Android!' }).catch(() => {
-            console.log("Toast не сработал, используем alert");
-            alert("Связь с Android установлена!");
-        });
-
-        // КНОПКА НАЗАД
-        let lastTimeBackPress = 0;
-        apkApp.addListener('backButton', async () => {
-            const currentTime = Date.now();
-            if (currentTime - lastTimeBackPress < 2000) {
-                apkApp.exitApp();
-            } else {
-                lastTimeBackPress = currentTime;
-                Toast.show({
-                    text: 'Нажмите еще раз, чтобы выйти',
-                    duration: 'short',
-                    position: 'bottom'
-                }).catch(() => alert("Нажмите еще раз для выхода"));
-            }
-        });
-
-        // ГОРЯЧИЙ СТАРТ
-        apkApp.addListener('appUrlOpen', (event) => {
-            console.log('🔗 [Hot Start] URL:', event.url);
-            if (event.url && event.url.includes('user_id=')) {
-                const urlObj = new URL(event.url);
-                if (window.location.search !== urlObj.search) {
-                    window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-                }
-            }
-        });
-
-        // ХОЛОДНЫЙ СТАРТ
         const launchUrl = await apkApp.getLaunchUrl();
         if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
             const urlObj = new URL(launchUrl.url);
             if (window.location.search !== urlObj.search) {
-                Toast.show({ text: '🚀 Загрузка профиля...' }).catch(() => {});
                 window.location.href = window.location.origin + window.location.pathname + urlObj.search;
             }
         }
     } catch (e) {
-        // Если база Capacitor упала, мы это увидим
-        alert("Ошибка инициализации APK: " + e.message);
+        console.error("Launch URL error", e);
     }
 };
 
-// СТРОГИЙ ЗАПУСК
-if (Capacitor.isNativePlatform()) {
-    checkDeepLink();
-}
+// Запускаем инициализацию
+initNative();
 
+// --- ОБРАБОТЧИКИ РЕДИРЕКТА 
 // --- Возврат из ВК --- Выполняется один раз при загрузке страницы
 window.handleVKRedirect = () => {
   const params = new URLSearchParams(window.location.search);
