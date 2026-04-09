@@ -849,7 +849,11 @@ function App() {
             if (!urlStr) return;
             console.log('🔗 [Native Context] Анализ URL:', urlStr);
             
-            const url = new URL(urlStr);
+            // Магия: заменяем # на ?, чтобы searchParams видел всё
+            const normalizedUrl = urlStr.replace('#', '?');
+            const url = new URL(normalizedUrl);
+            
+            //const url = new URL(urlStr);
             const vkId = url.searchParams.get('vk_user_id');
             const tgData = url.searchParams.get('tg_data');
         
@@ -863,6 +867,12 @@ function App() {
                 // Закрываем браузер, если он открыт (только в APK)
                 if (window.Capacitor && Browser) {
                     await Browser.close().catch(() => {});
+                }
+
+                // Если само ГЛАВНОЕ окно стало github.io - возвращаем его на локальный индекс
+                if (window.location.href.includes('github.io')) {
+                    window.location.href = 'index.html'; 
+                    return;
                 }
             }
         
@@ -884,6 +894,11 @@ function App() {
                     
                     if (window.Capacitor && Browser) {
                         await Browser.close().catch(() => {});
+                    }
+                    // Если само ГЛАВНОЕ окно стало github.io - возвращаем его на локальный индекс
+                    if (window.location.href.includes('github.io')) {
+                        window.location.href = 'index.html'; 
+                        return;
                     }
                 } catch (e) {
                     console.error("Ошибка нативного парсинга TG:", e);
@@ -960,7 +975,6 @@ function App() {
     const startInAppAuth = async (provider) => {
         try {
             const authUrl = `${CONFIG.STORAGE_GATEWAY}/${provider}?state=${currentUserId}&platform=android`;
-            
             // Сохраняем листенер в переменную
             const browserFinishListener = await Browser.addListener('browserFinished', () => {
                 console.log('[Capacitor Auth] Browser closed by user');
@@ -971,7 +985,8 @@ function App() {
             await Browser.open({ 
                 url: authUrl,
                 windowName: '_blank',
-                toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC'
+                toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC',
+                presentationStyle: 'popover'
             });
             
         } catch (err) {
