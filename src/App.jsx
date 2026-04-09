@@ -838,73 +838,71 @@ function App() {
 
     // Постоянный слушатель диплинков и нативных событий для Android/iOS
     useEffect(() => {
-          console.log('✅ [Native] Инициализация нативных слушателей...');
+        // Проверка платформы, чтобы не мучить консоль в браузере
+        if (!Capacitor.isNativePlatform()) return;
+        console.log('✅ [Native] Инициализация нативных слушателей...');
         // проверим, живы ли плагины вообще
         const testNative = async () => {
             await Toast.show({ text: 'Проверка связи с Android!' });
         };
         testNative();
 
-        // 1. Слушатель для ссылок (когда приложение уже открыто)
-        const urlListener = apkApp.addListener('appUrlOpen', (event) => {
-            console.log('🔗 [DeepLink] Поймал URL:', event.url);
-            
-            if (event.url.includes('user_id=')) {
-                console.log('✅ [DeepLink] Обработка параметров...');
-                try {
-                    const parsedUrl = new URL(event.url); // Использовать event.url!
-                    const params = parsedUrl.search;
-                    
-                    Browser.close().catch(() => {});
-                    
-                    // Заменяем параметры в строке и React это увидит
-                    window.location.search = params;
-                } catch (e) {
-                    console.error("Ошибка парсинга URL", e);
-                }
-            }
-        });
+        // Создаем ссылки на слушатели для очистки
+        let activeUrlListener;
+        let activeBackListener;
 
-        // 2. Слушатель для кнопки "Назад" на Android
-        let lastTimeBackPress = 0;
-        const backListener = apkApp.addListener('backButton', async () => {
-            const currentTime = Date.now();
-            if (currentTime - lastTimeBackPress < 2000) {
-                apkApp.exitApp();
-            } else {
-                lastTimeBackPress = currentTime;
-                Toast.show({
-                    text: 'Нажмите еще раз, чтобы выйти',
-                    duration: 'short',
-                    position: 'bottom'
+        const initNativeLogic = async () => {
+            try {
+                // СЛУШАТЕЛЬ ССЫЛОК (Горячий старт)
+                activeUrlListener = await apkApp.addListener('appUrlOpen', async (event) => {
+                    console.log('🔗 [DeepLink] Поймал URL:', event.url);
+                    await Toast.show({ text: '🔗 Пришла ссылка' });
+                    if (event.url && event.url.includes('user_id=')) {
+                        const parsed = new URL(event.url); // Используем event.url!
+                        Browser.close().catch(() => {});
+                        window.location.search = parsed.search;
+                    }
                 });
-            }
-        });
+                
+                // КНОПКА НАЗАД
+                // 2. Слушатель для кнопки "Назад" на Android
+                let lastTimeBackPress = 0;
+                activeBackListener = apkApp.addListener('backButton', async () => {
+                    const currentTime = Date.now();
+                    if (currentTime - lastTimeBackPress < 2000) {
+                        apkApp.exitApp();
+                    } else {
+                        lastTimeBackPress = currentTime;
+                        Toast.show({
+                            text: 'Нажмите еще раз, чтобы выйти',
+                            duration: 'short',
+                            position: 'bottom'
+                        });
+                    }
+                });
 
-        // 3. Проверка URL при "холодном" старте приложения
-        apkApp.getLaunchUrl().then(launchUrl => {
-            if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
-                console.log('🚀 [DeepLink] Холодный старт:', launchUrl.url);
-                try {
-                    const parsedUrl = new URL(launchUrl.url); // Использовать launchUrl.url!
-                    const params = parsedUrl.search;
-                    
-                    window.location.search = params;
-                } catch (e) {
-                    console.error("Ошибка парсинга Launch URL", e);
+                // ХОЛОДНЫЙ СТАРТ
+                // 3. Проверка URL при "холодном" старте приложения
+                const launch = await apkApp.getLaunchUrl();
+                if (launch?.url && launch.url.includes('user_id=')) {
+                    await Toast.show({ text: '🚀 Холодный старт!' });
+                    const parsed = new URL(launch.url); // Используем launch.url!
+                    window.location.search = parsed.search;
                 }
+            } catch (err) {
+                console.error("Ошибка в нативных слушателях:", err);
             }
-        });
-
-        // Функция очистки при размонтировании компонента
-        return () => {
-            console.log('[Native] Очистка нативных слушателей.');
-            urlListener.then(l => l.remove());
-            backListener.then(l => l.remove());
         };
 
-    }, []); // Пустой массив зависимостей = выполнится один раз за жизнь приложения
+        initNativeLogic();
 
+        return () => {
+            console.log('[Native] Очистка...');
+            // Используем опциональную цепочку, чтобы не упасть, если listener еще не создался
+            activeUrlListener?.then?.(l => l.remove()).catch(() => activeUrlListener?.remove?.());
+            activeBackListener?.then?.(l => l.remove()).catch(() => activeBackListener?.remove?.());
+        };
+    }, []); // Пустой массив зависимостей
     
     /**
      * Запускает нативную авторизацию через In-App Browser (только для Capacitor).
