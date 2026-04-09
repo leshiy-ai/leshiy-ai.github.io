@@ -5,9 +5,59 @@ import Sidebar from './Sidebar.jsx';
 import App from './App.jsx';
 import { CONFIG } from './config';
 import React from 'react';
+import { App as apkApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { Toast } from '@capacitor/toast';
 let modalRoot = null;
 
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
+// ПЕРЕХВАТЧИК ДИПЛИНКОВ ДЛЯ APK
+const checkDeepLink = async () => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  // Сразу подаем сигнал жизни
+  Toast.show({ text: 'Проверка связи с Android!' });
+
+  // КНОПКА НАЗАД
+  // 2. Слушатель для кнопки "Назад" на Android
+  let lastTimeBackPress = 0;
+  apkApp.addListener('backButton', async () => {
+      const currentTime = Date.now();
+      if (currentTime - lastTimeBackPress < 2000) {
+          apkApp.exitApp();
+      } else {
+          lastTimeBackPress = currentTime;
+          Toast.show({
+              text: 'Нажмите еще раз, чтобы выйти',
+              duration: 'short',
+              position: 'bottom'
+          });
+      }
+  });
+  
+  // Слушаем "горячий" старт
+  apkApp.addListener('appUrlOpen', async (event) => {
+      if (event.url.includes('user_id=')) {
+          const search = new URL(event.url).search;
+          Toast.show({ text: '🔗 Ссылка получена!' });
+          window.location.href = window.location.origin + window.location.pathname + search;
+      }
+  });
+
+  // Проверяем "холодный" старт
+  const launchUrl = await apkApp.getLaunchUrl();
+  if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
+      const search = new URL(launchUrl.url).search;
+      Toast.show({ text: '🚀 Холодный старт!' });
+      window.location.href = window.location.origin + window.location.pathname + search;
+  }
+};
+
+// Запускаем
+if (Capacitor.isNativePlatform()) {
+    checkDeepLink();
+}
 
 // --- Возврат из ВК --- Выполняется один раз при загрузке страницы
 window.handleVKRedirect = () => {
