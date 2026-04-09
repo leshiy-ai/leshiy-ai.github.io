@@ -847,15 +847,21 @@ function App() {
 
         // 1. Слушатель для ссылок (когда приложение уже открыто)
         const urlListener = apkApp.addListener('appUrlOpen', (event) => {
-        console.log('🔗 [DeepLink] Поймал URL в открытом приложении:', event.url);
-        
-            if (event.url.includes('vk_user_id=')) {
-                console.log('✅ [DeepLink] Это URL авторизации, обрабатываю...');
-                const url = new URL(urlString);
-                const params = url.search;
-                Browser.close().catch(e => console.warn('[DeepLink] Браузер уже был закрыт.'));
-                // принудительно переходим по ссылке внутри приложения
-                window.location.search = params;
+            console.log('🔗 [DeepLink] Поймал URL:', event.url);
+            
+            if (event.url.includes('user_id=')) {
+                console.log('✅ [DeepLink] Обработка параметров...');
+                try {
+                    const parsedUrl = new URL(event.url); // Использовать event.url!
+                    const params = parsedUrl.search;
+                    
+                    Browser.close().catch(() => {});
+                    
+                    // Заменяем параметры в строке и React это увидит
+                    window.location.search = params;
+                } catch (e) {
+                    console.error("Ошибка парсинга URL", e);
+                }
             }
         });
 
@@ -877,13 +883,16 @@ function App() {
 
         // 3. Проверка URL при "холодном" старте приложения
         apkApp.getLaunchUrl().then(launchUrl => {
-            if (launchUrl && launchUrl.url && launchUrl.url.includes('user_id=')) {
-                console.log('🚀 [DeepLink] Поймал URL при холодном старте:', launchUrl.url);
-                const url = new URL(urlString);
-                const params = url.search;
-                // Снова переходим, чтобы React увидел параметры в URL
-                //window.location.href = launchUrl.url;
-                window.location.search = params;
+            if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
+                console.log('🚀 [DeepLink] Холодный старт:', launchUrl.url);
+                try {
+                    const parsedUrl = new URL(launchUrl.url); // Использовать launchUrl.url!
+                    const params = parsedUrl.search;
+                    
+                    window.location.search = params;
+                } catch (e) {
+                    console.error("Ошибка парсинга Launch URL", e);
+                }
             }
         });
 
