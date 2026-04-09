@@ -838,6 +838,12 @@ function App() {
 
     // Создаем слушатель, который сработает, когда ОС вернет управление приложению через Deep Link
     useEffect(() => {
+        // проверим, живы ли плагины вообще
+        const testNative = async () => {
+            await Toast.show({ text: 'Проверка связи с Android!' });
+        };
+        testNative();
+
         // ОБЪЯВЛЯЕМ ОБРАБОТЧИК (handleUrl)
         const handleUrl = async (urlStr) => {
             if (!urlStr) return;

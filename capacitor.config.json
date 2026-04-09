@@ -4,6 +4,9 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
-    "allowNavigation": ["leshiy-ai.github.io"]
+    "allowNavigation": [
+      "leshiy-ai.github.io",
+      "oauth.vk.com"
+    ]
   }
 }
