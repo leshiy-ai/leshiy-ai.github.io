@@ -856,10 +856,9 @@ function App() {
         
             if (event.url.includes('leshiy-ai.github.io')) {
             console.log('✅ [DeepLink] Это URL авторизации, обрабатываю...');
-            
             Browser.close().catch(e => console.warn('[DeepLink] Браузер уже был закрыт.'));
-            window.dispatchEvent(new Event('focus'));
-            console.log('✅ [DeepLink] Отправил событие "focus" для обновления UI.');
+            // принудительно переходим по ссылке внутри приложения
+            window.location.href = event.url;
             }
         });
 
@@ -883,8 +882,8 @@ function App() {
         apkApp.getLaunchUrl().then(launchUrl => {
             if (launchUrl && launchUrl.url && launchUrl.url.includes('leshiy-ai.github.io')) {
                 console.log('🚀 [DeepLink] Поймал URL при холодном старте:', launchUrl.url);
-                // Тут не нужно закрывать браузер, его и так нет
-                window.dispatchEvent(new Event('focus'));
+                // Снова переходим, чтобы React увидел параметры в URL
+                window.location.href = launchUrl.url;
             }
         });
 
