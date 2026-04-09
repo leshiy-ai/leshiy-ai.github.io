@@ -855,10 +855,12 @@ function App() {
         console.log('🔗 [DeepLink] Поймал URL в открытом приложении:', event.url);
         
             if (event.url.includes('vk_user_id=')) {
-            console.log('✅ [DeepLink] Это URL авторизации, обрабатываю...');
-            Browser.close().catch(e => console.warn('[DeepLink] Браузер уже был закрыт.'));
-            // принудительно переходим по ссылке внутри приложения
-            window.location.href = event.url;
+                console.log('✅ [DeepLink] Это URL авторизации, обрабатываю...');
+                const url = new URL(urlString);
+                const params = url.search;
+                Browser.close().catch(e => console.warn('[DeepLink] Браузер уже был закрыт.'));
+                // принудительно переходим по ссылке внутри приложения
+                window.location.search = params;
             }
         });
 
@@ -880,10 +882,13 @@ function App() {
 
         // 3. Проверка URL при "холодном" старте приложения
         apkApp.getLaunchUrl().then(launchUrl => {
-            if (launchUrl && launchUrl.url && launchUrl.url.includes('vk_user_id=')) {
+            if (launchUrl && launchUrl.url && launchUrl.url.includes('user_id=')) {
                 console.log('🚀 [DeepLink] Поймал URL при холодном старте:', launchUrl.url);
+                const url = new URL(urlString);
+                const params = url.search;
                 // Снова переходим, чтобы React увидел параметры в URL
-                window.location.href = launchUrl.url;
+                //window.location.href = launchUrl.url;
+                window.location.search = params;
             }
         });
 
