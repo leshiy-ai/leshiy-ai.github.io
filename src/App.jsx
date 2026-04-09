@@ -7,8 +7,8 @@ import { askLeshiy, generateLeshiy, convertWavToMp3 } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric, loadActiveModelConfig } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
-import { Capacitor as Apk } from '@capacitor/core';
-import { Browser as apkBrowser } from '@capacitor/browser';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { App as apkApp } from '@capacitor/app';
 import { Toast } from '@capacitor/toast';
 
@@ -855,8 +855,8 @@ function App() {
                 if (window.fetchUserStatus) window.fetchUserStatus();
                 
                 // Закрываем браузер, если он открыт (только в APK)
-                if (window.Capacitor && apkBrowser) {
-                    await apkBrowser.close().catch(() => {});
+                if (window.Capacitor && Browser) {
+                    await Browser.close().catch(() => {});
                 }
             }
         
@@ -876,8 +876,8 @@ function App() {
                     setCurrentUserId(id);
                     if (window.fetchUserStatus) window.fetchUserStatus();
                     
-                    if (window.Capacitor && apkBrowser) {
-                        await apkBrowser.close().catch(() => {});
+                    if (window.Capacitor && Browser) {
+                        await Browser.close().catch(() => {});
                     }
                 } catch (e) {
                     console.error("Ошибка нативного парсинга TG:", e);
@@ -956,13 +956,13 @@ function App() {
             const authUrl = `${CONFIG.STORAGE_GATEWAY}/${provider}?state=${currentUserId}&platform=android`;
             
             // Сохраняем листенер в переменную
-            const browserFinishListener = await apkBrowser.addListener('browserFinished', () => {
+            const browserFinishListener = await Browser.addListener('browserFinished', () => {
                 console.log('[Capacitor Auth] Browser closed by user');
                 // После того как браузер закрылся, удаляем слушатель сам за собой
                 browserFinishListener.remove(); 
             });
     
-            await apkBrowser.open({ 
+            await Browser.open({ 
                 url: authUrl,
                 windowName: '_blank',
                 toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC'
@@ -1802,7 +1802,7 @@ function App() {
             //window.open(`${CONFIG.STORAGE_GATEWAY}/${provider}?state=${currentUserId}`, '_blank');
             // --- НОВАЯ ПРОВЕРКА ---
             // Проверяем, запущено ли приложение как нативное
-            if (Apk.isNativePlatform()) {
+            if (Capacitor.isNativePlatform()) {
                 // Используем новый метод для нативного приложения
                 startInAppAuth(provider);
             } else {
@@ -1945,10 +1945,11 @@ function App() {
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
     const closeApp = async () => {
         // Проверяем платформу ПЕРЕД релоадом
-        if (Apk.isNativePlatform()) {
+        if (window.Capacitor?.Plugins?.App) {
             console.log("Выход из APK...");
             // В APK нам не нужен релоад, мы просто выходим
-            await apkApp.exitApp(); 
+            await window.Capacitor.Plugins.App.exitApp();
+            //await apkApp.exitApp(); 
         } else {
             console.log("Это веб, делаем софт-релоад и чистим стейт");
             // Очистка сообщений (стейт)
@@ -2012,7 +2013,7 @@ function App() {
         const handleVkAuth = () => {
             // --- НОВАЯ ПРОВЕРКА ---
             // Если это нативное приложение, запускаем In-App Browser немедленно.
-            if (Apk.isNativePlatform()) {
+            if (Capacitor.isNativePlatform()) {
                 console.log('[Auth] Native platform detected. Starting In-App Auth for VK.');
                 startInAppAuth('vk');
                 return; // Важно, чтобы не выполнился старый код
@@ -2029,7 +2030,7 @@ function App() {
 
         const handleTgAuth = () => {
             // --- НОВАЯ ПРОВЕРКА ---
-            if (Apk.isNativePlatform()) {
+            if (Capacitor.isNativePlatform()) {
                 console.log('[Auth] Native platform detected. Starting In-App Auth for TG.');
                 startInAppAuth('tg');
                 return; 
