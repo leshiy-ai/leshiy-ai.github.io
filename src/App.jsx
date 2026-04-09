@@ -836,137 +836,67 @@ function App() {
         }
     }, []);
 
-    // Создаем слушатель, который сработает, когда ОС вернет управление приложению через Deep Link
+    // Постоянный слушатель диплинков и нативных событий для Android/iOS
     useEffect(() => {
+      // Выполняем только на нативных платформах
+      if (!Capacitor.isNativePlatform()) {
+        return;
+      }
+
+        console.log('✅ [Native] Инициализация нативных слушателей...');
         // проверим, живы ли плагины вообще
         const testNative = async () => {
             await Toast.show({ text: 'Проверка связи с Android!' });
         };
         testNative();
 
-        // ОБЪЯВЛЯЕМ ОБРАБОТЧИК (handleUrl)
-        const handleUrl = async (urlStr) => {
-            if (!urlStr) return;
-            console.log('🔗 [Native Context] Анализ URL:', urlStr);
+        // 1. Слушатель для ссылок (когда приложение уже открыто)
+        const urlListener = apkApp.addListener('appUrlOpen', (event) => {
+        console.log('🔗 [DeepLink] Поймал URL в открытом приложении:', event.url);
+        
+            if (event.url.includes('leshiy-ai.github.io')) {
+            console.log('✅ [DeepLink] Это URL авторизации, обрабатываю...');
             
-            // Магия: заменяем # на ?, чтобы searchParams видел всё
-            const normalizedUrl = urlStr.replace('#', '?');
-            const url = new URL(normalizedUrl);
-            
-            //const url = new URL(urlStr);
-            const vkId = url.searchParams.get('vk_user_id');
-            const tgData = url.searchParams.get('tg_data');
-        
-            // --- Логика для ВК ---
-            if (vkId && vkId !== 'undefined') {
-                localStorage.setItem('vk_user_id', vkId);
-                localStorage.setItem('auth_provider', 'VK');
-                setCurrentUserId(vkId); // Мгновенное обновление UI
-                if (window.fetchUserStatus) window.fetchUserStatus();
-                
-                // Закрываем браузер, если он открыт (только в APK)
-                if (window.Capacitor && Browser) {
-                    await Browser.close().catch(() => {});
-                }
-
-                // Если само ГЛАВНОЕ окно стало github.io - возвращаем его на локальный индекс
-                if (window.location.href.includes('github.io')) {
-                    window.location.href = 'index.html'; 
-                    return;
-                }
+            Browser.close().catch(e => console.warn('[DeepLink] Браузер уже был закрыт.'));
+            window.dispatchEvent(new Event('focus'));
+            console.log('✅ [DeepLink] Отправил событие "focus" для обновления UI.');
             }
-        
-            // --- Логика для Telegram ---
-            if (tgData) {
-                try {
-                    const userData = JSON.parse(decodeURIComponent(tgData));
-                    const id = String(userData.id);
-                    localStorage.setItem('vk_user_id', id);
-                    localStorage.setItem('auth_provider', 'Telegram');
-                    
-                    // Сохраняем остальные данные как в main.jsx
-                    const fullName = userData.last_name ? `${userData.first_name} ${userData.last_name}` : userData.first_name;
-                    localStorage.setItem('vk_user_name', fullName);
-                    localStorage.setItem('vk_user_photo', userData.photo_url || '');
-        
-                    setCurrentUserId(id);
-                    if (window.fetchUserStatus) window.fetchUserStatus();
-                    
-                    if (window.Capacitor && Browser) {
-                        await Browser.close().catch(() => {});
-                    }
-                    // Если само ГЛАВНОЕ окно стало github.io - возвращаем его на локальный индекс
-                    if (window.location.href.includes('github.io')) {
-                        window.location.href = 'index.html'; 
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Ошибка нативного парсинга TG:", e);
-                }
-            }
-        };
-    
-        let urlListener;
-        let stateListener;
-        let backListener;
-        
-        // ЗДЕСЬ ЖИВУТ СЛУШАТЕЛИ (Listeners)
-        const init = async () => {
-            // ПЕРВЫМ ДЕЛОМ вешаем слушатель "горячего" старта
-            // Это важно, чтобы не пропустить событие, пока выполняется getLaunchUrl
-            urlListener = await apkApp.addListener('appUrlOpen', (event) => {
-                console.log('🔥 [DeepLink] Прилетел URL в открытое приложение:', event.url);
-                handleUrl(event.url);
-            });
+        });
 
-            // --- Слушатель кнопки НАЗАД (Double Click) ---
-            let lastTimeBackPress = 0;
-            backListener = await apkApp.addListener('backButton', async () => {
-                const currentTime = Date.now();
-                if (currentTime - lastTimeBackPress < 2000) {
-                    await apkApp.exitApp(); // Теперь await внутри async — ошибки не будет
-                } else {
-                    lastTimeBackPress = currentTime;
-                    // Показываем Toast (убедись, что импортировал { Toast } из '@capacitor/toast')
-                    try {
-                        await Toast.show({
-                            text: 'Нажмите еще раз, чтобы выйти',
-                            duration: 'short',
-                            position: 'bottom'
-                        });
-                    } catch (e) {
-                        console.log("Нажмите еще раз для выхода");
-                    }
-                }
-            });
-
-            // Слушатель состояния (страховка)
-            stateListener = await apkApp.addListener('appStateChange', async ({ isActive }) => {
-                if (isActive) {
-                    const launch = await apkApp.getLaunchUrl();
-                    if (launch?.url) {
-                        console.log('🔄 [DeepLink] Возврат в приложение, URL:', launch.url);
-                        handleUrl(launch.url);
-                    }
-                }
-            });
-    
-            // И только ПОТОМ проверяем холодный старт
-            const launchUrl = await apkApp.getLaunchUrl();
-            if (launchUrl?.url) {
-                console.log('🚀 [DeepLink] Холодный старт:', launchUrl.url);
-                handleUrl(launchUrl.url);
+        // 2. Слушатель для кнопки "Назад" на Android
+        let lastTimeBackPress = 0;
+        const backListener = apkApp.addListener('backButton', async () => {
+            const currentTime = Date.now();
+            if (currentTime - lastTimeBackPress < 2000) {
+                apkApp.exitApp();
+            } else {
+                lastTimeBackPress = currentTime;
+                Toast.show({
+                    text: 'Нажмите еще раз, чтобы выйти',
+                    duration: 'short',
+                    position: 'bottom'
+                });
             }
-        };
-    
-        init();
-    
+        });
+
+        // 3. Проверка URL при "холодном" старте приложения
+        apkApp.getLaunchUrl().then(launchUrl => {
+            if (launchUrl && launchUrl.url && launchUrl.url.includes('leshiy-ai.github.io')) {
+                console.log('🚀 [DeepLink] Поймал URL при холодном старте:', launchUrl.url);
+                // Тут не нужно закрывать браузер, его и так нет
+                window.dispatchEvent(new Event('focus'));
+            }
+        });
+
+        // Функция очистки при размонтировании компонента
         return () => {
-            if (urlListener) urlListener.remove();
-            if (stateListener) stateListener.remove();
-            if (backListener) backListener.remove();
+            console.log('[Native] Очистка нативных слушателей.');
+            urlListener.then(l => l.remove());
+            backListener.then(l => l.remove());
         };
-    }, []); // Строго пустой массив, чтобы не перезапускать слушатели
+
+    }, []); // Пустой массив зависимостей = выполнится один раз за жизнь приложения
+
     
     /**
      * Запускает нативную авторизацию через In-App Browser (только для Capacitor).
@@ -1881,6 +1811,10 @@ function App() {
         setInput('');
         setFiles([]);
         setIsLoading(false);
+        // Вызываем обновление списка чатов в сайдбаре
+        if (typeof fetchChats === 'function') {
+            fetchChats();
+        }
         if (currentChatId) {
             loadChatFromHistory(currentChatId);
         } else {
