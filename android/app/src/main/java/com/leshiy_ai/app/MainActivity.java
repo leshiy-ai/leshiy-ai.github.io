@@ -12,10 +12,6 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(com.capacitorjs.plugins.app.AppPlugin.class);
         registerPlugin(com.capacitorjs.plugins.browser.BrowserPlugin.class);
         registerPlugin(com.capacitorjs.plugins.toast.ToastPlugin.class);
-
-        // Это принудительно разрешит загрузку всего локального контента
-        bridge.getWebView().getSettings().setAllowFileAccess(true);
-        bridge.getWebView().getSettings().setAllowContentAccess(true);
         super.onCreate(savedInstanceState);
     }
     protected void onNewIntent(Intent intent) {
