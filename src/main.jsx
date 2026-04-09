@@ -16,6 +16,9 @@ let modalRoot = null;
 const checkDeepLink = async () => {
   if (!Capacitor.isNativePlatform()) return;
 
+  // Даем Capacitor 200мс, чтобы "проснуться" и инициализировать мост с Java
+  await new Promise(resolve => setTimeout(resolve, 200));
+
   // Сразу подаем сигнал жизни
   Toast.show({ text: 'Проверка связи с Android!' });
 
@@ -37,20 +40,39 @@ const checkDeepLink = async () => {
   });
   
   // Слушаем "горячий" старт
-  apkApp.addListener('appUrlOpen', async (event) => {
-      if (event.url.includes('user_id=')) {
-          const search = new URL(event.url).search;
-          Toast.show({ text: '🔗 Ссылка получена!' });
-          window.location.href = window.location.origin + window.location.pathname + search;
-      }
-  });
+  apkApp.addListener('appUrlOpen', (event) => {
+        console.log('🔗 [Hot Start] URL:', event.url);
+        if (event.url && event.url.includes('user_id=')) {
+            const urlObj = new URL(event.url);
+            if (window.location.search !== urlObj.search) {
+                // Если мы еще не на этом URL — переходим
+                window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+            }
+        }
+    });
 
   // Проверяем "холодный" старт
-  const launchUrl = await apkApp.getLaunchUrl();
-  if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
-      const search = new URL(launchUrl.url).search;
-      Toast.show({ text: '🚀 Холодный старт!' });
-      window.location.href = window.location.origin + window.location.pathname + search;
+  // 2. "ХОЛОДНЫЙ" СТАРТ (Вот тут была петля)
+  try {
+    const launchUrl = await apkApp.getLaunchUrl();
+    
+    if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
+        const urlObj = new URL(launchUrl.url);
+        
+        // Если в строке браузера ПУСТО или там ДРУГОЙ ID — делаем редирект
+        if (window.location.search !== urlObj.search) {
+            Toast.show({ text: '🚀 Загрузка профиля...' }).catch(() => {});
+            window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+        } else {
+            console.log('✅ URL уже соответствует параметрам старта');
+        }
+    } else {
+        // Если запустили просто с иконки — покажем хоть что-то для теста
+        console.log('ℹ️ Обычный запуск без параметров');
+        // Toast.show({ text: 'Приложение готово' }).catch(() => {});
+    }
+  } catch (err) {
+      console.error('Ошибка холодного старта:', err);
   }
 };
 
