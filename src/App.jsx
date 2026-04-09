@@ -838,12 +838,7 @@ function App() {
 
     // Постоянный слушатель диплинков и нативных событий для Android/iOS
     useEffect(() => {
-      // Выполняем только на нативных платформах
-      if (!Capacitor.isNativePlatform()) {
-        return;
-      }
-
-        console.log('✅ [Native] Инициализация нативных слушателей...');
+          console.log('✅ [Native] Инициализация нативных слушателей...');
         // проверим, живы ли плагины вообще
         const testNative = async () => {
             await Toast.show({ text: 'Проверка связи с Android!' });
