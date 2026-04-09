@@ -299,19 +299,14 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         else if (userAgent.includes("windows")) os = "💻 Windows";
         else if (userAgent.includes("macintosh")) os = "🖥 macOS";
         else if (userAgent.includes("linux")) os = "🐧 Linux";
-                
         const isAndroid = userAgent.includes("android");
-        //const isCapacitor = Capacitor;
         // ПРОВЕРКА CAPACITOR
-        const isNative = !!(window.Capacitor && window.Capacitor.isNative);
         const isCapacitor = !!(window.Capacitor && window.Capacitor.isNative);
         const platform = isCapacitor ? `${os} (Capacitor)` : `${os}`;
         // Проверяем наличие конкретных плагинов, которые нам нужны
-        const hasApp = isNative && !!window.Capacitor?.Plugins?.App;
-        const hasToast = isNative && !!window.Capacitor?.Plugins?.Toast;
-        const hasBrowser = isNative && !!window.Capacitor?.Plugins?.Browser;
-        // Формируем детальный статус платформы
-        //let platform = isCapacitor ? (isAndroid ? "📱 Android" : "🍎 iOS") : "🌐 Web Browser";
+        const hasApp = isCapacitor && !!window.Capacitor?.Plugins?.App;
+        const hasToast = isCapacitor && !!window.Capacitor?.Plugins?.Toast;
+        const hasBrowser = isCapacitor && !!window.Capacitor?.Plugins?.Browser;
         
         const debugTemplate = `
     🛠 **DEBUG INFO**
@@ -324,7 +319,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         '🟫 Anonymous'
     }
     📱 **Platform:** ${platform}
-    ⚡ **Capacitor:** ${isCapacitor ? 'Detected' : 'Not Found'}
+    ⚡ **Capacitor:** ${isCapacitor ? '✅ Detected' : '❌ Not Found'}
     🧩 **Plugins:** ${hasApp ? '✅ App' : '❌ App'} | ${hasToast ? '✅ Toast' : '❌ Toast'} | ${hasBrowser ? '✅ Browser' : '❌ Browser'}
     📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
