@@ -9,8 +9,8 @@ import Sidebar from './Sidebar';
 import './App.css';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
-import { App as apkApp } from '@capacitor/app';
-import { Toast } from '@capacitor/toast';
+//import { App as apkApp } from '@capacitor/app';
+//import { Toast } from '@capacitor/toast';
 
 // --- КОНСТАНТЫ ---
 // Определяют основные режимы работы приложения и связывают их с типом сервиса

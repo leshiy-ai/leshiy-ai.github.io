@@ -7,76 +7,70 @@ import { CONFIG } from './config';
 import React from 'react';
 import { App as apkApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
+//import { Browser } from '@capacitor/browser';
 import { Toast } from '@capacitor/toast';
 let modalRoot = null;
 
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
-// ПЕРЕХВАТЧИК ДИПЛИНКОВ ДЛЯ APK
+
+// ФУНКЦИЯ ПЕРЕХВАТА (Твой код с микро-правкой стабильности)
 const checkDeepLink = async () => {
-  if (!Capacitor.isNativePlatform()) return;
+    // 1. Проверка платформы через window.Capacitor для надежности
+    if (!Capacitor.isNativePlatform()) return;
 
-  // Даем Capacitor 200мс, чтобы "проснуться" и инициализировать мост с Java
-  await new Promise(resolve => setTimeout(resolve, 200));
+    try {
+        // Даем Capacitor время проснуться
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-  // Сразу подаем сигнал жизни
-  Toast.show({ text: 'Проверка связи с Android!' });
+        // Сразу подаем сигнал жизни (пробуем alert если Toast молчит)
+        Toast.show({ text: 'Проверка связи с Android!' }).catch(() => {
+            console.log("Toast не сработал, используем alert");
+            alert("Связь с Android установлена!");
+        });
 
-  // КНОПКА НАЗАД
-  // 2. Слушатель для кнопки "Назад" на Android
-  let lastTimeBackPress = 0;
-  apkApp.addListener('backButton', async () => {
-      const currentTime = Date.now();
-      if (currentTime - lastTimeBackPress < 2000) {
-          apkApp.exitApp();
-      } else {
-          lastTimeBackPress = currentTime;
-          Toast.show({
-              text: 'Нажмите еще раз, чтобы выйти',
-              duration: 'short',
-              position: 'bottom'
-          });
-      }
-  });
-  
-  // Слушаем "горячий" старт
-  apkApp.addListener('appUrlOpen', (event) => {
-        console.log('🔗 [Hot Start] URL:', event.url);
-        if (event.url && event.url.includes('user_id=')) {
-            const urlObj = new URL(event.url);
+        // КНОПКА НАЗАД
+        let lastTimeBackPress = 0;
+        apkApp.addListener('backButton', async () => {
+            const currentTime = Date.now();
+            if (currentTime - lastTimeBackPress < 2000) {
+                apkApp.exitApp();
+            } else {
+                lastTimeBackPress = currentTime;
+                Toast.show({
+                    text: 'Нажмите еще раз, чтобы выйти',
+                    duration: 'short',
+                    position: 'bottom'
+                }).catch(() => alert("Нажмите еще раз для выхода"));
+            }
+        });
+
+        // ГОРЯЧИЙ СТАРТ
+        apkApp.addListener('appUrlOpen', (event) => {
+            console.log('🔗 [Hot Start] URL:', event.url);
+            if (event.url && event.url.includes('user_id=')) {
+                const urlObj = new URL(event.url);
+                if (window.location.search !== urlObj.search) {
+                    window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+                }
+            }
+        });
+
+        // ХОЛОДНЫЙ СТАРТ
+        const launchUrl = await apkApp.getLaunchUrl();
+        if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
+            const urlObj = new URL(launchUrl.url);
             if (window.location.search !== urlObj.search) {
-                // Если мы еще не на этом URL — переходим
+                Toast.show({ text: '🚀 Загрузка профиля...' }).catch(() => {});
                 window.location.href = window.location.origin + window.location.pathname + urlObj.search;
             }
         }
-    });
-
-  // Проверяем "холодный" старт
-  // 2. "ХОЛОДНЫЙ" СТАРТ (Вот тут была петля)
-  try {
-    const launchUrl = await apkApp.getLaunchUrl();
-    
-    if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
-        const urlObj = new URL(launchUrl.url);
-        
-        // Если в строке браузера ПУСТО или там ДРУГОЙ ID — делаем редирект
-        if (window.location.search !== urlObj.search) {
-            Toast.show({ text: '🚀 Загрузка профиля...' }).catch(() => {});
-            window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-        } else {
-            console.log('✅ URL уже соответствует параметрам старта');
-        }
-    } else {
-        // Если запустили просто с иконки — покажем хоть что-то для теста
-        console.log('ℹ️ Обычный запуск без параметров');
-        // Toast.show({ text: 'Приложение готово' }).catch(() => {});
+    } catch (e) {
+        // Если база Capacitor упала, мы это увидим
+        alert("Ошибка инициализации APK: " + e.message);
     }
-  } catch (err) {
-      console.error('Ошибка холодного старта:', err);
-  }
 };
 
-// Запускаем
+// СТРОГИЙ ЗАПУСК
 if (Capacitor.isNativePlatform()) {
     checkDeepLink();
 }

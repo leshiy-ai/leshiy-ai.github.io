@@ -1,6 +1,10 @@
 import { CONFIG } from './config';
 import { version } from '../package.json';
 import { AI_MODELS, loadActiveModelConfig } from './ai-config';
+import { App as apkApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { Toast } from '@capacitor/toast';
 import axios from 'axios'; // Добавляем axios для работы со шлюзом хранилища
 
 // =================================================================
@@ -288,9 +292,26 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
         // Определяем платформу без плагина Device
         const userAgent = navigator.userAgent.toLowerCase();
+        // ПРОВЕРКА ОС
+        let os = "🌐 Web Browser";
+        if (userAgent.includes("android")) os = "📱 Android";
+        else if (userAgent.includes("iphone") || userAgent.includes("ipad")) os = "🍎 iOS";
+        else if (userAgent.includes("windows")) os = "💻 Windows";
+        else if (userAgent.includes("macintosh")) os = "🖥 macOS";
+        else if (userAgent.includes("linux")) os = "🐧 Linux";
+                
         const isAndroid = userAgent.includes("android");
-        const isCapacitor = !!window.Capacitor;
-        const platform = isCapacitor ? (isAndroid ? "Android (Capacitor)" : "iOS (Capacitor)") : "Web Browser";
+        //const isCapacitor = Capacitor;
+        // ПРОВЕРКА CAPACITOR
+        const isNative = !!(window.Capacitor && window.Capacitor.isNative);
+        const isCapacitor = !!(window.Capacitor && window.Capacitor.isNative);
+        const platform = isCapacitor ? `${os} (Capacitor)` : `${os}`;
+        // Проверяем наличие конкретных плагинов, которые нам нужны
+        const hasApp = isNative && !!window.Capacitor?.Plugins?.App;
+        const hasToast = isNative && !!window.Capacitor?.Plugins?.Toast;
+        const hasBrowser = isNative && !!window.Capacitor?.Plugins?.Browser;
+        // Формируем детальный статус платформы
+        //let platform = isCapacitor ? (isAndroid ? "📱 Android" : "🍎 iOS") : "🌐 Web Browser";
         
         const debugTemplate = `
     🛠 **DEBUG INFO**
@@ -303,11 +324,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         '🟫 Anonymous'
     }
     📱 **Platform:** ${platform}
-    📦 **Package:** ${pkg}
+    ⚡ **Capacitor:** ${isCapacitor ? 'Detected' : 'Not Found'}
+    🧩 **Plugins:** ${hasApp ? '✅ App' : '❌ App'} | ${hasToast ? '✅ Toast' : '❌ Toast'} | ${hasBrowser ? '✅ Browser' : '❌ Browser'}
     📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
-    📦 **Version:** v${currentVersion}
+    🆕 **Version:** v${currentVersion}
+    📦 **Package:** ${isAndroid ? pkg : "None"}
     🌐 **Current URL:** \`${currentUrl}\`
      `.trim();
 
