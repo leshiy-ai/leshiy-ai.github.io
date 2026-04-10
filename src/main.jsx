@@ -11,38 +11,35 @@ import { Capacitor } from '@capacitor/core';
 import { Toast } from '@capacitor/toast';
 let modalRoot = null;
 
-// --- КНОПКА НАЗАД (РЕГИСТРИРУЕМ ВНЕ ВСЕХ ФУНКЦИЙ) ---
-let lastTimeBackPress = 0;
+// --- КНОПКА НАЗАД ---
+let lastBackTime = 0;
 
-// Важно: не используем await перед addListener, вешаем его синхронно
-apkApp.addListener('backButton', async (data) => {
-    // canGoBack — если в WebView есть история переходов (например, открыта папка)
-    // Если хочешь всегда выходить, data.canGoBack можно игнорировать
+const handleBackAction = async () => {
+    console.log("PRESSED: Native Back Button");
+    const now = Date.now();
     
-    const currentTime = Date.now();
-    
-    if (currentTime - lastTimeBackPress < 2000) {
-      // Если нажали второй раз за 2 секунды — закрываем
-      // Прямой вызов нативного метода через Bridge
-      if (window.Capacitor?.Plugins?.App) {
-        await window.Capacitor.Plugins.App.exitApp();
-      } else {
+    if (now - lastBackTime < 2000) {
+        console.log("ACTION: Exiting App...");
         await apkApp.exitApp();
-      }
     } else {
-      // Первый клик
-      lastTimeBackPress = currentTime;
-      
-      // Пытаемся показать Toast, если не выйдет (нет прав) — бьем alert
-      Toast.show({
-          text: 'Нажмите еще раз, чтобы выйти',
-          duration: 'short',
-          position: 'bottom'
-      }).catch(() => {
-          // Резервный вариант, если плагин Toast не отвечает
-          alert("Нажмите еще раз для выхода");
-      });
+        lastBackTime = now;
+        console.log("ACTION: Showing Toast");
+        Toast.show({
+            text: '🚪 Нажмите еще раз для выхода',
+            duration: 'short',
+            position: 'bottom'
+        }).catch(() => alert("🚪 Нажмите еще раз для выхода"));
     }
+};
+
+// Регистрация через официальный плагин
+apkApp.addListener('backButton', handleBackAction);
+
+// Резервная регистрация через стандартный Window (на случай глюков плагина)
+window.addEventListener('ionBackButton', (ev) => {
+    ev.detail.register(10, () => {
+        handleBackAction();
+    });
 });
 
 // 2. РЕГИСТРИРУЕМ ГОРЯЧИЙ СТАРТ
