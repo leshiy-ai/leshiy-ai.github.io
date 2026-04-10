@@ -11,7 +11,7 @@ import { Capacitor } from '@capacitor/core';
 import { Toast } from '@capacitor/toast';
 let modalRoot = null;
 
-// --- КНОПКА НАЗАД ---
+/*/ --- КНОПКА НАЗАД ---
 let lastBackTime = 0;
 if (Capacitor.isNativePlatform()) {
   const handleBackAction = async () => {
@@ -74,7 +74,7 @@ const initNative = async () => {
 
 // Запускаем инициализацию
 initNative();
-
+*/
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
 // --- Возврат из ВК --- Выполняется один раз при загрузке страницы
 window.handleVKRedirect = () => {
