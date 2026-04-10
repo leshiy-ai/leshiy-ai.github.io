@@ -11,11 +11,6 @@ import { Capacitor } from '@capacitor/core';
 import { Toast } from '@capacitor/toast';
 let modalRoot = null;
 
-// Мгновенный запуск вк-бридж без блокировки
-if (window.location.search.includes('vk_app_id')) {
-  window.vkBridge.send('VKWebAppInit').catch(e => console.error("VK Init Error", e));
-}
-
 // --- ИНИЦИАЛИЗАЦИЯ REACT ---
 createRoot(document.getElementById('root')).render(
   <StrictMode>
