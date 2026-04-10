@@ -321,6 +321,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     📱 **Platform:** ${platform}
     ⚡ **Capacitor:** ${isCapacitor ? '✅ Detected' : '❌ Not Found'}
     🧩 **Plugins:** ${hasApp ? '✅ App' : '❌ App'} | ${hasToast ? '✅ Toast' : '❌ Toast'} | ${hasBrowser ? '✅ Browser' : '❌ Browser'}
+    🔷 **VkBridge:** ${window.vkBridge ? '✅ Loaded' : '❌ Not Found'}
     📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
