@@ -1840,9 +1840,12 @@ function App() {
         // Проверяем платформу ПЕРЕД релоадом
         if (window.Capacitor?.Plugins?.App) {
             console.log("Выход из APK...");
-            // В APK нам не нужен релоад, мы просто выходим
-            await window.Capacitor.Plugins.App.exitApp();
-            //await apkApp.exitApp(); 
+            // Прямой вызов нативного метода через Bridge
+            if (window.Capacitor?.Plugins?.App) {
+                await window.Capacitor.Plugins.App.exitApp();
+            } else {
+                await apkApp.exitApp();
+            }
         } else {
             console.log("Это веб, делаем софт-релоад и чистим стейт");
             // Очистка сообщений (стейт)

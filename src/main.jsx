@@ -22,21 +22,26 @@ apkApp.addListener('backButton', async (data) => {
     const currentTime = Date.now();
     
     if (currentTime - lastTimeBackPress < 2000) {
-        // Если нажали второй раз за 2 секунды — закрываем
+      // Если нажали второй раз за 2 секунды — закрываем
+      // Прямой вызов нативного метода через Bridge
+      if (window.Capacitor?.Plugins?.App) {
+        await window.Capacitor.Plugins.App.exitApp();
+      } else {
         await apkApp.exitApp();
+      }
     } else {
-        // Первый клик
-        lastTimeBackPress = currentTime;
-        
-        // Пытаемся показать Toast, если не выйдет (нет прав) — бьем alert
-        Toast.show({
-            text: 'Нажмите еще раз, чтобы выйти',
-            duration: 'short',
-            position: 'bottom'
-        }).catch(() => {
-            // Резервный вариант, если плагин Toast не отвечает
-            alert("Нажмите еще раз для выхода");
-        });
+      // Первый клик
+      lastTimeBackPress = currentTime;
+      
+      // Пытаемся показать Toast, если не выйдет (нет прав) — бьем alert
+      Toast.show({
+          text: 'Нажмите еще раз, чтобы выйти',
+          duration: 'short',
+          position: 'bottom'
+      }).catch(() => {
+          // Резервный вариант, если плагин Toast не отвечает
+          alert("Нажмите еще раз для выхода");
+      });
     }
 });
 
