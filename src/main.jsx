@@ -18,6 +18,65 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>
 );
 
+// ФУНКЦИЯ ЛОГИКИ И ИНИЦИАЛИЗАЦИИ
+const initializeNativeLogic = async () => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  let attempts = 0;
+  const checkAndInit = async () => {
+    try {
+      // Проверяем, доступен ли метод Toast (признак готовности Bridge)
+      await Toast.show({ text: 'Связь с Android: OK ✅', duration: 'short', position: 'bottom' });
+      console.log("System: Native Bridge Ready!");
+
+      // Холодный старт: ТОЛЬКО если мы не в ВК (чтобы не убить sign)
+      if (!window.location.search.includes('vk_app_id')) {
+        const launchUrl = await apkApp.getLaunchUrl();
+        if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
+          const urlObj = new URL(launchUrl.url);
+          window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+        }
+      }
+
+      // Deep Link (Горячий старт URL)
+      apkApp.addListener('appUrlOpen', (event) => {
+        if (event.url && event.url.includes('user_id=')) {
+          const urlObj = new URL(event.url);
+          if (window.location.search !== urlObj.search) {
+            window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+          }
+        }
+      });
+
+      // Слушатель горячего старта
+      apkApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) {
+          Toast.show({ text: '🚀 Горячий старт: OK ✅', duration: 'short', position: 'top' }).catch(() => {});
+        }
+      });
+
+      // Кнопка назад
+      let lastBackTime = 0;
+      apkApp.addListener('backButton', async () => {
+        const now = Date.now();
+        if (now - lastBackTime < 2000) {
+          await apkApp.exitApp();
+        } else {
+          lastBackTime = now;
+          Toast.show({ text: '🚪 Нажми еще раз для выхода', duration: 'short', position: 'bottom' });
+        }
+      });
+
+    } catch (e) {
+      if (attempts < 20) {
+        attempts++;
+        setTimeout(checkAndInit, 50);
+      }
+    }
+  };
+  checkAndInit();
+};
+
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
 
 // --- Возврат из ВК --- Выполняется один раз при загрузке страницы
@@ -237,80 +296,18 @@ window.fetchUserStatus = async () => {
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (Capacitor.isNativePlatform()) {
-    let attempts = 0;
-    
-    const checkAndInit = async () => {
-      try {
-        // Проверяем, доступен ли метод Toast (признак готовности Bridge)
-        await Toast.show({ 
-          text: 'Связь с Android: OK ✅',
-          duration: 'short',
-          position: 'bottom'
-        });
-        
-        // Если дошли сюда — связь есть, инициализируем остальное
-        console.log("System: Native Bridge Ready!");
-        
-        // Холодный старт: URL
-        const launchUrl = await apkApp.getLaunchUrl();
-        if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
-          const urlObj = new URL(launchUrl.url);
-          window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-        }
+  // Нативка (Capacitor)
+  initializeNativeLogic();
 
-        // ГОРЯЧИЙ DEEP LINK (Приложение было в памяти)
-        apkApp.addListener('appUrlOpen', (event) => {
-          if (event.url && event.url.includes('user_id=')) {
-            const urlObj = new URL(event.url);
-            // Если параметры в URL изменились — обновляем страницу
-            if (window.location.search !== urlObj.search) {
-              window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-            }
-          }
-        });
-
-        // Слушатель горячего старта
-        apkApp.addListener('appStateChange', ({ isActive }) => {
-          if (isActive) Toast.show({ 
-            text: '🚀 Горячий старт: OK ✅',
-            duration: 'short',
-            position: 'top'
-          }).catch(() => {});
-        });
-
-        // Слушатель кнопки назад
-        let lastBack = 0;
-        apkApp.addListener('backButton', async () => {
-          if (Date.now() - lastBack < 2000) await apkApp.exitApp();
-          else {
-            lastBack = Date.now();
-            Toast.show({ text: '🚪 Еще раз для выхода' });
-          }
-        });
-
-      } catch (e) {
-        // Если ошибка — значит Capacitor еще не прокинул методы. Пробуем снова через 50мс.
-        if (attempts < 20) { // Лимит 1 секунда (20 * 50мс)
-          attempts++;
-          setTimeout(checkAndInit, 50);
-        }
-      }
-    };
-
-    checkAndInit();
-  }
   // Сначала проверяем, не вернулся ли пользователь с авторизации
   handleTelegramRedirect();
   
   // Пытаемся автоматически залогинить пользователя, если это Mini App
-  // Проверка для Телеграм
-  if (window.Telegram?.WebApp?.initData) {
+  if (window.Telegram?.WebApp?.initData) { // Проверка для Телеграм
     tgAppAutoAuth();
   } 
-  // Проверка для ВК (ищем vk_app_id в URL)
-  else if (window.location.search.includes('vk_app_id')) {
-      vkAppAutoAuth();
+  else if (window.location.search.includes('vk_app_id')) { // Проверка для ВК
+    vkAppAutoAuth();
   }
 
   const currentTheme = localStorage.getItem('theme') || 'dark';
