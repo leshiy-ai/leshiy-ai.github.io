@@ -35,15 +35,15 @@
 
     <div id="tg_auth_overlay"></div>
 
-    <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js"></script>
+    <script src="https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js" defer></script>
     <script type="module" src="/src/main.jsx"></script>
 
     <div id="storage-modal" class="storage-modal">
       <div class="storage-content"></div>
     </div>
 
-    <script src="https://vk.com/js/api/openapi.js?169" type="text/javascript"></script>
-    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+    <script src="https://vk.com/js/api/openapi.js?169" type="text/javascript" defer></script>
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" defer></script>
     <script>
       if (window.location.search.includes('vk_app_id')) {
         vkBridge.send('VKWebAppInit')

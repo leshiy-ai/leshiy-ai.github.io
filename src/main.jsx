@@ -18,70 +18,8 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>
 );
 
-// --- ВСЕ ОСТАЛЬНЫЕ ФУНКЦИИ (выносим вниз) ---
-
-// --- КНОПКА НАЗАД ---
-let lastBackTime = 0;
-if (Capacitor.isNativePlatform()) {
-  const handleBackAction = async () => {
-      console.log("PRESSED: Native Back Button");
-      const now = Date.now();
-      
-      if (now - lastBackTime < 2000) {
-          console.log("ACTION: Exiting App...");
-          await apkApp.exitApp();
-      } else {
-          lastBackTime = now;
-          console.log("ACTION: Showing Toast");
-          Toast.show({
-              text: '🚪 Нажмите еще раз для выхода',
-              duration: 'short',
-              position: 'bottom'
-          }).catch(() => alert("🚪 Нажмите еще раз для выхода"));
-      }
-  };
-
-  // Регистрация через официальный плагин
-  apkApp.addListener('backButton', handleBackAction);
-
-  // Резервная регистрация через стандартный Window (на случай глюков плагина)
-  window.addEventListener('ionBackButton', (ev) => {
-      ev.detail.register(10, () => {
-          handleBackAction();
-      });
-  });
-
-  // 2. РЕГИСТРИРУЕМ ГОРЯЧИЙ СТАРТ
-  apkApp.addListener('appUrlOpen', (event) => {
-      if (event.url && event.url.includes('user_id=')) {
-          const urlObj = new URL(event.url);
-          if (window.location.search !== urlObj.search) {
-              window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-          }
-      }
-  });
-}
-// 3. ПРОВЕРКА ХОЛОДНОГО СТАРТА И ПРИВЕТСТВИЕ
-const initNative = async () => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    // Проверка связи
-    await Toast.show({ text: 'Связь с Android: OK ✅' }).catch(() => {});
-
-    try {
-        const launchUrl = await apkApp.getLaunchUrl();
-        if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
-            const urlObj = new URL(launchUrl.url);
-            if (window.location.search !== urlObj.search) {
-                window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-            }
-        }
-    } catch (e) {
-        console.error("Launch URL error", e);
-    }
-};
-
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
+
 // --- Возврат из ВК --- Выполняется один раз при загрузке страницы
 window.handleVKRedirect = () => {
   const params = new URLSearchParams(window.location.search);
@@ -141,7 +79,6 @@ const handleTelegramRedirect = () => {
 };
 
 // --- АВТОМАТИЧЕСКАЯ АУТЕНТИФИКАЦИЯ ДЛЯ TELEGRAM APP ---
-// Выполняется при загрузке, если мы внутри ТГ и не авторизованы
 const tgAppAutoAuth = async () => {
   const tg = window.Telegram?.WebApp;
   
@@ -300,8 +237,58 @@ window.fetchUserStatus = async () => {
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Это дает Capacitor время подгрузить плагины в WebView
-  setTimeout(initNative, 100);
+  if (Capacitor.isNativePlatform()) {
+    let attempts = 0;
+    
+    const checkAndInit = async () => {
+      try {
+        // Проверяем, доступен ли метод Toast (признак готовности Bridge)
+        await Toast.show({ 
+          text: 'Связь с Android: OK ✅',
+          duration: 'short',
+          position: 'bottom'
+        });
+        
+        // Если дошли сюда — связь есть, инициализируем остальное
+        console.log("System: Native Bridge Ready!");
+        
+        // Холодный старт: URL
+        const launchUrl = await apkApp.getLaunchUrl();
+        if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
+          const urlObj = new URL(launchUrl.url);
+          window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+        }
+
+        // Слушатель горячего старта
+        apkApp.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) Toast.show({ 
+            text: '🚀 Горячий старт: OK ✅',
+            duration: 'short',
+            position: 'top'
+          }).catch(() => {});
+        });
+
+        // Слушатель кнопки назад
+        let lastBack = 0;
+        apkApp.addListener('backButton', async () => {
+          if (Date.now() - lastBack < 2000) await apkApp.exitApp();
+          else {
+            lastBack = Date.now();
+            Toast.show({ text: '🚪 Еще раз для выхода' });
+          }
+        });
+
+      } catch (e) {
+        // Если ошибка — значит Capacitor еще не прокинул методы. Пробуем снова через 50мс.
+        if (attempts < 20) { // Лимит 1 секунда (20 * 50мс)
+          attempts++;
+          setTimeout(checkAndInit, 50);
+        }
+      }
+    };
+
+    checkAndInit();
+  }
   // Сначала проверяем, не вернулся ли пользователь с авторизации
   handleTelegramRedirect();
   
