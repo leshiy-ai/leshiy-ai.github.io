@@ -748,6 +748,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     const [chatList, setChatList] = useState([]);
 
     const chatEndRef = useRef(null);
+    const sidebarRef = useRef(null);
     const fileInputRef = useRef(null);
     const chatWindowRef = useRef(null);
     const appContainerRef = useRef(null);
@@ -985,11 +986,12 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
             }
 
             // --- 3. Сайдбар ---
-            const sidebarElem = document.getElementById('sidebar');
+            const sidebarElem = sidebarRef.current;
             const toggleBtn = document.getElementById('toggle-menu'); // Добавляем ссылку на кнопку
-
+            // Проверяем состояние через стейт (или класс, если стейт не подтянут)
+            const isCollapsed = document.body.classList.contains('sidebar-collapsed');
             // Если сайдбар открыт
-            if (sidebarElem && !document.body.classList.contains('sidebar-collapsed')) {
+            if (sidebarElem && !isCollapsed) {
                 
                 // ПРОВЕРКА: Если клик был НЕ по сайдбару И НЕ по кнопке открытия
                 const isClickInsideSidebar = sidebarElem.contains(event.target);
@@ -2421,6 +2423,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
             <Sidebar
             t={t}
             chatList={chatList || []} 
+            innerRef={sidebarRef}
             currentChatId={currentChatId}
             onSelectChat={onSelectChat} 
             onDeleteChat={handleDeleteChat}

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 const Sidebar = ({ 
   t, // Принимаем объект переводов
   chatList = [], 
+  innerRef,
   currentChatId, 
   onSelectChat, 
   onDeleteChat, 
@@ -120,7 +121,7 @@ const Sidebar = ({
   const sortedChats = [...chatList].sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
 
   return (
-    <div id="sidebar" className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+    <div ref={innerRef} id="sidebar" className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-top">
           <button id="toggle-menu" className="menu-btn" onClick={toggleSidebar} title={t.tooltip_toggle_menu}>☰</button>
           <div className="new-chat" onClick={handleNewChat} title={t.tooltip_new_chat}>
