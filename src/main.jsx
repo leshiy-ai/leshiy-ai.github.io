@@ -1,15 +1,30 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import './index.css';
-import Sidebar from './Sidebar.jsx';
-import App from './App.jsx';
-import { CONFIG } from './config';
 import React from 'react';
+import App from './App.jsx';
+import Sidebar from './Sidebar.jsx';
+import { CONFIG } from './config';
+import './index.css';
 import { App as apkApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 //import { Browser } from '@capacitor/browser';
 import { Toast } from '@capacitor/toast';
 let modalRoot = null;
+
+// Мгновенный запуск вк-бридж без блокировки
+const vkBridge = window.vkBridge;
+if (window.location.search.includes('vk_app_id') && vkBridge) {
+  vkBridge.send('VKWebAppInit').catch(e => console.error("VK Init Error", e));
+}
+
+// --- ИНИЦИАЛИЗАЦИЯ REACT ---
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
+
+// --- ВСЕ ОСТАЛЬНЫЕ ФУНКЦИИ (выносим вниз) ---
 
 /*/ --- КНОПКА НАЗАД ---
 let lastBackTime = 0;
@@ -179,17 +194,20 @@ const tgAppAutoAuth = async () => {
 
 // --- АВТОМАТИЧЕСКАЯ АУТЕНТИФИКАЦИЯ ДЛЯ VK MINI APP ---
 const vkAppAutoAuth = async () => {
-  const bridge = window.vkBridge;
-  if (!bridge) return;
+  // bridge уже импортирован вверху файла, просто используем его
+  if (!window.location.search.includes('vk_app_id')) return;
+  // Если уже залогинены в приложении — выходим
+  if (localStorage.getItem('vk_user_id')) return;
+  //const bridge = window.vkBridge;
+  //if (!bridge) return;
 
   try {
-      // Инициализируем VK Bridge
-      const urlParams = new URLSearchParams(window.location.search); // Сначала проверка
-      if (!urlParams.has('vk_app_id')) return; // Если не в ВК, выходим
-      await bridge.send('VKWebAppInit'); // Потом команда
-
-      // Если уже залогинены в приложении — выходим
-      if (localStorage.getItem('vk_user_id')) return;
+      // Добавляем проверку, чтобы не слать пустые запросы
+      const search = window.location.search;
+      if (search.length < 20) return;
+      //const urlParams = new URLSearchParams(window.location.search); // Сначала проверка
+      //if (!urlParams.has('vk_app_id')) return; // Если не в ВК, выходим
+      //await bridge.send('VKWebAppInit'); // Потом команда
 
       console.log("VK Mini App: Запуск фоновой авторизации...");
 
@@ -235,13 +253,6 @@ const vkAppAutoAuth = async () => {
       console.error("VK Auth Error:", err);
     }
 };
-
-// --- ИНИЦИАЛИЗАЦИЯ REACT ---
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
 
 // --- ПРАВИЛЬНАЯ АРХИТЕКТУРА УПРАВЛЕНИЯ СТАТУСОМ ---
 
