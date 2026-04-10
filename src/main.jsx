@@ -81,9 +81,6 @@ const initNative = async () => {
     }
 };
 
-// Запускаем инициализацию
-initNative();
-
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
 // --- Возврат из ВК --- Выполняется один раз при загрузке страницы
 window.handleVKRedirect = () => {
@@ -160,7 +157,7 @@ const tgAppAutoAuth = async () => {
         localStorage.setItem('auth_provider', 'Telegram');
     }
     return; 
-}
+  }
 
   try {
       // Формируем URL
@@ -303,6 +300,8 @@ window.fetchUserStatus = async () => {
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Это дает Capacitor время подгрузить плагины в WebView
+  setTimeout(initNative, 100);
   // Сначала проверяем, не вернулся ли пользователь с авторизации
   handleTelegramRedirect();
   
