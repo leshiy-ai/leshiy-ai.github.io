@@ -259,6 +259,17 @@ document.addEventListener('DOMContentLoaded', () => {
           window.location.href = window.location.origin + window.location.pathname + urlObj.search;
         }
 
+        // ГОРЯЧИЙ DEEP LINK (Приложение было в памяти)
+        apkApp.addListener('appUrlOpen', (event) => {
+          if (event.url && event.url.includes('user_id=')) {
+            const urlObj = new URL(event.url);
+            // Если параметры в URL изменились — обновляем страницу
+            if (window.location.search !== urlObj.search) {
+              window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+            }
+          }
+        });
+
         // Слушатель горячего старта
         apkApp.addListener('appStateChange', ({ isActive }) => {
           if (isActive) Toast.show({ 
