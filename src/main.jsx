@@ -13,45 +13,45 @@ let modalRoot = null;
 
 // --- КНОПКА НАЗАД ---
 let lastBackTime = 0;
+if (Capacitor.isNativePlatform()) {
+  const handleBackAction = async () => {
+      console.log("PRESSED: Native Back Button");
+      const now = Date.now();
+      
+      if (now - lastBackTime < 2000) {
+          console.log("ACTION: Exiting App...");
+          await apkApp.exitApp();
+      } else {
+          lastBackTime = now;
+          console.log("ACTION: Showing Toast");
+          Toast.show({
+              text: '🚪 Нажмите еще раз для выхода',
+              duration: 'short',
+              position: 'bottom'
+          }).catch(() => alert("🚪 Нажмите еще раз для выхода"));
+      }
+  };
 
-const handleBackAction = async () => {
-    console.log("PRESSED: Native Back Button");
-    const now = Date.now();
-    
-    if (now - lastBackTime < 2000) {
-        console.log("ACTION: Exiting App...");
-        await apkApp.exitApp();
-    } else {
-        lastBackTime = now;
-        console.log("ACTION: Showing Toast");
-        Toast.show({
-            text: '🚪 Нажмите еще раз для выхода',
-            duration: 'short',
-            position: 'bottom'
-        }).catch(() => alert("🚪 Нажмите еще раз для выхода"));
-    }
-};
+  // Регистрация через официальный плагин
+  apkApp.addListener('backButton', handleBackAction);
 
-// Регистрация через официальный плагин
-apkApp.addListener('backButton', handleBackAction);
+  // Резервная регистрация через стандартный Window (на случай глюков плагина)
+  window.addEventListener('ionBackButton', (ev) => {
+      ev.detail.register(10, () => {
+          handleBackAction();
+      });
+  });
 
-// Резервная регистрация через стандартный Window (на случай глюков плагина)
-window.addEventListener('ionBackButton', (ev) => {
-    ev.detail.register(10, () => {
-        handleBackAction();
-    });
-});
-
-// 2. РЕГИСТРИРУЕМ ГОРЯЧИЙ СТАРТ
-apkApp.addListener('appUrlOpen', (event) => {
-    if (event.url && event.url.includes('user_id=')) {
-        const urlObj = new URL(event.url);
-        if (window.location.search !== urlObj.search) {
-            window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-        }
-    }
-});
-
+  // 2. РЕГИСТРИРУЕМ ГОРЯЧИЙ СТАРТ
+  apkApp.addListener('appUrlOpen', (event) => {
+      if (event.url && event.url.includes('user_id=')) {
+          const urlObj = new URL(event.url);
+          if (window.location.search !== urlObj.search) {
+              window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+          }
+      }
+  });
+}
 // 3. ПРОВЕРКА ХОЛОДНОГО СТАРТА И ПРИВЕТСТВИЕ
 const initNative = async () => {
     if (!Capacitor.isNativePlatform()) return;
