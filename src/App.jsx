@@ -2417,7 +2417,8 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
 
     return (
         <div className="app-wrapper" ref={ref}>
-            {document.getElementById('sidebar') && createPortal(
+            {/* ВМЕСТО PORTAL: Просто вставляем компонент в дерево */}
+            {/* Убираем проверку getElementById('sidebar') и сам createPortal */}
             <Sidebar
             t={t}
             chatList={chatList || []} 
@@ -2432,10 +2433,9 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
             isAdmin={isAdmin}
             isVK={isVK}
             fetchChats={fetchChats}
-            />,
-            document.getElementById('sidebar')
-          )}
+            />
 
+        {/* ОСНОВНОЙ КОНТЕНТ */}
         <div 
             ref={appContainerRef}
             className={`app-container ${isDragging ? 'dragging' : ''}`}
