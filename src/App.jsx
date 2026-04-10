@@ -718,7 +718,8 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     };
 };
 
-function App() {
+// function App() {
+    const App = React.forwardRef((props, ref) => {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -2415,7 +2416,7 @@ function App() {
     const storageUrl = `${CONFIG.STORAGE_GATEWAY}/vk?vk_user_id=${currentUserId}`;
 
     return (
-        <div className="app-wrapper">
+        <div className="app-wrapper" ref={ref}>
             {document.getElementById('sidebar') && createPortal(
             <Sidebar
             t={t}
@@ -2827,6 +2828,6 @@ function App() {
         </div>
         </div>
     );
-}
+});
 
 export default App;
