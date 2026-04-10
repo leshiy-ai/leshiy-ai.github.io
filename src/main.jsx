@@ -184,11 +184,9 @@ const vkAppAutoAuth = async () => {
 
   try {
       // Инициализируем VK Bridge
-      await bridge.send('VKWebAppInit');
-
-      // Проверяем, есть ли параметры ВК в URL (признак, что мы внутри ВК)
-      const urlParams = new URLSearchParams(window.location.search);
-      if (!urlParams.has('vk_app_id')) return; // Мы не в ВК
+      const urlParams = new URLSearchParams(window.location.search); // Сначала проверка
+      if (!urlParams.has('vk_app_id')) return; // Если не в ВК, выходим
+      await bridge.send('VKWebAppInit'); // Потом команда
 
       // Если уже залогинены в приложении — выходим
       if (localStorage.getItem('vk_user_id')) return;
