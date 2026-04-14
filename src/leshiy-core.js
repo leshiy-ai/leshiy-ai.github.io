@@ -622,7 +622,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         // ЗАГРУЗКА ФАЙЛОВ (Умный режим)
     // Условие 1: Режим "Хранилка" (2) и есть прикрепленные файлы.
     // Условие 2: В любом режиме дана команда "сохрани" или "/upload".
-    if ((currentMode === 2 && hasFiles) || lowerQuery.includes("сохрани") || lowerQuery.includes("/upload")) {
+    if ((currentMode === 2 && hasFiles) || lowerQuery.includes("/upload")) {
         
         // Если дана команда на сохранение, но файлы не прикреплены — сообщаем об этом.
         if (!hasFiles) {

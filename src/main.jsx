@@ -7,7 +7,7 @@ import { CONFIG } from './config';
 import './index.css';
 import { App as apkApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-//import { Browser } from '@capacitor/browser';
+import { Browser } from '@capacitor/browser';
 import { Toast } from '@capacitor/toast';
 let modalRoot = null;
 
