@@ -339,30 +339,48 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     }
 
     // НОВЫЙ ОБРАБОТЧИК: Инициализация VK ID по клику
+    // НОВЫЙ ОБРАБОТЧИК: Инициализация VK ID по клику
     if (lowerQuery === '/auth_init_vk') {
-        // Ручной запуск авторизации через Capacitor Browser
-        const SITE_APP_ID = "54467300";
-        const redirectUri = 'https://leshiy-ai.github.io';
-        
-        const authUrl = `https://id.vk.com/authorize?` + new URLSearchParams({
-          client_id: SITE_APP_ID,
-          redirect_uri: redirectUri,
-          response_type: 'code',
-          scope: 'email,offline',
-          state: 'leshiy_auth_' + Date.now()
-        }).toString();
-      
-        // Открываем ВНУТРИ приложения, не в системном браузере
-        import('@capacitor/browser').then(({ Browser }) => {
-          Browser.open({
-            url: authUrl,
-            windowName: '_self', // 🔥 Ключевое: открывать в том же окне
-            toolbarColor: '#0077ff'
-          });
-        });
-      
-        return { type: 'text', text: '⚡️ Авторизация запущена...' };
-      }
+        const VKID = window.VKIDSDK;
+        const overlay = document.getElementById('vk_auth_overlay');
+        const container = document.getElementById('vk_auth_container');
+
+        if (overlay && container) {
+            container.innerHTML = ''; 
+            overlay.style.display = 'flex'; 
+
+            VKID.Config.init({
+                app: SITE_APP_ID, 
+                redirectUrl: 'https://leshiy-ai.github.io',
+                //responseMode: VKID.ConfigResponseMode.Callback,
+                responseMode: VKID.ConfigResponseMode.Redirect,
+                source: VKID.ConfigSource.LOWCODE,
+            });
+
+            const oneTap = new VKID.OneTap();
+            oneTap.render({
+                container: container,
+                showAlternativeLogin: true,
+                oauthList: ['mail_ru', 'ok_ru']
+            })
+            .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+                VKID.Auth.exchangeCode(payload.code, payload.device_id)
+                    .then((data) => {
+                        const vkid = data.user_id || data.id; 
+                        if (vkid) {
+                            localStorage.setItem('vk_user_id', vkid);
+                            overlay.style.display = 'none';
+                            // Бросаем событие для глобального стейта
+                            window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: vkid }));
+                            // Авто-переход в меню
+                            //window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
+                        }
+                    });
+            });
+
+            return { type: 'text', text: '⚡️ **Окно входа ВКонтакте открыто!**' };
+        }
+    }
 
     // НОВЫЙ ОБРАБОТЧИК: Инициализация Telegram OAUth по клику
     if (lowerQuery === '/auth_init_tg') {
