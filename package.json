@@ -15,7 +15,6 @@
     "@capacitor/android": "^5.7.8",
     "@capacitor/app": "^5.0.8",
     "@capacitor/browser": "^5.2.1",
-    "@capacitor/cli": "^5.7.8",
     "@capacitor/core": "^5.7.8",
     "@capacitor/toast": "^5.0.8",
     "axios": "^1.7.2",
@@ -25,6 +24,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^5.7.8",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.2.1",

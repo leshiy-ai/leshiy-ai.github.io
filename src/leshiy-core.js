@@ -339,7 +339,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     }
 
     // НОВЫЙ ОБРАБОТЧИК: Инициализация VK ID по клику
-    // НОВЫЙ ОБРАБОТЧИК: Инициализация VK ID по клику
     if (lowerQuery === '/auth_init_vk') {
         const VKID = window.VKIDSDK;
         const overlay = document.getElementById('vk_auth_overlay');

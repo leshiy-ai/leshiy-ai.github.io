@@ -5,6 +5,14 @@
   "server": {
     "androidScheme": "https",
     "hostname": "localhost",
-    "cleartext": true
+    "cleartext": true,
+    "allowNavigation": [
+      "leshiy-ai.github.io",
+      "*.leshiy-ai.github.io",
+      "*.vk.com",
+      "id.vk.com",
+      "oauth.vk.com",
+      "vk.com"
+    ]
   }
 }
