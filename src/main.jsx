@@ -18,44 +18,47 @@ createRoot(document.getElementById('root')).render(
   </StrictMode>
 );
 
-// ФУНКЦИЯ ЛОГИКИ И ИНИЦИАЛИЗАЦИИ
 const initializeNativeLogic = async () => {
   if (!Capacitor.isNativePlatform()) return;
 
   let attempts = 0;
   const checkAndInit = async () => {
     try {
-      // Проверяем, доступен ли метод Toast (признак готовности Bridge)
       await Toast.show({ text: 'Связь с Android: OK ✅', duration: 'short', position: 'bottom' });
       console.log("System: Native Bridge Ready!");
 
-      // Холодный старт: ТОЛЬКО если мы не в ВК (чтобы не убить sign)
+      // 🔥 Только финальные параметры авторизации, БЕЗ 'code='
+      const authKeys = ['user_id=', 'vk_user_id=', 'tg_data='];
+      const isAuthUrl = (url) => authKeys.some(key => url.includes(key));
+
+      // Холодный старт
       if (!window.location.search.includes('vk_app_id')) {
         const launchUrl = await apkApp.getLaunchUrl();
-        if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
+        if (launchUrl?.url && isAuthUrl(launchUrl.url)) {
           const urlObj = new URL(launchUrl.url);
           window.location.href = window.location.origin + window.location.pathname + urlObj.search;
         }
       }
 
-      // Deep Link (Горячий старт URL)
+      // Deep Link (Горячий старт)
       apkApp.addListener('appUrlOpen', (event) => {
-        if (event.url && event.url.includes('user_id=')) {
+        console.log("Deep Link received:", event.url);
+        if (event.url && isAuthUrl(event.url)) {
           const urlObj = new URL(event.url);
+          // Предотвращаем бесконечный редирект
           if (window.location.search !== urlObj.search) {
             window.location.href = window.location.origin + window.location.pathname + urlObj.search;
           }
         }
       });
 
-      // Слушатель горячего старта
+      // AppState и backButton — без изменений
       apkApp.addListener('appStateChange', ({ isActive }) => {
         if (isActive) {
           Toast.show({ text: '🚀 Горячий старт: OK ✅', duration: 'short', position: 'top' }).catch(() => {});
         }
       });
 
-      // Кнопка назад
       let lastBackTime = 0;
       apkApp.addListener('backButton', async () => {
         const now = Date.now();
