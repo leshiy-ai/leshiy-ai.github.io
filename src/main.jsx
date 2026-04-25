@@ -25,40 +25,37 @@ const initializeNativeLogic = async () => {
   let attempts = 0;
   const checkAndInit = async () => {
     try {
-      // 1. Проверяем связь с Bridge
+      // Проверяем, доступен ли метод Toast (признак готовности Bridge)
       await Toast.show({ text: 'Связь с Android: OK ✅', duration: 'short', position: 'bottom' });
       console.log("System: Native Bridge Ready!");
 
-      // 2. Определяем, какие параметры мы ищем в ссылках
-      const authKeys = ['user_id=', 'vk_user_id=', 'tg_data=', 'code='];
-      const isAuthUrl = (url) => authKeys.some(key => url.includes(key));
-
-      // 3. Холодный старт
+      // Холодный старт: ТОЛЬКО если мы не в ВК (чтобы не убить sign)
       if (!window.location.search.includes('vk_app_id')) {
         const launchUrl = await apkApp.getLaunchUrl();
-        if (launchUrl?.url && isAuthUrl(launchUrl.url)) {
+        if (launchUrl?.url && launchUrl.url.includes('user_id=')) {
           const urlObj = new URL(launchUrl.url);
           window.location.href = window.location.origin + window.location.pathname + urlObj.search;
         }
       }
 
-      // 4. Deep Link (Горячий старт)
+      // Deep Link (Горячий старт URL)
       apkApp.addListener('appUrlOpen', (event) => {
-        console.log("Deep Link received:", event.url);
-        if (event.url && isAuthUrl(event.url)) {
+        if (event.url && event.url.includes('user_id=')) {
           const urlObj = new URL(event.url);
-          window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+          if (window.location.search !== urlObj.search) {
+            window.location.href = window.location.origin + window.location.pathname + urlObj.search;
+          }
         }
       });
 
-      // 5. Слушатель состояния приложения
+      // Слушатель горячего старта
       apkApp.addListener('appStateChange', ({ isActive }) => {
         if (isActive) {
           Toast.show({ text: '🚀 Горячий старт: OK ✅', duration: 'short', position: 'top' }).catch(() => {});
         }
       });
 
-      // 6. Кнопка назад
+      // Кнопка назад
       let lastBackTime = 0;
       apkApp.addListener('backButton', async () => {
         const now = Date.now();
