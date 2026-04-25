@@ -9,6 +9,10 @@ const packageJson = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'pack
 export default defineConfig({
   plugins: [react()],
   base: './',
+  build: {
+    crossOrigin: false,
+    outDir: 'dist',
+  },
   define: {
     // Передаем переменные в приложение
     'process.env.APP_VERSION': JSON.stringify(packageJson.version),

@@ -351,7 +351,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             VKID.Config.init({
                 app: SITE_APP_ID, 
                 redirectUrl: 'https://leshiy-ai.github.io',
-                responseMode: VKID.ConfigResponseMode.Callback,
+                //responseMode: VKID.ConfigResponseMode.Callback,
+                responseMode: VKID.ConfigResponseMode.Redirect,
                 source: VKID.ConfigSource.LOWCODE,
             });
 
