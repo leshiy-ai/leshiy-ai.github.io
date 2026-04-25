@@ -22,8 +22,31 @@ allprojects {
         google()
         mavenCentral()
     }
+    // Add this block to configure Java version for all sub-projects
+    tasks.withType(JavaCompile) {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+// Этот блок перекрывает настройки всех саб-проектов после их загрузки
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+            if (project.hasProperty('kotlinOptions')) {
+                project.kotlinOptions {
+                    jvmTarget = '17'
+                }
+            }
+        }
+    }
 }

@@ -5,6 +5,7 @@
   "author": "Огорельцев Александр",
   "type": "module",
   "scripts": {
+    "build:android": "npm run build && npx cap copy android && npx cap sync android && cd android && ./gradlew clean assembleDebug --no-build-cache",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
