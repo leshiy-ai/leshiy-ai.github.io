@@ -22,39 +22,24 @@ lerna-debug.log*
 projects/
 *.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
 # Android (Capacitor)
-# Саму папку НЕ игнорируем, чтобы сохранить настройки
-# android/
-
-# Игнорируем только билды и локальный мусор внутри Android
 android/app/build/
+android/app/release/
 android/.gradle/
 android/local.properties
 android/captures/
-android/app/release/
 
 # 🔥 Bubblewrap / TWA
-# Артефакты сборки
-android/app/build/
-android/app/release/
-android/.gradle/
-android/captures/
 android/local.properties
-app-release-signed.apk.idsig
-app-release-unsigned-aligned.apk
+android/app/build/
+android/.gradle/
+twa-manifest.json.lock
+
+*.keystore
 *.apk
 *.aab
+*.idsig
+
 
 # Секреты подписи (НИКОГДА не коммитьте!)
 android.keystore
