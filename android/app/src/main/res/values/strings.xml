@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Leshiy-AI</string>
-    <string name="title_activity_main">Leshiy-AI</string>
-    <string name="package_name">com.leshiy_ai.app</string>
-    <string name="custom_url_scheme">com.leshiy_ai.app</string>
-</resources>
