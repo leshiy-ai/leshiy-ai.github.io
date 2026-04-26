@@ -1,0 +1,423 @@
+/* 1. Переменные тем и системные настройки */
+:root {
+  --sidebar-bg: #111;
+  --sidebar-text: #fff;
+  --sidebar-border: #333;
+  --sidebar-hover: #222;
+  --main-bg: #19191a;
+  --bg-color: #19191a;
+  --panel-bg: #222222;
+  --text-color: #e1e3e6;
+  --text-secondary: #909499;
+  --accent-color: #4caf50;
+  --bubble-bg: #2d2d2e;
+  --border-color: #363738;
+}
+
+[data-theme='light'] {
+  --sidebar-bg: #f5f5f7;
+  --sidebar-text: #1d1d1f;
+  --sidebar-border: #d2d2d7;
+  --sidebar-hover: #e8e8ed;
+  --main-bg: #ffffff;
+  --bg-color: #ffffff;
+  --panel-bg: #f5f7f8;
+  --text-color: #000000;
+  --text-secondary: #818c99;
+  --accent-color: #4caf50;
+  --bubble-bg: #e2f7e2;
+  --border-color: #dce1e6;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: var(--main-bg); font-family: 'Inter', sans-serif; }
+
+/* --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ВЕРСТКИ: СИНХРОННАЯ АНИМАЦИЯ --- */
+
+/* Сайдбар: анимируется ширина */
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 260px; /* Ширина по умолчанию (развёрнут) */
+  z-index: 200;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
+}
+
+/* Основной контент: анимируется отступ слева, СИНХРОННО с сайдбаром */
+#root {
+  height: 100%;
+  width: 100%;
+  padding-left: 260px; /* Отступ по умолчанию (развёрнут) */
+  transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- СВЁРНУТОЕ СОСТОЯНИЕ --- */
+
+body.sidebar-collapsed #sidebar {
+  width: 72px; /* Ширина в свёрнутом виде */
+}
+
+/* Контент сдвигается влево, когда сайдбар сворачивается */
+body.sidebar-collapsed #root {
+  padding-left: 72px;
+}
+body #root {
+  padding-left: 72px;
+}
+
+body.sidebar-collapsed .text,
+body.sidebar-collapsed .user-info {
+  display: none;
+}
+
+/* Центрируем иконки в свёрнутом состоянии */
+body.sidebar-collapsed .nav-item,
+body.sidebar-collapsed .new-chat,
+body.sidebar-collapsed .logout-btn,
+body.sidebar-collapsed .user-profile,
+body.sidebar-collapsed #toggle-menu {
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+  margin: 4px auto;
+}
+
+/* Подсветка при перетаскивании файла */
+.app-container.drag-over {
+  position: relative;
+}
+
+.app-container.drag-over::after {
+  content: "Отпустите файлы для загрузки";
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(59, 130, 246, 0.15); /* Нежно-синий фон */
+  border: 3px dashed #3b82f6 !important; /* Тот самый синий пунктир */
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3b82f6;
+  font-size: 20px;
+  font-weight: bold;
+  z-index: 99999; /* Поверх всего */
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+}
+
+/* --- ЭЛЕМЕНТЫ САЙДБАРА --- */
+
+/* ИСПРАВЛЕНИЕ СЭНДВИЧА: Отдельное правило с жёсткими размерами и центрированием */
+#toggle-menu {
+  background: transparent;
+  border: none;
+  color: var(--sidebar-text);
+  font-size: 20px;
+  cursor: pointer;
+  height: 44px;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* !important больше не нужен, т.к. логика едина */
+  border-radius: 12px;
+  flex-shrink: 0;
+  margin: 4px 8px; /* Отступы в развёрнутом состоянии */
+  padding: 0;
+}
+
+/* Общий стиль для ОСТАЛЬНЫХ элементов */
+.nav-item, .new-chat, .user-profile {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+  height: 44px;
+  margin: 4px 8px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  justify-content: flex-start;
+  color: var(--sidebar-text);
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  gap: 12px;
+  width: calc(100% - 16px);
+  text-decoration: none;
+}
+
+#toggle-menu:hover, .nav-item:hover, .new-chat:hover, .user-profile:hover { background: var(--sidebar-hover); }
+.icon { width: 24px; display: flex; justify-content: center; flex-shrink: 0; font-size: 18px; }
+.sidebar-bottom { margin-top: auto; padding-bottom: 10px; border-top: 1px solid var(--sidebar-border); position: relative; /* Для позиционирования меню */ }
+.user-profile { width: calc(100% - 16px); }
+.avatar-container { width: 32px; height: 32px; min-width: 32px; border-radius: 50%; overflow: hidden; border: 2px solid var(--sidebar-border); flex-shrink: 0; background: #333; }
+.avatar-container img { width: 100%; height: 100%; object-fit: cover; }
+
+/* --- НОВОЕ ВСПЛЫВАЮЩЕЕ МЕНЮ ПРОФИЛЯ --- */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.profile-menu {
+  position: absolute;
+  bottom: calc(100% + 5px); /* Над блоком .sidebar-bottom */
+  left: 8px; /* С тем же отступом, что и user-profile */
+  right: 8px;
+  background-color: var(--panel-bg);
+  border-radius: 12px;
+  border: 1px solid var(--sidebar-border);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+  z-index: 210;
+  padding: 5px;
+  animation: fade-in-up 0.2s ease-out;
+}
+
+.profile-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--sidebar-text);
+  gap: 12px;
+  font-size: 14px;
+}
+
+/* Специальный стиль для кнопки Выхода */
+.profile-menu-item.logout {
+  color: #ff4d4f;
+}
+
+.profile-menu-item:hover {
+  background-color: var(--sidebar-hover);
+}
+
+.profile-menu-item.logout:hover {
+  background: rgba(255, 77, 79, 0.1);
+}
+
+.profile-menu-item .text {
+  flex-grow: 1;
+}
+
+.profile-menu-divider {
+  height: 1px;
+  background-color: var(--sidebar-border);
+  margin: 4px 8px;
+}
+
+/* --- ФИНАЛЬНЫЕ СТИЛИ ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ --- */
+
+/* Контейнер для имени и статуса */
+.user-info {
+  display: flex; /* Включаем flex */
+  flex-direction: column; /* Располагаем элементы в столбец */
+  justify-content: center; /* Центрируем по вертикали внутри блока */
+  min-width: 0; /* Предотвращает проблемы с переполнением */
+}
+
+/* Имя пользователя */
+.user-name {
+  font-weight: 500;
+  white-space: nowrap; /* Запрещаем перенос строки */
+  overflow: hidden; /* Скрываем то, что не помещается */
+  text-overflow: ellipsis; /* Добавляем троеточие в конце */
+  line-height: 1.3; /* Немного увеличиваем высоту строки для читаемости */
+}
+
+/* Статус (Online/Offline) */
+.user-status {
+  font-size: 12px; /* Уменьшаем шрифт статуса */
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+/* Точка статуса */
+.user-status::before {
+  content: '●';
+  margin-right: 5px; /* Отступ между точкой и текстом */
+  font-size: 0.8em; /* УМЕНЬШАЕМ размер точки */
+  display: inline-block; /* Для корректного отображения */
+}
+
+/* Цвет точки для статуса Online */
+.user-status.online::before {
+  color: var(--accent-color); /* Зеленый */
+}
+
+/* Цвет точки для статуса Offline */
+.user-status.offline::before {
+  color: #ff4d4f; /* Красный */
+}
+
+/* --- УЛУЧШЕННЫЙ БЛОК ИСТОРИИ --- */
+
+.sidebar-history-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden; /* Важно для работы внутреннего скролла */
+}
+
+.history-section-header {
+  padding: 10px 20px 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+.sidebar-history {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 8px;
+}
+
+/* Элемент списка - используем твою логику nav-item */
+.history-item {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 12px;
+  margin: 2px 0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--sidebar-text);
+  position: relative;
+}
+
+.history-item:hover {
+  background-color: var(--sidebar-hover);
+}
+
+.history-item.active {
+  background-color: rgba(76, 175, 80, 0.15); /* Цвет акцента с прозрачностью */
+  color: var(--accent-color);
+}
+
+.history-text {
+  display: flex;
+  flex-direction: column;
+  margin-left: 12px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.chat-title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  color: inherit; /* Чтобы синел/зеленел при active */
+}
+
+.chat-date {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: -2px;
+}
+
+/* Кнопки действий - адаптированы под дизайн */
+.history-actions {
+  display: none;
+  gap: 4px;
+  padding-left: 8px;
+}
+
+.history-item:hover .history-actions {
+  display: flex;
+}
+
+/* Синхронизация со схлопыванием через body.sidebar-collapsed */
+body.sidebar-collapsed .sidebar-history-container .history-section-header,
+body.sidebar-collapsed .sidebar-history-container .history-text,
+body.sidebar-collapsed .sidebar-history-container .history-actions {
+  display: none !important;
+}
+
+body.sidebar-collapsed .history-item {
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+  margin: 4px auto;
+}
+/* Состояние, когда сайдбар свёрнут */
+.sidebar.collapsed .chat-item-link {
+  border-radius: 50% !important; /* Делаем идеальный круг */
+  width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px auto; /* Центрируем по горизонтали */
+  transition: all 0.3s ease;
+}
+
+/* Если есть активный класс у выбранного чата */
+.sidebar.collapsed .chat-item-link.active {
+  background-color: var(--active-color); /* Твой цвет выделения */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Скрываем текст и другие элементы, оставляя только иконку/пузырек */
+.sidebar.collapsed .chat-item-link .chat-title-text,
+.sidebar.collapsed .chat-item-link .chat-date {
+  display: none !important;
+}
+
+/* Цветовые акценты для кнопок входа */
+.profile-menu-item.vk-auth-btn {
+  color: #0077ff; /* Фирменный синий VK */
+}
+
+.profile-menu-item.tg-auth-btn {
+  color: #229ED9; /* Фирменный голубой TG */
+}
+
+/* Эффект при наведении с легким оттенком соответствующего цвета */
+.profile-menu-item.vk-auth-btn:hover {
+  background-color: rgba(0, 119, 255, 0.1);
+}
+
+.profile-menu-item.tg-auth-btn:hover {
+  background-color: rgba(34, 158, 217, 0.1);
+}
+
+/* Унификация иконок внутри пунктов меню */
+.profile-menu-item .icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* Если тема светлая, можно чуть приглушить яркость для лучшей читаемости */
+[data-theme='light'] .profile-menu-item.vk-auth-btn {
+  color: #0056b3;
+}
+
+/* СПЕЦИАЛЬНО ДЛЯ ВК: делаем чуть больше, чтобы скомпенсировать внутренние отступы SVG */
+.profile-menu-item.vk-auth-btn .icon img {
+  width: 25px; /* Увеличили на 5px */
+  height: 25px;
+}

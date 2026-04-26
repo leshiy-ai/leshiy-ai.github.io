@@ -1,0 +1,34 @@
+/**
+ * Основной файл конфигурации.
+ * Считывает переменные окружения, установленные во время сборки (build).
+ * Важно: эти переменные НЕ являются секретами в браузере. Они встраиваются в код
+ * в момент сборки в GitHub Actions.
+ */
+export const CONFIG = {
+    // Прокси для Gemini, чтобы обходить блокировки Google.
+    // В Vite доступ к переменным идет через import.meta.env
+    PROXY_SECRET_KEY: import.meta.env.VITE_PROXY_SECRET_KEY,
+    GEMINI_PROXY_KEY: import.meta.env.VITE_GEMINI_PROXY_KEY,
+    GEMINI_API_KEY: import.meta.env.VITE_GEMINI_API_KEY,
+    CLOUDFLARE_API_TOKEN: import.meta.env.VITE_CLOUDFLARE_API_TOKEN,
+    CLOUDFLARE_ACCOUNT_ID: import.meta.env.VITE_CLOUDFLARE_ACCOUNT_ID,
+    POLLINATIONS_API_KEY:  import.meta.env.VITE_POLLINATIONS_API_KEY,
+    BOTHUB_API_KEY: import.meta.env.VITE_BOTHUB_API_KEY,
+    DEEPSEEK_API_KEY: import.meta.env.VITE_DEEPSEEK_API_KEY,
+    VOICERSS_API_KEY: import.meta.env.VITE_VOICERSS_API_KEY,
+    TELEGRAM_BOT_NAME: import.meta.env.VITE_TELEGRAM_BOT_NAME,
+
+    // --- Прокси ---
+    //PROXY_URL: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',
+    PROXY_URL: 'https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/ai-proxy',
+    FALLBACK_PROXY: 'https://leshiy-ai-proxy.leshiyalex.workers.dev',
+    GEMINI_PROXY: 'https://gemini-proxy.leshiyalex.workers.dev',
+    // Шлюз Хранилки (Яндекс)
+    STORAGE_GATEWAY: "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net",
+    // Шлюз Gemini-AI Bot (Яндекс)
+    GEMINI_GATEWAY: "https://d5d2v5jjmbggp9k8qe8q.pdkwbi1w.apigw.yandexcloud.net",
+    // Твой медиа-бот (Cloudflare)
+    GEMINI_AI_BOT: "https://leshiy-gemini-bot.leshiyalex.workers.dev",
+    // MP3-Конвертер
+    MP3_CONVERTER_URL: "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net/converter"
+};

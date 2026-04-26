@@ -1,0 +1,58 @@
+# Google IDX
+.idx/
+.vscode/
+
+# Сборка и логи
+dist/
+.vite/
+dist-ssr
+build/
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Секреты
+.env
+projects/
+*.local
+
+# Capacitor / Bubblewrap / TWA - артефакты
+.gradle/
+android/app/build/
+android/app/release/
+android/.gradle/
+android/local.properties
+android/captures/
+android/app/release/
+app/
+build.gradle
+settings.gradle
+gradle.properties
+gradlew
+gradlew.bat
+gradle/wrapper/
+manifest-checksum.txt
+twa-manifest.json.lock
+android.keystore
+*.keystore
+*.jks
+*.apk
+*.aab
+*.idsig
+
+# Секреты подписи (НИКОГДА не коммитьте!)
+android.keystore
+*.keystore
+*.jks
+signing.properties
+
+# Локальные настройки
+android/.idea/
+android/**/*.iml
