@@ -57,8 +57,8 @@ android {
         applicationId "com.leshiy_ai.app"
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 1
-        versionName "1"
+        versionCode 1102
+        versionName "1.1.2"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name

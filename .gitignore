@@ -43,3 +43,23 @@ android/.gradle/
 android/local.properties
 android/captures/
 android/app/release/
+
+# 🔥 Bubblewrap / TWA
+# Артефакты сборки
+android/app/build/
+android/app/release/
+android/.gradle/
+android/captures/
+android/local.properties
+*.apk
+*.aab
+
+# Секреты подписи (НИКОГДА не коммитьте!)
+android.keystore
+*.keystore
+*.jks
+signing.properties
+
+# Локальные настройки
+android/.idea/
+android/**/*.iml
