@@ -1,6 +1,6 @@
 {
     "name": "Leshiy-AI",
-    "short_name": "Leshiy",
+    "short_name": "Leshiy-AI",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
@@ -13,7 +13,7 @@
         "purpose": "any maskable"
       },
       {
-        "src": "/logo.png",
+        "src": "/Gemini.png",
         "sizes": "512x512",
         "type": "image/png"
       }
