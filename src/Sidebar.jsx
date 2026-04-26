@@ -96,7 +96,7 @@ const Sidebar = ({
   };
 
   const toggleSidebar = (e) => {
-    // ОСТАНАВЛИВАЕМ всплытие, чтобы App.js не думал, что это клик "вне сайдбара"
+    // ОСТАНАВЛИВАЕМ всплытие, чтобы App.jsx не думал, что это клик "вне сайдбара"
     if (e && e.stopPropagation) e.stopPropagation();
     
     const newState = !isSidebarCollapsed;

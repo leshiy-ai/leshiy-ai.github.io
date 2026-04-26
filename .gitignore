@@ -8,6 +8,7 @@ dist/
 dist-ssr
 build/
 node_modules/
+scripts/
 
 # Logs
 logs
@@ -23,7 +24,7 @@ lerna-debug.log*
 projects/
 *.local
 
-# Capacitor / Bubblewrap / TWA - артефакты
+# Bubblewrap / TWA - артефакты
 .gradle/
 android/app/build/
 android/app/release/

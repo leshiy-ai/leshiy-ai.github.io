@@ -5,10 +5,7 @@ import App from './App.jsx';
 import Sidebar from './Sidebar.jsx';
 import { CONFIG } from './config';
 import './index.css';
-import { App as apkApp } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
-import { Toast } from '@capacitor/toast';
+
 let modalRoot = null;
 
 // --- ИНИЦИАЛИЗАЦИЯ REACT ---
@@ -17,68 +14,6 @@ createRoot(document.getElementById('root')).render(
     <App />
   </StrictMode>
 );
-
-const initializeNativeLogic = async () => {
-  if (!Capacitor.isNativePlatform()) return;
-
-  let attempts = 0;
-  const checkAndInit = async () => {
-    try {
-      await Toast.show({ text: 'Связь с Android: OK ✅', duration: 'short', position: 'bottom' });
-      console.log("System: Native Bridge Ready!");
-
-      // 🔥 Только финальные параметры авторизации, БЕЗ 'code='
-      const authKeys = ['user_id=', 'vk_user_id=', 'tg_data='];
-      const isAuthUrl = (url) => authKeys.some(key => url.includes(key));
-
-      // Холодный старт
-      if (!window.location.search.includes('vk_app_id')) {
-        const launchUrl = await apkApp.getLaunchUrl();
-        if (launchUrl?.url && isAuthUrl(launchUrl.url)) {
-          const urlObj = new URL(launchUrl.url);
-          window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-        }
-      }
-
-      // Deep Link (Горячий старт)
-      apkApp.addListener('appUrlOpen', (event) => {
-        console.log("Deep Link received:", event.url);
-        if (event.url && isAuthUrl(event.url)) {
-          const urlObj = new URL(event.url);
-          // Предотвращаем бесконечный редирект
-          if (window.location.search !== urlObj.search) {
-            window.location.href = window.location.origin + window.location.pathname + urlObj.search;
-          }
-        }
-      });
-
-      // AppState и backButton — без изменений
-      apkApp.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) {
-          Toast.show({ text: '🚀 Горячий старт: OK ✅', duration: 'short', position: 'top' }).catch(() => {});
-        }
-      });
-
-      let lastBackTime = 0;
-      apkApp.addListener('backButton', async () => {
-        const now = Date.now();
-        if (now - lastBackTime < 2000) {
-          await apkApp.exitApp();
-        } else {
-          lastBackTime = now;
-          Toast.show({ text: '🚪 Нажми еще раз для выхода', duration: 'short', position: 'bottom' });
-        }
-      });
-
-    } catch (e) {
-      if (attempts < 20) {
-        attempts++;
-        setTimeout(checkAndInit, 50);
-      }
-    }
-  };
-  checkAndInit();
-};
 
 // --- ОБРАБОТЧИКИ РЕДИРЕКТА 
 
@@ -299,9 +234,6 @@ window.fetchUserStatus = async () => {
 // --- ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ ---
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Нативка (Capacitor)
-  initializeNativeLogic();
-
   // Сначала проверяем, не вернулся ли пользователь с авторизации
   handleTelegramRedirect();
   

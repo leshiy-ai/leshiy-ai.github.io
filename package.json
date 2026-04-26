@@ -5,26 +5,19 @@
   "author": "Огорельцев Александр",
   "type": "module",
   "scripts": {
-    "build:android": "npm run build && npx cap copy android && npx cap sync android && cd android && ./gradlew clean assembleDebug --no-build-cache",
+    "build:booblewrap": "bubblewrap build && node scripts/rename-apk.js",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^5.7.8",
-    "@capacitor/app": "^5.0.8",
-    "@capacitor/browser": "^5.2.1",
-    "@capacitor/core": "^5.7.8",
-    "@capacitor/toast": "^5.0.8",
     "axios": "^1.7.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^5.7.8",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.2.1",

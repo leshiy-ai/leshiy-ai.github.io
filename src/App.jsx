@@ -6,10 +6,6 @@ import { askLeshiy, generateLeshiy, convertWavToMp3 } from './leshiy-core';
 import { SERVICE_TYPE_MAP, AI_MODEL_MENU_CONFIG, getActiveModelKey as getActiveModelKeyGeneric, loadActiveModelConfig } from './ai-config';
 import Sidebar from './Sidebar';
 import './App.css';
-import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
-//import { App as apkApp } from '@capacitor/app';
-//import { Toast } from '@capacitor/toast';
 
 // --- КОНСТАНТЫ ---
 // Определяют основные режимы работы приложения и связывают их с типом сервиса
@@ -836,33 +832,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
                 return text.replace(/(^|[.!?]\s+)([а-яёa-z])/g, (match, p1, p2) => p1 + p2.toUpperCase());
         }
     }, []);
-
-    /**
-     * Запускает нативную авторизацию через In-App Browser (только для Capacitor).
-     * @param {'vk' | 'tg'} provider - Провайдер авторизации.
-     */
-    const startInAppAuth = async (provider) => {
-        try {
-            const authUrl = `${CONFIG.STORAGE_GATEWAY}/${provider}?state=${currentUserId}&platform=android`;
-            // Сохраняем листенер в переменную
-            const browserFinishListener = await Browser.addListener('browserFinished', () => {
-                console.log('[Capacitor Auth] Browser closed by user');
-                // После того как браузер закрылся, удаляем слушатель сам за собой
-                browserFinishListener.remove(); 
-            });
     
-            await Browser.open({ 
-                url: authUrl,
-                windowName: '_blank',
-                toolbarColor: provider === 'vk' ? '#0077FF' : '#3390EC',
-                presentationStyle: 'popover'
-            });
-            
-        } catch (err) {
-            console.error("Ошибка запуска браузера:", err);
-        }
-    };
-
     useEffect(() => {
         isNumberModeRef.current = isNumberMode;
     }, [isNumberMode]);
@@ -1691,16 +1661,9 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
             const provider = action.replace('auth_', '');
             //sessionStorage.setItem('waiting_for_auth', 'true');
             //window.open(`${CONFIG.STORAGE_GATEWAY}/${provider}?state=${currentUserId}`, '_blank');
-            // --- НОВАЯ ПРОВЕРКА ---
-            // Проверяем, запущено ли приложение как нативное
-            if (Capacitor.isNativePlatform()) {
-                // Используем новый метод для нативного приложения
-                startInAppAuth(provider);
-            } else {
-                // Оставляем старую логику для Web, VK Mini App и TG Web App
-                sessionStorage.setItem('waiting_for_auth', 'true');
-                window.open(`${CONFIG.STORAGE_GATEWAY}/${provider}?state=${currentUserId}`, '_blank');
-            }
+            // Оставляем старую логику для Web, VK Mini App и TG Web App
+            sessionStorage.setItem('waiting_for_auth', 'true');
+            window.open(`${CONFIG.STORAGE_GATEWAY}/${provider}?state=${currentUserId}`, '_blank');
         } else {
             const command = action.startsWith('/') ? action : `/${action}`;
             handleSend(command); 
@@ -1839,41 +1802,21 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
     const closeApp = async () => {
-        // === 1. Capacitor (нативное приложение) ===
-        if (window.Capacitor?.Plugins?.App || typeof apkApp?.exitApp === 'function') {
-          console.log("📱 Выход из APK (Capacitor)...");
-          try {
-            if (window.Capacitor?.Plugins?.App) {
-              await window.Capacitor.Plugins.App.exitApp();
-            } else {
-              await apkApp.exitApp();
-            }
-          } catch (e) {
-            console.error("❌ Ошибка exitApp:", e);
-            // Фолбэк: сброс интерфейса
-            const welcomeId = Date.now();
-            welcomeMessageIdRef.current = welcomeId;
-            setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
-            softReload();
-          }
-          return;
-        }
-      
-        // === 2. ВК Мини-Апп ===
+        // === ВК Мини-Апп ===
         if (window.vkBridge) {
           console.log("🔵 Закрытие ВК Мини-Апп...");
           window.vkBridge.send('VKWebAppClose', { status: 'success' }).catch(() => {});
           return;
         }
       
-        // === 3. Telegram WebApp ===
+        // === Telegram WebApp ===
         if (window.Telegram?.WebApp) {
           console.log("🟢 Закрытие Telegram WebApp...");
           window.Telegram.WebApp.close();
           return;
         }
       
-        // === 4. TWA / Standalone PWA (Bubblewrap) ===
+        // === TWA / Standalone PWA (Bubblewrap) ===
         const isTwa = 
           window.matchMedia('(display-mode: standalone)').matches ||
           window.navigator.standalone === true ||
@@ -1972,14 +1915,6 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         };
     
         const handleVkAuth = () => {
-            // --- НОВАЯ ПРОВЕРКА ---
-            // Если это нативное приложение, запускаем In-App Browser немедленно.
-            if (Capacitor.isNativePlatform()) {
-                console.log('[Auth] Native platform detected. Starting In-App Auth for VK.');
-                startInAppAuth('vk');
-                return; // Важно, чтобы не выполнился старый код
-            }
-
             // --- СТАРАЯ ЛОГИКА (для Web, VK Mini App и т.д.) ---
             const userId = localStorage.getItem('vk_user_id');
             if (!userId || userId === 'null') {
@@ -1990,14 +1925,6 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         };
 
         const handleTgAuth = () => {
-            // --- НОВАЯ ПРОВЕРКА ---
-            if (Capacitor.isNativePlatform()) {
-                console.log('[Auth] Native platform detected. Starting In-App Auth for TG.');
-                startInAppAuth('tg');
-                return; 
-            }
-            
-            // --- СТАРЫЙ КОД ---
             const userId = localStorage.getItem('vk_user_id');
             if (!userId || userId === 'null') {
                 const overlay_vk = document.getElementById('vk_auth_overlay');

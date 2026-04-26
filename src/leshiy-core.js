@@ -1,10 +1,6 @@
 import { CONFIG } from './config';
 import { version } from '../package.json';
 import { AI_MODELS, loadActiveModelConfig } from './ai-config';
-import { App as apkApp } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
-import { Toast } from '@capacitor/toast';
 import axios from 'axios'; // Добавляем axios для работы со шлюзом хранилища
 
 // =================================================================
@@ -300,14 +296,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         else if (userAgent.includes("macintosh")) os = "🖥 macOS";
         else if (userAgent.includes("linux")) os = "🐧 Linux";
         const isAndroid = userAgent.includes("android");
-        // ПРОВЕРКА CAPACITOR
-        const isCapacitor = !!(window.Capacitor && window.Capacitor.isNative);
-        const platform = isCapacitor ? `${os} (Capacitor)` : `${os}`;
-        // Проверяем наличие конкретных плагинов, которые нам нужны
-        const hasApp = isCapacitor && !!window.Capacitor?.Plugins?.App;
-        const hasToast = isCapacitor && !!window.Capacitor?.Plugins?.Toast;
-        const hasBrowser = isCapacitor && !!window.Capacitor?.Plugins?.Browser;
-        
         const debugTemplate = `
     🛠 **DEBUG INFO**
     --------------------------
@@ -319,8 +307,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         '🟫 Anonymous'
     }
     📱 **Platform:** ${platform}
-    ⚡ **Capacitor:** ${isCapacitor ? '✅ Detected' : '❌ Not Found'}
-    🧩 **Plugins:** ${hasApp ? '✅ App' : '❌ App'} | ${hasToast ? '✅ Toast' : '❌ Toast'} | ${hasBrowser ? '✅ Browser' : '❌ Browser'}
     🔷 **VkBridge:** ${window.vkBridge ? '✅ Loaded' : '❌ Not Found'}
     📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}
