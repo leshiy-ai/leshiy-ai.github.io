@@ -1839,25 +1839,88 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
     const closeApp = async () => {
-        // Проверяем платформу ПЕРЕД релоадом
-        if (window.Capacitor?.Plugins?.App) {
-            console.log("Выход из APK...");
-            // Прямой вызов нативного метода через Bridge
+        // === 1. Capacitor (нативное приложение) ===
+        if (window.Capacitor?.Plugins?.App || typeof apkApp?.exitApp === 'function') {
+          console.log("📱 Выход из APK (Capacitor)...");
+          try {
             if (window.Capacitor?.Plugins?.App) {
-                await window.Capacitor.Plugins.App.exitApp();
+              await window.Capacitor.Plugins.App.exitApp();
             } else {
-                await apkApp.exitApp();
+              await apkApp.exitApp();
             }
-        } else {
-            console.log("Это веб, делаем софт-релоад и чистим стейт");
-            // Очистка сообщений (стейт)
+          } catch (e) {
+            console.error("❌ Ошибка exitApp:", e);
+            // Фолбэк: сброс интерфейса
             const welcomeId = Date.now();
             welcomeMessageIdRef.current = welcomeId;
             setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
-            // В вебе закрыть вкладку скриптом часто нельзя, поэтому делаем релоад
             softReload();
+          }
+          return;
         }
-    };
+      
+        // === 2. ВК Мини-Апп ===
+        if (window.vkBridge && window.location.search.includes('vk_app_id')) {
+          console.log("🔵 Закрытие ВК Мини-Апп...");
+          window.vkBridge.send('VKWebAppClose', { status: 'success' }).catch(() => {});
+          return;
+        }
+      
+        // === 3. Telegram WebApp ===
+        if (window.Telegram?.WebApp) {
+          console.log("🟢 Закрытие Telegram WebApp...");
+          window.Telegram.WebApp.close();
+          return;
+        }
+      
+        // === 4. TWA / Standalone PWA (Bubblewrap) ===
+        const isTwa = 
+          window.matchMedia('(display-mode: standalone)').matches ||
+          window.navigator.standalone === true ||
+          document.referrer.includes('android-app://');
+        
+        if (isTwa) {
+          console.log("🟡 TWA: эмуляция выхода...");
+          
+          // Визуальный фидбек
+          const btn = document.querySelector('[data-tooltip="tooltip_close"]') || 
+                      document.querySelector('[title*="Закрыть"]');
+          if (btn) {
+            btn.textContent = '✓';
+            btn.style.pointerEvents = 'none';
+            setTimeout(() => { btn.textContent = '✕'; btn.style.pointerEvents = 'auto'; }, 1000);
+          }
+          
+          // Эмуляция выхода: «прокручиваем» историю назад
+          // В TWA это обычно приводит к сворачиванию приложения
+          let steps = 0;
+          const goBack = () => {
+            if (steps < 3) {
+              window.history.back();
+              steps++;
+              setTimeout(goBack, 150);
+            }
+          };
+          goBack();
+          
+          // Фолбэк: если история пуста — сбрасываем интерфейс
+          setTimeout(() => {
+            const welcomeId = Date.now();
+            welcomeMessageIdRef.current = welcomeId;
+            setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
+            setInput?.('');
+          }, 600);
+          
+          return;
+        }
+      
+        // === 5. Обычный веб (фолбэк) ===
+        console.log("🌐 Веб: сброс интерфейса...");
+        const welcomeId = Date.now();
+        welcomeMessageIdRef.current = welcomeId;
+        setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
+        softReload();
+      };
 
     useEffect(() => {
         if (currentUserId && currentUserId !== 'guest') {

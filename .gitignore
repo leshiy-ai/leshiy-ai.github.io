@@ -51,6 +51,8 @@ android/app/release/
 android/.gradle/
 android/captures/
 android/local.properties
+app-release-signed.apk.idsig
+app-release-unsigned-aligned.apk
 *.apk
 *.aab
 
