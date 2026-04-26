@@ -1860,7 +1860,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         }
       
         // === 2. ВК Мини-Апп ===
-        if (window.vkBridge && window.location.search.includes('vk_app_id')) {
+        if (window.vkBridge) {
           console.log("🔵 Закрытие ВК Мини-Апп...");
           window.vkBridge.send('VKWebAppClose', { status: 'success' }).catch(() => {});
           return;
