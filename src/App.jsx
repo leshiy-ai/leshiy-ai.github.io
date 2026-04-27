@@ -167,7 +167,7 @@ const fileToDataURL = (file) => {
     });
 };
  
-const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
+const Message = ({ message, onSwipe, onAction, userPhoto, userName, t, setLightboxImageUrl }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
     const currentX = useRef(0);
@@ -478,27 +478,22 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         //if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
         // Рисуем кликабельное изображение, если есть превью
         if (isImg) {
-            // ТОЧНАЯ КОПИЯ ЛОГИКИ ИЗ ПРЕВЬЮ
-            // Если есть file.file (объект Blob), создаем временный blob: URL.
-            // Иначе используем file.preview (data: URL).
-            const imageUrl = (file.file instanceof Blob) ? URL.createObjectURL(file.file) : file.preview;
+            // data:URL из file.preview всегда доступен и работает в нашем лайтбоксе
+            const displayUrl = file.preview;
+
+            const handleImageClick = (e) => {
+                e.stopPropagation();
+                // Используем функцию, полученную через пропсы, для открытия лайтбокса
+                setLightboxImageUrl(displayUrl);
+            };
 
             return (
                 <img
                     key={i}
-                    src={imageUrl} // 1. Используем созданный URL для отображения
+                    src={displayUrl} // 1. Используем созданный URL для отображения
                     className="uploaded-image-preview" // Этот класс отвечает за стили и размеры
                     alt={name}
-                    onClick={(e) => {
-                        e.stopPropagation(); // Важно: чтобы не сработал свайп всего сообщения
-                        const a = document.createElement('a');
-                        a.href = imageUrl; // 2. Используем ТОТ ЖЕ URL для открытия в новой вкладке
-                        a.target = '_blank';
-                        a.rel = 'noopener noreferrer';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                    }}
+                    onClick={handleImageClick}
                     // Добавляем возможность перетаскивания
                     draggable={!/Mobi|Android/i.test(navigator.userAgent) && isDraggable}
                     onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, fileToDrag, 'image'); }}
@@ -548,8 +543,14 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
 
         // Функция-обработчик для клика
         const handleImageClick = (e) => {
-            // Простое открытие картинки в новой вкладке.
-            window.open(message.imageUrl, '_blank', 'noopener,noreferrer');
+            e.stopPropagation();
+            // Для Telegram используем его API для открытия внешних ссылок
+            if (window.Telegram?.WebApp?.openLink && message.imageUrl.startsWith('http')) {
+                window.Telegram.WebApp.openLink(message.imageUrl);
+            } else {
+                // В остальных случаях (обычный браузер) используем наш лайтбокс
+                setLightboxImageUrl(message.imageUrl);
+            }
         };
 
         return (
@@ -560,10 +561,8 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
                 onDragStart={(e) => handleDragStart(e, fileToDrag, 'image')}
                 onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag, 'image')}
                 data-is-draggable="true" 
-                
                 // Обработчик для клика
                 onClick={handleImageClick}
-                
                 // Стилизация: 'grab' для перетаскивания, 'pointer' для клика
                 style={{ cursor: fileToDrag ? 'grab' : 'pointer', marginTop: '10px' }}
                 title="Нажмите, чтобы открыть в полном размере, или перетащите для использования"
@@ -784,6 +783,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     const [currentMode, setCurrentMode] = useState(1);
     const [currentVoiceId, setCurrentVoiceId] = useState(null);
     const [videoProcessingMode, setVideoProcessingMode] = useState('text'); // 'text' или 'analysis'
+    const [lightboxImageUrl, setLightboxImageUrl] = useState(null);
 
     const [userName, setUserName] = useState(localStorage.getItem('vk_user_name') || "Пользователь");
     const [userPhoto, setUserPhoto] = useState(localStorage.getItem('vk_user_photo') || "");
@@ -2544,7 +2544,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
                     </div>
                 )}
                 {messages.map((m) => (
-                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} userPhoto={userPhoto} userName={userName} t={t} />
+                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} userPhoto={userPhoto} userName={userName} t={t} setLightboxImageUrl={setLightboxImageUrl} />
                 ))}
                 {isLoading && !isFetchingMore && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
@@ -2625,12 +2625,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
                                                         src={fileUrl} 
                                                         className="image-preview" 
                                                         alt="preview" 
-                                                        onClick={() => {
-                                                            const a = document.createElement('a');
-                                                            a.href = fileUrl;
-                                                            a.target = '_blank';
-                                                            a.click();
-                                                        }}
+                                                        onClick={() => setLightboxImageUrl(fileUrl)}
                                                         style={{ cursor: 'zoom-in', width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px' }}
                                                     />
                                                 )}
@@ -2869,6 +2864,34 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
                 onChange={(e) => handleFileSelect(e.target.files)}
             />
         </div>
+            {lightboxImageUrl && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10000,
+                        cursor: 'pointer'
+                    }}
+                    onClick={() => setLightboxImageUrl(null)}
+                >
+                    <img
+                        src={lightboxImageUrl}
+                        style={{
+                            maxWidth: '95%',
+                            maxHeight: '95%',
+                            objectFit: 'contain'
+                        }}
+                        alt="Lightbox preview"
+                    />
+                </div>
+            )}
         </div>
     );
 });
