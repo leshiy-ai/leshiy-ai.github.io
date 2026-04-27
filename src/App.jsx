@@ -475,7 +475,43 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         const fileToDrag = file.file;
 
         // Рисуем img только если есть живое превью
-        if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
+        //if (isImg) return <img key={i} src={file.preview} className="uploaded-image-preview" alt={name} />;
+        // Рисуем кликабельное изображение, если есть превью
+        if (isImg) {
+            // ТОЧНАЯ КОПИЯ ЛОГИКИ ИЗ ПРЕВЬЮ
+            // Если есть file.file (объект Blob), создаем временный blob: URL.
+            // Иначе используем file.preview (data: URL).
+            const imageUrl = (file.file instanceof Blob) ? URL.createObjectURL(file.file) : file.preview;
+
+            return (
+                <img
+                    key={i}
+                    src={imageUrl} // 1. Используем созданный URL для отображения
+                    className="uploaded-image-preview" // Этот класс отвечает за стили и размеры
+                    alt={name}
+                    onClick={(e) => {
+                        e.stopPropagation(); // Важно: чтобы не сработал свайп всего сообщения
+                        const a = document.createElement('a');
+                        a.href = imageUrl; // 2. Используем ТОТ ЖЕ URL для открытия в новой вкладке
+                        a.target = '_blank';
+                        a.rel = 'noopener noreferrer';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }}
+                    // Добавляем возможность перетаскивания
+                    draggable={!/Mobi|Android/i.test(navigator.userAgent) && isDraggable}
+                    onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, fileToDrag, 'image'); }}
+                    onTouchStart={(e) => { e.stopPropagation(); handleTouchStartOnDraggable(e, fileToDrag, 'image'); }}
+                    onTouchEnd={handleTouchEnd}
+                    data-is-draggable={isDraggable}
+                    style={{ cursor: 'pointer' }} // Курсор для индикации кликабельности
+                    title={`Нажмите, чтобы открыть ${name}, или перетащите для использования`}
+                />
+            );
+        }
+
+        
         let icon = '📎'; let label = 'ФАЙЛ';
         // Применяем ту же самую единую логику, что и для "призрака"
         if (name.startsWith('voice_')) {
@@ -510,29 +546,44 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t }) => {
         if (!message.imageUrl) return null;
         const fileToDrag = message.file;
 
+        // Функция-обработчик для клика
+        const handleImageClick = (e) => {
+            // Простое открытие картинки в новой вкладке.
+            window.open(message.imageUrl, '_blank', 'noopener,noreferrer');
+        };
+
         return (
             <div 
                 className="image-generation-wrapper"
+                // Обработчики для перетаскивания
                 draggable={!/Mobi|Android/i.test(navigator.userAgent) && !!fileToDrag}
                 onDragStart={(e) => handleDragStart(e, fileToDrag, 'image')}
                 onTouchStart={(e) => handleTouchStartOnDraggable(e, fileToDrag, 'image')}
                 data-is-draggable="true" 
-                style={{ cursor: fileToDrag ? 'grab' : 'default', marginTop: '10px' }}
+                
+                // Обработчик для клика
+                onClick={handleImageClick}
+                
+                // Стилизация: 'grab' для перетаскивания, 'pointer' для клика
+                style={{ cursor: fileToDrag ? 'grab' : 'pointer', marginTop: '10px' }}
+                title="Нажмите, чтобы открыть в полном размере, или перетащите для использования"
             >
                 <img 
                     src={message.imageUrl} 
                     className="generated-image" 
                     alt={message.text || "Сгенерированное изображение"} 
-                    style={{ maxWidth: '100%', borderRadius: '12px', display: 'block' }}
+                    // Важно: убрать pointer-events, чтобы клики проходили на родительский div
+                    style={{ maxWidth: '100%', borderRadius: '12px', display: 'block', pointerEvents: 'none' }}
                 />
                 {message.text && (
-                    <div className="image-text-caption" style={{ marginTop: '8px' }}>
+                    <div className="image-text-caption" style={{ marginTop: '8px', pointerEvents: 'none' }}>
                         <ReactMarkdown>{message.text}</ReactMarkdown>
                     </div>
                 )}
             </div>
         );
     };
+    
 
     // Рендер аудио из ответа AI (генерация голоса)
     const renderGeneratedAudio = (message) => {
