@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "build:web": "vite build",
-    "build:apk": "npx bubblewrap build && node scripts/rename-apk.js",
+    "build:apk": "npx bubblewrap build && node scripts/rename-release.js",
+    "build:debug": "npx bubblewrap build --debug && node scripts/rename-debug.cjs",
     "build:all": "npm run build:web && npm run build:apk",
     "dev": "vite",
     "build": "vite build",
