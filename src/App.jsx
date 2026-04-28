@@ -89,8 +89,10 @@ const TRANSLATIONS = {
         placeholder: (files) => files.length > 0 ? "Добавь текст к файлам..." : "Спроси меня о чем-нибудь...",
         send: 'Отправить',
         upload: '📎 Выбрать файл',
-        welcome: 'Привет! Я Gemini-AI. Спроси меня о чём угодно, подключи Хранилку и вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
-        thinking: '⏳ Gemini-AI думает...',
+        //welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, подключи Хранилку и вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
+        welcome: 'Привет! Я Leshiy-AI — твой универсальный ИИ-помощник. Задавай любые вопросы, подключай Хранилку и загружай файлы прямо в чат — я распознаю и помогу с любой задачей! Узнать больше о возможностях и безопасности: /about',
+        //about_text: `О приложении Leshiy AI\n\nLeshiy AI — ваш персональный ИИ-ассистент для автоматизации и анализа данных.\n\nКак это работает: приложение использует защищенное API Google Gemini для мгновенной обработки запросов.\n\nБезопасность: мы не храним личные данные на серверах. Вся информация обрабатывается через зашифрованное HTTPS-соединение. Используются только технические логи для стабильности.\n\nВерсия: ${process.env.APP_VERSION}`,
+        thinking: '⏳ Leshiy-AI думает...',
         uploading: '☁️ Загружаю',
         uploadSuccess: '✅ Файл успешно сохранен в экосистеме!',
         uploadError: '❌ Не удалось сохранить',
@@ -125,8 +127,10 @@ const TRANSLATIONS = {
         placeholder: (files) => files.length > 0 ? "Now add a text query to the files..." : "Ask something...",
         send: 'Send',
         upload: '📎 Select file',
-        welcome: 'Hi! I am Gemini-AI. Ask me anything, connect Storage and insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
-        thinking: '⏳ Gemini-AI is thinking...',
+        //welcome: 'Hi! I am Leshiy-AI. Ask me anything, connect Storage and insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
+        welcome: 'Hi! I\'m Leshiy-AI, your all-in-one AI assistant. Ask questions, connect your /storage or learn more with /about',
+        //about_text: `About Leshiy AI\n\nLeshiy AI is your personal AI assistant for automation and data analysis.\n\nHow it works: The application uses the secure Google Gemini API for instant request processing.\n\nSecurity: We do not store your personal data on servers. All information is processed via an encrypted HTTPS connection. Only technical logs are used for stability.\n\nVersion: ${process.env.APP_VERSION}`,
+        thinking: '⏳ Leshiy-AI is thinking...',
         uploading: '☁️ Uploading',
         uploadSuccess: '✅ File successfully saved in the ecosystem!',
         uploadError: '❌ Failed to save',
@@ -166,8 +170,31 @@ const fileToDataURL = (file) => {
         reader.readAsDataURL(file);
     });
 };
- 
-const Message = ({ message, onSwipe, onAction, userPhoto, userName, t, setLightboxImageUrl }) => {
+
+const renderTextWithCommands = (text, onCommandClick) => {
+    if (!text) return null;
+    const parts = text.split(/(\n)/g).flatMap(line => line.split(/(\s+)/g));
+  
+    return parts.map((part, index) => {
+      if (part.startsWith('/')) {
+        return (
+          <span 
+            key={index} 
+            className="command-link" 
+            onClick={() => onCommandClick(part)}
+          >
+            {part}
+          </span>
+        );
+      }
+      if (part === '\n') {
+          return <br key={index} />;
+      }
+      return part;
+    });
+};
+
+const Message = ({ message, onSwipe, onAction, userPhoto, userName, t, setLightboxImageUrl, onCommandClick }) => {
     const msgRef = useRef(null);
     const startX = useRef(0);
     const currentX = useRef(0);
@@ -619,6 +646,7 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t, setLightb
     };
     
     const textToRender = message.text || message.content;
+    const hasCommands = (textToRender) => /\/\w+/.test(textToRender);
     const isUser = message.role === 'user';
     const avatarUrl = isUser ? userPhoto : '/Gemini.png';
     const showAvatar = !isUser || (isUser && !!userPhoto);
@@ -674,9 +702,15 @@ const Message = ({ message, onSwipe, onAction, userPhoto, userName, t, setLightb
 
                         {/* Рендерим текст, ТОЛЬКО если это не сообщение с аудио И НЕ с картинкой */}
                         {!message.audioUrl && !message.imageUrl && (textToRender ? (
-                            <ReactMarkdown>
-                                {textToRender}
-                            </ReactMarkdown>
+                            <div className="text-container">
+                                {/\/\w+/.test(textToRender) ? (
+                                    /* Если есть команды — используем твою логику */
+                                    renderTextWithCommands(textToRender, onCommandClick)
+                                ) : (
+                                    /* Если команд нет — используем Markdown для красоты */
+                                    <ReactMarkdown>{textToRender}</ReactMarkdown>
+                                )}
+                            </div>
                         ) : (
                             (!message.attachments || message.attachments.length === 0) && (
                                 <p className="media-msg-label">Медиафайл</p>
@@ -1988,8 +2022,10 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
   
         const handleAdminPanel = () => {
           setShowAdminPanel(true);
-          };
-    
+        };
+
+        window.addEventListener('open-admin-panel', handleAdminPanel);
+
         const handleLogout = () => {
             localStorage.removeItem('vk_user_id');
             localStorage.removeItem('vk_user_name');
@@ -2544,8 +2580,18 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
                     </div>
                 )}
                 {messages.map((m) => (
-                    <Message key={m.id} message={m} onSwipe={handleSwipeMessage} onAction={handleMenuAction} userPhoto={userPhoto} userName={userName} t={t} setLightboxImageUrl={setLightboxImageUrl} />
-                ))}
+                    <Message 
+                        key={m.id} 
+                        message={m} 
+                        onSwipe={handleSwipeMessage} 
+                        onAction={handleMenuAction} 
+                        userPhoto={userPhoto} 
+                        userName={userName} 
+                        t={t} 
+                        setLightboxImageUrl={setLightboxImageUrl} 
+                        onCommandClick={handleSend}
+                        />
+                    ))}
                 {isLoading && !isFetchingMore && <div className="message-container ai"><div className="bubble typing">{t.thinking}</div></div>}
                 <div ref={chatEndRef} />
             </div>

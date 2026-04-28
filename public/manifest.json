@@ -1,6 +1,7 @@
 {
     "name": "Leshiy-AI",
     "short_name": "Leshiy-AI",
+    "description": "Интеллектуальный AI-ассистент для общения и продуктивной работы.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",
@@ -14,8 +15,15 @@
       },
       {
         "src": "/Gemini.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "/Gemini.png",
         "sizes": "512x512",
-        "type": "image/png"
+        "type": "image/png",
+        "purpose": "any"
       }
     ],
     "categories": ["utilities", "productivity"],

@@ -848,9 +848,37 @@ body.sidebar-collapsed .history-item .icon {
 }
 
 .message-body {
-    word-break: break-word;
-    white-space: pre-wrap;
+    /* white-space: pre-wrap;
+    word-wrap: break-word;*/
+    line-height: 1.4; /* Немного компактнее межстрочный интервал */
 }
+/* Сжимаем списки */
+.message-body ul, 
+.message-body ol {
+    margin: 4px 0;        /* Убираем большие отступы сверху и снизу */
+    padding-left: 20px;   /* Уменьшаем отступ слева, чтобы текст не висел в воздухе */
+}
+
+/* Сжимаем пункты списка */
+.message-body li {
+    margin-bottom: 2px;   /* Минимальный зазор между пунктами */
+}
+
+/* Сжимаем абзацы */
+.message-body p {
+    margin: 4px 0;        /* Тоже прижимаем параграфы друг к другу */
+}
+
+.command-link {
+    color: var(--link-color, #0077ff); /* Используем переменную, если есть, или голубой по умолчанию */
+    cursor: pointer;
+    font-weight: 500;
+    text-decoration: none; /* Убираем подчеркивание */
+  }
+  
+  .command-link:hover {
+    text-decoration: underline; /* Показываем подчеркивание при наведении */
+  }
 
 .copy-btn {
     background: transparent;

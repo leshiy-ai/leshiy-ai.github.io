@@ -275,6 +275,26 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         }
     }
 
+    // Команда вызова админ-панели
+    if (lowerQuery === '/admin') {
+        const isAdmin = localStorage.getItem('isAdmin') === 'true';
+
+        if (isAdmin) {
+            // Генерируем событие, которое будет поймано в App.jsx
+            window.dispatchEvent(new CustomEvent('open-admin-panel'));
+            
+            return {
+                type: 'text',
+                text: '✅ Открываю админ-панель...'
+            };
+        } else {
+            return {
+                type: 'error',
+                text: '❌ У вас нет прав для выполнения этой команды.'
+            };
+        }
+    }
+
     // DEBUG INFO
     if (lowerQuery === '/debug') {
         // Собираем актуальные данные на лету
@@ -296,32 +316,50 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         else if (userAgent.includes("macintosh")) os = "🖥 macOS";
         else if (userAgent.includes("linux")) os = "🐧 Linux";
         const isAndroid = userAgent.includes("android");
-        const debugTemplate = `
-    🛠 **DEBUG INFO**
-    --------------------------
-    🆔 **User ID:** \`${userId}\`
-    👤 **User Name:** ${userName}
+        // в ДебагТемплэйт в конце каждой строки по два пробела как ентер
+        const debugTemplate = `🛠 **DEBUG INFO**  
+    --------------------------  
+    🆔 **User ID:** \`${userId}\`  
+    👤 **User Name:** ${userName}  
     🔐 **Auth:** ${
         authProvider === 'Telegram' ? '🟩 Telegram' : 
         authProvider === 'VK' ? '🟦 VKontakte' : 
         '🟫 Anonymous'
-    }
-    📱 **Platform:** ${platform}
-    🔷 **VkBridge:** ${window.vkBridge ? '✅ Loaded' : '❌ Not Found'}
-    📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}
-    🕒 **Server Time:** ${new Date().toLocaleTimeString()}
-    👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}
-    🆕 **Version:** v${currentVersion}
-    📦 **Package:** ${isAndroid ? pkg : "None"}
-    🌐 **Current URL:** \`${currentUrl}\`
-     `.trim();
-
+    }  
+    🌐 **Platform:** ${os}  
+    🔷 **VkBridge:** ${window.vkBridge ? '✅ Loaded' : '❌ Not Found'}  
+    📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}  
+    🕒 **Server Time:** ${new Date().toLocaleTimeString()}  
+    👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}  
+    🆕 **Version:** v${currentVersion}  
+    📦 **Package:** ${isAndroid ? pkg : "None"}`;
+    // и никаких тримов в конце
         return {
             id: Date.now(),
             text: debugTemplate,
             sender: 'bot',
             type: 'system_debug',
         }
+    }
+
+    if (lowerQuery === '/about') {
+        const currentVersion = process.env.APP_VERSION;
+        const currentAuthor = process.env.APP_AUTHOR
+        const aboutText = `**О приложении:**:
+**Leshiy AI** — инструмент для автоматизации и анализа данных.
+* Мы создали Leshiy AI, чтобы сделать работу с нейросетями простой и удобной. 
+Приложение берет на себя рутину, используя мощь Google Gemini для анализа и генерации контента.
+
+**Безопасность данных** - Ваша безопасность — наш приоритет. 
+* Мы не храним личные данные и файлы на наших серверах.
+* Вся информация обрабатывается через защищенное HTTPS-соединение.
+* В работе приложения используются только необходимые технические логи.
+
+**Текущая версия:** v${currentVersion} **Автор:** ${currentAuthor}`;
+        return {
+            type: 'text',
+            text: aboutText
+        };
     }
 
     // НОВЫЙ ОБРАБОТЧИК: Инициализация VK ID по клику
