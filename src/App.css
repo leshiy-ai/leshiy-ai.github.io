@@ -848,8 +848,8 @@ body.sidebar-collapsed .history-item .icon {
 }
 
 .message-body {
-    /* white-space: pre-wrap;
-    word-wrap: break-word;*/
+    /* white-space: pre-wrap;*/
+    word-wrap: break-word;
     line-height: 1.4; /* Немного компактнее межстрочный интервал */
 }
 /* Сжимаем списки */

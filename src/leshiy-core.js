@@ -331,8 +331,8 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     📡 **Server Status:** ${lastStatus === 200 ? '✅ OK' : '⚠️ Check Network'}  
     🕒 **Server Time:** ${new Date().toLocaleTimeString()}  
     👥 **Role:** ${storedIsAdmin ? '🅰️ Admin' : '👤 User'}  
-    🆕 **Version:** v${currentVersion}  
-    📦 **Package:** ${isAndroid ? pkg : "None"}`;
+    📦 **Package:** ${isAndroid ? pkg : "None"}  
+    🆕 **Version:** v${currentVersion}`;
     // и никаких тримов в конце
         return {
             id: Date.now(),
@@ -345,7 +345,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
     if (lowerQuery === '/about') {
         const currentVersion = process.env.APP_VERSION;
         const currentAuthor = process.env.APP_AUTHOR
-        const aboutText = `**О приложении:**:
+        const aboutText = `**О приложении:**
 **Leshiy AI** — инструмент для автоматизации и анализа данных.
 * Мы создали Leshiy AI, чтобы сделать работу с нейросетями простой и удобной. 
 Приложение берет на себя рутину, используя мощь Google Gemini для анализа и генерации контента.
