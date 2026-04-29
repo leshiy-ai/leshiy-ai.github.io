@@ -19,7 +19,6 @@ const Sidebar = ({
   const [isProfileMenuVisible, setProfileMenuVisible] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(localStorage.getItem('isAdmin') === 'true');
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const profileRef = useRef(null);
 
   // Состояние для "бесконечной" прокрутки

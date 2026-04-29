@@ -20,14 +20,20 @@
     "path": "/home/user/leshiy-ai.github.io/android.keystore",
     "alias": "android"
   },
-  "appVersionName": "1.1.4",
-  "appVersionCode": 1104,
+  "appVersionName": "1.1.3",
+  "appVersionCode": 1103,
   "shortcuts": [
     {
       "name": "Новый чат",
-      "shortName": "Новый",
+      "shortName": "Чат",
       "url": "/?newchat=true",
       "chosenIconUrl": "https://leshiy-ai.github.io/icons/plus-icon.png"
+    },
+    {
+      "name": "Хранилка",
+      "shortName": "Хранилка",
+      "url": "/?storage=true",
+      "chosenIconUrl": "https://leshiy-ai.github.io/icons/storage-icon.png"
     }
   ],
   "generatorApp": "bubblewrap-cli",
@@ -45,8 +51,8 @@
   "orientation": "portrait-primary",
   "fingerprints": [
     {
-      "value": "241863C2787C2A105E366CD424C8A162905E6E71B211208367DD80B0381642B6"
-    }
+    "value": "24:18:63:C2:78:7C:2A:10:5E:36:6C:D4:24:C8:A1:62:90:5E:6E:71:B2:11:20:83:67:DD:80:B0:38:16:42:B6"
+    } 
   ],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
@@ -54,5 +60,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1.1.4"
+  "appVersion": "1.1.3"
 }

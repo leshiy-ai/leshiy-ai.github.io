@@ -26,14 +26,7 @@
         "purpose": "any"
       }
     ],
-    "shortcuts": [
-      {
-        "name": "Новый чат",
-        "shortName": "Новый",
-        "url": "/?newchat=true",
-        "chosenIconUrl": "https://leshiy-ai.github.io/icons/plus-icon.png"
-      }
-    ],
+    "shortcuts": [],
     "categories": ["utilities", "productivity"],
     "orientation": "portrait-primary",
     "prefer_related_applications": false
