@@ -807,6 +807,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [language, setLanguage] = useState(localStorage.getItem('language') || 'ru');
     const [showAdminPanel, setShowAdminPanel] = useState(false);
+    const [isOffline, setIsOffline] = useState(!navigator.onLine);
     const [isStorageVisible, setStorageVisible] = useState(false);
     const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
@@ -969,7 +970,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         setIsModelSelectorOpen(false);
     };
     
-        // --- УМНЫЙ СЛУШАТЕЛЬ РЕЖИМОВ ---
+    // --- УМНЫЙ СЛУШАТЕЛЬ РЕЖИМОВ ---
     // Этот блок следит за сменой контекста (режим, файлы) и автоматически
     // выбирает модель по умолчанию, если она еще не была выбрана.
     useEffect(() => {
