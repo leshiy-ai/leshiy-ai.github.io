@@ -43,7 +43,11 @@
   "fullScopeUrl": "https://leshiy-ai.github.io/",
   "minSdkVersion": 21,
   "orientation": "portrait-primary",
-  "fingerprints": [],
+  "fingerprints": [
+    {
+      "value": "241863C2787C2A105E366CD424C8A162905E6E71B211208367DD80B0381642B6"
+    }
+  ],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "protocolHandlers": [],
