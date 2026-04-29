@@ -26,6 +26,22 @@
         "purpose": "any"
       }
     ],
+    "shortcuts": [
+    {
+      "name": "Новый чат",
+      "short_name": "Новый",
+      "description": "Начать новый диалог с ИИ",
+      "url": "/?newchat=true",
+      "icons": [{ "src": "/icons/plus-icon.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Хранилка",
+      "short_name": "Хранилка",
+      "description": "Настроить облачное хранилище",
+      "url": "/?storage=true",
+      "icons": [{ "src": "/icons/storage-icon.png", "sizes": "96x96" }]
+    }
+  ],
     "categories": ["utilities", "productivity"],
     "orientation": "portrait-primary",
     "prefer_related_applications": false

@@ -1,5 +1,4 @@
 import { CONFIG } from './config';
-import { version } from '../package.json';
 import { AI_MODELS, loadActiveModelConfig } from './ai-config';
 import axios from 'axios'; // Добавляем axios для работы со шлюзом хранилища
 
@@ -185,8 +184,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
             }
         }
     }
-    
-    
     
     // 1. ПЕРЕМЕННЫЕ
     const SITE_APP_ID = "54467300"; // ID для авторизации на сайте

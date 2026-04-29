@@ -1,4 +1,4 @@
-const CACHE_NAME = 'leshiy-ai-v1.1.3';
+const CACHE_NAME = 'leshiy-ai-v1.1.4';
 
 const urlsToCache = [
   '/',
@@ -6,58 +6,72 @@ const urlsToCache = [
   '/offline.html',
   '/manifest.json',
   '/Gemini.png',
-  '/tg_logo.svg',
-  '/src/index.css',
-  '/src/App.css'
+  '/tg_logo.svg'
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Opened cache:', CACHE_NAME);
-        return cache.addAll(urlsToCache);
+    event.waitUntil(
+      caches.open(CACHE_NAME).then((cache) => {
+        // Кэшируем по одному, чтобы если один упал, остальные загрузились
+        return Promise.all(
+          urlsToCache.map((url) => {
+            return cache.add(url).catch((err) => console.warn(`Не удалось закешировать ${url}:`, err));
+          })
+        );
       })
-  );
+    );
 });
 
 self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+  
+    // ИГНОРИРУЕМ ВСЁ КРОМЕ GET (POST/PUT/DELETE не кэшируем)
+    if (event.request.method !== 'GET') return;
+
+    // ИГНОРИРУЕМ API и ВНЕШНИЕ СКРИПТЫ
+    // Если запрос идет к API или сторонним сервисам (VK, TG, Yandex) — не трогаем их
+    if (url.origin !== self.location.origin || url.href.includes('apigw.yandexcloud.net')) {
+      return; // SW просто пропускает эти запросы, они идут напрямую в сеть
+    }
+  
+    // Для навигации (index.html) — Network First
+    if (event.request.mode === 'navigate') {
+      event.respondWith(
+        fetch(event.request).catch(() => caches.match('/offline.html'))
+      );
+      return;
+    }
+  
+    // Для статики (картинки, css, js) — Cache First
     event.respondWith(
-      caches.match(event.request).then((response) => {
-        // 1. Если есть в кэше — сразу отдаем
-        if (response) {
-          return response;
+      caches.match(event.request).then((cachedResponse) => {
+        // Если нашли в кэше — отдаем
+        if (cachedResponse) {
+          return cachedResponse;
         }
   
-        // 2. Иначе идем в сеть
-        return fetch(event.request).then((response) => {
-          // Проверка: успешный ли ответ
-          if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
-            return response;
-          }
-  
-          // Кэшируем успешный ответ
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+        // Если нет — идем в сеть
+        return fetch(event.request)
+          .then((networkResponse) => {
+            // Кэшируем только если ответ валидный (200) и не является непрозрачным (opaque)
+            if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
+                const copy = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // Если сеть упала и в кэше нет — возвращаем 404
+            return new Response('Not Found', { status: 404 });
           });
-  
-          return response;
-        }).catch(() => {
-          // 3. ЕСЛИ СЕТЬ УПАЛА (ошибка catch)
-          // Проверяем: если это навигация (пользователь переходит по страницам),
-          // отдаем заглушку офлайна
-          if (event.request.mode === 'navigate') {
-            return caches.match('/offline.html');
-          }
-          
-          // Для картинок/скриптов можно ничего не делать или отдать заглушку
-        });
       })
     );
 });
 
 self.addEventListener('activate', (event) => {
+  // ЭТА СТРОКА ГАРАНТИРУЕТ, ЧТО SW СТАНОВИТСЯ ГЛАВНЫМ ПРЯМО СЕЙЧАС
+  event.waitUntil(clients.claim());
+
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {

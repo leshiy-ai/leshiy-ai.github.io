@@ -1092,6 +1092,42 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         setMessages([{ id: welcomeId, role: 'ai', text: t.welcome }]);
     }, [t]);
    
+    // Хук для обработки параметров URL (/?newchat=true и /?storage=true) при запуске
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const newChat = params.get('newchat');
+        const openStorage = params.get('storage');
+        let urlWasChanged = false;
+
+        // 1. Обработка ?newchat=true
+        if (newChat === 'true') {
+            console.log("App: Обнаружен параметр 'newchat', начинаю новый чат.");
+            onNewChatRequest();
+            urlWasChanged = true;
+        }
+
+        // 2. Обработка ?storage=true
+        if (openStorage === 'true') {
+            // Открываем хранилище, только если пользователь авторизован
+            const userId = localStorage.getItem('vk_user_id');
+            if (userId && userId !== 'guest' && userId !== 'null') {
+                console.log("App: Обнаружен параметр 'storage', открываю хранилище.");
+                setStorageVisible(true);
+            } else {
+                console.log("App: Параметр 'storage' проигнорирован, т.к. пользователь не авторизован.");
+            }
+            urlWasChanged = true;
+        }
+
+        // 3. Очищаем URL, чтобы параметры не мешали при обновлении страницы
+        if (urlWasChanged) {
+            // Используем history.replaceState, чтобы не создавать новую запись в истории браузера
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+        }
+    // Этот хук должен выполняться один раз при загрузке.
+    // Функции onNewChatRequest и setStorageVisible стабильны.
+    }, [onNewChatRequest]);
+
     useEffect(() => {
         Object.keys(activeModels).forEach(type => {
             const config = SERVICE_TYPE_MAP[type];
