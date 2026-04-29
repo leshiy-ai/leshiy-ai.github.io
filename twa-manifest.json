@@ -15,35 +15,39 @@
   "startUrl": "/",
   "iconUrl": "https://leshiy-ai.github.io/Gemini.png",
   "maskableIconUrl": "https://leshiy-ai.github.io/Gemini.png",
-  "splashScreenFadeOutDuration": 300,
+  "splashScreenFadeOutDuration": 200,
   "signingKey": {
     "path": "/home/user/leshiy-ai.github.io/android.keystore",
     "alias": "android"
   },
-  "appVersionName": "1.1.3",
-  "appVersionCode": 1103,
+  "appVersionName": "1.1.4",
+  "appVersionCode": 1104,
   "shortcuts": [
     {
       "name": "Новый чат",
       "shortName": "Чат",
-      "url": "/?newchat=true",
+      "url": "https://leshiy-ai.github.io/?newchat=true",
       "chosenIconUrl": "https://leshiy-ai.github.io/icons/plus-icon.png"
     },
     {
       "name": "Хранилка",
       "shortName": "Хранилка",
-      "url": "/?storage=true",
+      "url": "https://leshiy-ai.github.io/?storage=true",
       "chosenIconUrl": "https://leshiy-ai.github.io/icons/storage-icon.png"
     }
   ],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://leshiy-ai.github.io/manifest.json",
   "fallbackType": "customtabs",
-  "features": {},
+  "features": {
+    "notifications": {
+      "enabled": true
+    }
+  },
   "alphaDependencies": {
     "enabled": false
   },
-  "enableSiteSettingsShortcut": true,
+  "enableSiteSettingsShortcut": false,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://leshiy-ai.github.io/",
@@ -51,14 +55,17 @@
   "orientation": "portrait-primary",
   "fingerprints": [
     {
-    "value": "24:18:63:C2:78:7C:2A:10:5E:36:6C:D4:24:C8:A1:62:90:5E:6E:71:B2:11:20:83:67:DD:80:B0:38:16:42:B6"
-    } 
+      "value": "24:18:63:C2:78:7C:2A:10:5E:36:6C:D4:24:C8:A1:62:90:5E:6E:71:B2:11:20:83:67:DD:80:B0:38:16:42:B6"
+    }
   ],
-  "additionalTrustedOrigins": [],
+  "additionalTrustedOrigins": [
+    "https://leshiy-ai.github.io",
+    "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net"
+  ],
   "retainedBundles": [],
   "protocolHandlers": [],
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1.1.3"
+  "appVersion": "1.1.4"
 }
