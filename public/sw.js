@@ -6,6 +6,7 @@ const urlsToCache = [
   '/offline.html',
   '/manifest.json',
   '/Gemini.png',
+  '/vk_logo.svg',
   '/tg_logo.svg'
 ];
 
@@ -23,55 +24,53 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    const url = new URL(event.request.url);
-  
-    // ИГНОРИРУЕМ ВСЁ КРОМЕ GET (POST/PUT/DELETE не кэшируем)
-    if (event.request.method !== 'GET') return;
+  // Мы обрабатываем только GET-запросы
+  if (event.request.method !== 'GET') {
+    return;
+  }
 
-    // ИГНОРИРУЕМ API и ВНЕШНИЕ СКРИПТЫ
-    // Если запрос идет к API или сторонним сервисам (VK, TG, Yandex) — не трогаем их
-    if (url.origin !== self.location.origin || url.href.includes('apigw.yandexcloud.net')) {
-      return; // SW просто пропускает эти запросы, они идут напрямую в сеть
-    }
-  
-    // Для навигации (index.html) — Network First
-    if (event.request.mode === 'navigate') {
-      event.respondWith(
-        fetch(event.request).catch(() => caches.match('/offline.html'))
-      );
-      return;
-    }
-  
-    // Для статики (картинки, css, js) — Cache First
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        // Если нашли в кэше — отдаем
-        if (cachedResponse) {
-          return cachedResponse;
+  // Для всех GET-запросов: сначала сеть, потом кэш
+  event.respondWith(
+    // 1. Пытаемся получить из сети
+    fetch(event.request)
+      .then(networkResponse => {
+        // Если запрос успешен, кэшируем и возвращаем его
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(event.request, responseToCache);
+            });
         }
-  
-        // Если нет — идем в сеть
-        return fetch(event.request)
-          .then((networkResponse) => {
-            // Кэшируем только если ответ валидный (200) и не является непрозрачным (opaque)
-            if (networkResponse && networkResponse.status === 200 && networkResponse.type !== 'opaque') {
-                const copy = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return networkResponse;
+      })
+      .catch(() => {
+        // 2. Если сеть недоступна, ищем в кэше
+        return caches.match(event.request)
+          .then(cachedResponse => {
+            // Если нашли в кэше - отдаем
+            if (cachedResponse) {
+              return cachedResponse;
             }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Если сеть упала и в кэше нет — возвращаем 404
+
+            // 3. Если это навигация на страницу, которой нет в кэше, показываем оффлайн-страницу
+            if (event.request.mode === 'navigate') {
+              return caches.match('/offline.html');
+            }
+            
+            // Для других ассетов, которых нет в кэше, браузер обработает ошибку
             return new Response('Not Found', { status: 404 });
           });
       })
-    );
+  );
 });
 
+
 self.addEventListener('activate', (event) => {
-  // ЭТА СТРОКА ГАРАНТИРУЕТ, ЧТО SW СТАНОВИТСЯ ГЛАВНЫМ ПРЯМО СЕЙЧАС
+  // Эта строка гарантирует, что новый SW сразу перехватывает управление
   event.waitUntil(clients.claim());
 
+  // Удаляем старые кэши, которые не соответствуют текущей версии
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
