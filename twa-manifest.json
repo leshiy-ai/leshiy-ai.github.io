@@ -22,7 +22,14 @@
   },
   "appVersionName": "1.1.4",
   "appVersionCode": 1104,
-  "shortcuts": [],
+  "shortcuts": [
+    {
+      "name": "Новый чат",
+      "shortName": "Новый",
+      "url": "/?newchat=true",
+      "chosenIconUrl": "https://leshiy-ai.github.io/icons/plus-icon.png"
+    }
+  ],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://leshiy-ai.github.io/manifest.json",
   "fallbackType": "customtabs",

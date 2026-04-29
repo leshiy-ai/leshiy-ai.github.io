@@ -27,14 +27,13 @@
       }
     ],
     "shortcuts": [
-    {
-      "name": "Новый чат",
-      "short_name": "Новый",
-      "description": "Начать новый диалог с ИИ",
-      "url": "/?newchat=true",
-      "icons": [{ "src": "/icons/plus-icon.png", "sizes": "96x96" }]
-    }
-  ],
+      {
+        "name": "Новый чат",
+        "shortName": "Новый",
+        "url": "/?newchat=true",
+        "chosenIconUrl": "https://leshiy-ai.github.io/icons/plus-icon.png"
+      }
+    ],
     "categories": ["utilities", "productivity"],
     "orientation": "portrait-primary",
     "prefer_related_applications": false

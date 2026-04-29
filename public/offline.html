@@ -2,26 +2,28 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Leshiy-AI - Offline</title>
     <style>
-        /* Настройка всей страницы */
         body, html {
             height: 100%;
             margin: 0;
             display: flex;
-            justify-content: center; /* Центрирует по горизонтали */
-            align-items: center;     /* Центрирует по вертикали */
-            background-color: #f5f5f5; /* Цвет фона, как на твоем скрине */
+            justify-content: center;
+            align-items: center;
+            background-color: #f5f5f5;
             font-family: sans-serif;
+            /* Предотвращаем выделение текста при нажатии */
+            -webkit-tap-highlight-color: transparent; 
         }
 
-        /* Настройка контейнера с контентом */
         .box {
             display: flex;
-            flex-direction: column; /* Ставим элементы друг под другом */
-            align-items: center;    /* Центрируем элементы внутри колонки */
-            text-align: center;     /* Текст тоже по центру */
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
             padding: 20px;
+            max-width: 90%; /* Чтобы на мобилке не упиралось в края */
         }
 
         .icon-container {
@@ -38,9 +40,19 @@
             max-height: 100%;
         }
 
-        h1 { margin: 10px 0; }
-        p { margin: 5px 0 20px 0; color: #333; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #0077FF; color: white; border: none; border-radius: 5px; }
+        h1 { margin: 10px 0; font-size: 24px; }
+        p { margin: 5px 0 20px 0; color: #333; font-size: 16px; }
+        
+        button { 
+            padding: 12px 24px; 
+            font-size: 18px; /* Увеличил, чтобы удобнее было тыкать пальцем */
+            cursor: pointer; 
+            background: #0077FF; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            min-height: 44px; /* Хороший тон для кнопок на мобильных */
+        }
     </style>
 </head>
 <body>
