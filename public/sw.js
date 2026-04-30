@@ -1,4 +1,4 @@
-const CACHE_NAME = 'leshiy-ai-v1.1.4';
+const CACHE_NAME = 'leshiy-ai-v1.1.4'; // ОКОНЧАТЕЛЬНОЕ ИСПРАВЛЕНИЕ ОФФЛАЙНА
 
 const urlsToCache = [
   '/',
@@ -11,9 +11,10 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', (event) => {
+    self.skipWaiting(); 
+
     event.waitUntil(
       caches.open(CACHE_NAME).then((cache) => {
-        // Кэшируем по одному, чтобы если один упал, остальные загрузились
         return Promise.all(
           urlsToCache.map((url) => {
             return cache.add(url).catch((err) => console.warn(`Не удалось закешировать ${url}:`, err));
@@ -25,15 +26,14 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
-    return; // Обрабатываем только GET-запросы
+    return;
   }
 
-  // Стратегия: Сначала сеть, потом кэш (Network falling back to cache)
   event.respondWith(
     fetch(event.request)
       .then(networkResponse => {
-        // Если из сети пришел корректный ответ, кэшируем его и возвращаем
-        if (networkResponse && networkResponse.status === 200) {
+        const isFromOurOrigin = event.request.url.startsWith(self.location.origin);
+        if (isFromOurOrigin && networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseToCache);
@@ -42,37 +42,26 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        // Если сеть недоступна, обращаемся к кэшу
+        // ИЗМЕНЕНО: Полностью переписанная логика для оффлайн-режима
+        
+        // 1. ПЕРВЫМ ДЕЛОМ проверяем, это навигационный запрос?
+        if (event.request.mode === 'navigate') {
+          // 2. Если да, НЕМЕДЛЕННО отдаем оффлайн-страницу.
+          return caches.match('/offline.html');
+        }
+
+        // 3. Если это был другой запрос (картинка, стиль), ищем его в кэше.
         return caches.match(event.request)
           .then(cachedResponse => {
-            // Если ресурс есть в кэше, отдаем его
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-
-            // Если это навигационный запрос (запрос страницы) и его нет в кэше, отдаем index.html.
-            // Это позволяет SPA (одностраничному приложению) обработать URL, сохраняя параметры.
-            if (event.request.mode === 'navigate') {
-              return caches.match('/index.html')
-                .then(indexResponse => {
-                  // Если есть index.html - хорошо, если нет - показываем оффлайн-страницу
-                  return indexResponse || caches.match('/offline.html');
-                });
-            }
-            
-            // Для других ресурсов (картинки, скрипты), которых нет в кэше, позволяем браузеру обработать ошибку.
-            // Возвращаем undefined, чтобы браузер показал стандартную ошибку (например, сломанную картинку).
-            return undefined;
+            // 4. Отдаем из кэша, если нашлось, или возвращаем ошибку.
+            return cachedResponse || new Response('', { status: 404, statusText: 'Not Found' });
           });
       })
   );
 });
 
 self.addEventListener('activate', (event) => {
-  // Гарантируем, что новый Service Worker сразу перехватывает управление
   event.waitUntil(clients.claim());
-
-  // Удаляем старые кэши, которые не входят в "белый список"
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {

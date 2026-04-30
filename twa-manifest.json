@@ -3,7 +3,7 @@
   "host": "leshiy-ai.github.io",
   "name": "Leshiy-AI",
   "launcherName": "Leshiy-AI",
-  "display": "fullscreen",
+  "display": "standalone",
   "themeColor": "#0077FF",
   "themeColorDark": "#000000",
   "navigationColor": "#000000",
@@ -58,9 +58,7 @@
       "value": "24:18:63:C2:78:7C:2A:10:5E:36:6C:D4:24:C8:A1:62:90:5E:6E:71:B2:11:20:83:67:DD:80:B0:38:16:42:B6"
     }
   ],
-  "additionalTrustedOrigins": [
-    "https://leshiy-ai.github.io"
-  ],
+  "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "protocolHandlers": [],
   "fileHandlers": [],
