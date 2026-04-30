@@ -1,4 +1,4 @@
-const CACHE_NAME = 'leshiy-ai-cache-v1.1.5';
+const CACHE_NAME = 'leshiy-ai-cache-v1.1.4';
 
 // Минимальный набор — только то, что нужно для старта
 const CORE_ASSETS = [

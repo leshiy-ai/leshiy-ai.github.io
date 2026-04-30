@@ -4,7 +4,7 @@
     "description": "Интеллектуальный AI-ассистент для общения и продуктивной работы.",
     "start_url": "/",
     "scope": "/",
-    "display": "fullscreen",
+    "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#0077ff",
     "icons": [
