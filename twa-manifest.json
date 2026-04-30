@@ -59,8 +59,7 @@
     }
   ],
   "additionalTrustedOrigins": [
-    "https://leshiy-ai.github.io",
-    "https://d5dtt5rfr7nk66bbrec2.kf69zffa.apigw.yandexcloud.net"
+    "https://leshiy-ai.github.io"
   ],
   "retainedBundles": [],
   "protocolHandlers": [],
