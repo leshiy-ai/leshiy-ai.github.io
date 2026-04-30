@@ -1,4 +1,4 @@
-const CACHE_NAME = 'leshiy-ai-v1.1.4'; // ОКОНЧАТЕЛЬНОЕ ИСПРАВЛЕНИЕ ОФФЛАЙНА
+const CACHE_NAME = 'leshiy-ai-cache-v1.1.4';
 
 const urlsToCache = [
   '/',
