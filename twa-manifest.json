@@ -20,8 +20,8 @@
     "path": "/home/user/leshiy-ai.github.io/android.keystore",
     "alias": "android"
   },
-  "appVersionName": "1.1.3",
-  "appVersionCode": 1103,
+  "appVersionName": "1.1.4",
+  "appVersionCode": 1104,
   "shortcuts": [
     {
       "name": "Новый чат",
@@ -64,5 +64,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1.1.3"
+  "appVersion": "1.1.4"
 }
