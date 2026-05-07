@@ -423,7 +423,7 @@ window.addEventListener('sidebar-tg-auth', () => {
   ); 
 });
 
-// --- SERVICE WORKER REGISTRATION ---
+/*/ --- SERVICE WORKER REGISTRATION ---
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { type: 'module' })
@@ -435,3 +435,4 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+*/
