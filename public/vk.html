@@ -19,7 +19,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const returnToFromUrl = urlParams.get('returnTo') || urlParams.get('auth_origin') || '';
         
-        // Сохраняем адрес возврата в localStorage до ухода на ВК!
+        // Сохраняем адрес возврата
         if (returnToFromUrl) localStorage.setItem('vk_return_to', returnToFromUrl);
         window.authReturnTo = returnToFromUrl || localStorage.getItem('vk_return_to') || '/';
         
@@ -52,7 +52,6 @@
         
         <div id="vkid_container"></div>
         
-        <!-- Кнопка Позже ведет на корень домена -->
         <button onclick="window.location.replace(window.authCancelTo)" style="
             width: 100%; 
             margin-top: 15px; 
@@ -77,12 +76,11 @@
             
             if (returnTo && returnTo !== '/') {
                 try {
-                    // ГЛАВНОЕ ИЗМЕНЕНИЕ: Вычисляем чистый корень домена из returnTo
+                    // ГЛАВНОЕ ИЗМЕНЕНИЕ: Берем ТОЛЬКО корень домена из returnTo
                     // Из https://d5dtt5rfr7nk66bbrec2.../vk получит https://d5dtt5rfr7nk66bbrec2...
                     const domainRoot = new URL(returnTo).origin;
                     
-                    // Формируем ссылку: КОРЕНЬ + /?vk_user_id=123
-                    // APK 100% перехватят такую ссылку!
+                    // Делаем ровно то же, что и кнопка "Позже", но добавляем параметр!
                     window.location.replace(`${domainRoot}/?vk_user_id=${userId}`);
                 } catch(e) {
                     // Запасной вариант, если URL кривой
