@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Авторизация VK</title>
+    <style>
+        body { 
+            background: #212121; 
+            margin: 0; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            font-family: sans-serif; 
+        }
+    </style>
+    <!-- Определяем, куда возвращаться, до отрисовки кнопки -->
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        // Если есть returnTo или auth_origin - возвращаем туда. Иначе - на главную Гитхаба
+        window.authReturnTo = urlParams.get('returnTo') || urlParams.get('auth_origin') || '/';
+    </script>
+</head>
+<body>
+    <div id="auth_card" style="
+        background: white; 
+        padding: 32px 24px; 
+        border-radius: 28px; 
+        width: 360px; 
+        text-align: center; 
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    ">
+        <div style="font-size: 40px; margin-bottom: 10px;">🔐</div>
+        <div style="font: 700 20px sans-serif; margin-bottom: 8px; color: #000;">Вход в Leshiy-AI</div>
+        <div style="font: 400 14px sans-serif; color: #818c99; margin-bottom: 24px; line-height: 1.4;">
+            Используйте VK ID для безопасного доступа
+        </div>
+        
+        <div id="vkid_container"></div>
+        
+        <!-- Кнопка использует вычисленную ссылку возврата -->
+        <button onclick="window.location.href=window.authReturnTo" style="
+            width: 100%; 
+            margin-top: 15px; 
+            border: none; 
+            background: none; 
+            color: #0077ff; 
+            cursor: pointer; 
+            font-size: 14px;
+        ">Позже</button>
+    </div>
+
+    <script>
+        // Читаем параметры из URL
+        const returnTo = window.authReturnTo; // Берем уже готовое значение
+        const code = urlParams.get('code');
+        const deviceId = urlParams.get('device_id');
+
+        const VK_CLIENT_ID = 54467300;
+        const VK_REDIRECT_URL = `${window.location.origin}/vk.html`; // ВК возвращает на vk.html!
+
+        // Функция редиректа с ID
+        const redirectWithId = (userId) => {
+            if (returnTo && returnTo !== '/') {
+                const separator = returnTo.includes('?') ? '&' : '?';
+                window.location.href = `${returnTo}${separator}vk_user_id=${userId}`;
+            } else {
+                localStorage.setItem('vk_user_id', String(userId));
+                localStorage.setItem('auth_provider', 'VK');
+                window.location.href = '/'; // Возврат на главную GitHub, если зашли напрямую
+            }
+        };
+
+        // Загружаем VK ID SDK
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js';
+        script.async = true;
+
+        script.onload = () => {
+            if (!window.VKIDSDK) return;
+
+            const VKID = window.VKIDSDK;
+
+            VKID.Config.init({
+                app: VK_CLIENT_ID,
+                redirectUrl: VK_REDIRECT_URL,
+                responseMode: VKID.ConfigResponseMode.Callback,
+                source: VKID.ConfigSource.LOWCODE,
+            });
+
+            const container = document.getElementById('vkid_container');
+            const card = document.getElementById('auth_card');
+
+            // Если ВК вернул код (редирект из APK/Мобилки)
+            if (code) {
+                card.innerHTML = '<p style="text-align:center; color:#000; font-size:16px; margin:0;">Авторизация...</p>';
+                VKID.Auth.exchangeCode(code, deviceId || '')
+                    .then((data) => {
+                        const userId = data.user_id || (data.user && data.user.id);
+                        if (userId) redirectWithId(userId);
+                        else window.location.href = `./vk.html?error=failed&returnTo=${encodeURIComponent(returnTo)}`;
+                    })
+                    .catch(() => window.location.href = `./vk.html?error=failed&returnTo=${encodeURIComponent(returnTo)}`);
+            } else {
+                // Обычная загрузка - рисуем виджет
+                const oneTap = new VKID.OneTap();
+                oneTap.render({
+                    container: container,
+                    showAlternativeLogin: true,
+                    oauthList: ['mail_ru', 'ok_ru'], // Кнопки Mail.ru и OK
+                    styles: { height: 44, borderRadius: 8 }
+                })
+                .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, (payload) => {
+                    card.innerHTML = '<p style="text-align:center; color:#000; font-size:16px; margin:0;">Авторизация...</p>';
+                    VKID.Auth.exchangeCode(payload.code, payload.device_id)
+                        .then((data) => {
+                            const userId = data.user_id || (data.user && data.user.id);
+                            if (userId) redirectWithId(userId);
+                        });
+                });
+            }
+        };
+
+        document.body.appendChild(script);
+    </script>
+</body>
+</html>
