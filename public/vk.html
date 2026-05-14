@@ -18,15 +18,23 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const returnToFromUrl = urlParams.get('returnTo') || urlParams.get('auth_origin') || '';
-        // НОВОЕ: Читаем куда возвращаться при отмене
-        const cancelToFromUrl = urlParams.get('cancelTo') || '';
         
-        // Сохраняем оба адреса в localStorage до ухода на ВК!
+        // Сохраняем адрес возврата в localStorage
         if (returnToFromUrl) localStorage.setItem('vk_return_to', returnToFromUrl);
-        if (cancelToFromUrl) localStorage.setItem('vk_cancel_to', cancelToFromUrl);
-        
         window.authReturnTo = returnToFromUrl || localStorage.getItem('vk_return_to') || '/';
-        window.authCancelTo = cancelToFromUrl || localStorage.getItem('vk_cancel_to') || window.authReturnTo;
+        
+        // ВЫЧИСЛЯЕМ cancelTo НА ЛЕТУ: берем только домен (origin) из returnTo
+        // Например, из https://d5dtt5rfr7nk66bbrec2.../vk получим https://d5dtt5rfr7nk66bbrec2...
+        if (window.authReturnTo && window.authReturnTo !== '/') {
+            try {
+                window.authCancelTo = new URL(window.authReturnTo).origin;
+            } catch(e) {
+                window.authCancelTo = window.authReturnTo;
+            }
+        } else {
+            // Если зашли напрямую на Гитхаб, возвращаемся на его главную
+            window.authCancelTo = '/'; 
+        }
     </script>
 </head>
 <body>
@@ -46,7 +54,7 @@
         
         <div id="vkid_container"></div>
         
-        <!-- НОВОЕ: Кнопка Позже ведет на cancelTo (корень сайта/приложения) -->
+        <!-- Кнопка Позже ведет на вычисленный корень домена -->
         <button onclick="window.location.replace(window.authCancelTo)" style="
             width: 100%; 
             margin-top: 15px; 
@@ -68,7 +76,6 @@
 
         const redirectWithId = (userId) => {
             localStorage.removeItem('vk_return_to');
-            localStorage.removeItem('vk_cancel_to');
             
             if (returnTo && returnTo !== '/') {
                 const separator = returnTo.includes('?') ? '&' : '?';
@@ -105,7 +112,7 @@
                     .then((data) => {
                         const userId = data.user_id || (data.user && data.user.id);
                         if (userId) redirectWithId(userId);
-                        else window.location.replace(window.authCancelTo); // При ошибке тоже отменяем
+                        else window.location.replace(window.authCancelTo); // При ошибке отменяем
                     })
                     .catch((err) => {
                         console.error('Exchange error:', err);
