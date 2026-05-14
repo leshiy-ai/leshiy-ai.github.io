@@ -15,17 +15,18 @@
             font-family: sans-serif; 
         }
     </style>
-    <!-- Определяем, куда возвращаться, до отрисовки кнопки -->
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const returnToFromUrl = urlParams.get('returnTo') || urlParams.get('auth_origin') || '';
+        // НОВОЕ: Читаем куда возвращаться при отмене
+        const cancelToFromUrl = urlParams.get('cancelTo') || '';
         
-        // КРИТИЧЕСКИ ВАЖНО: Сохраняем адрес возврата в localStorage до ухода на ВК!
-        if (returnToFromUrl) {
-            localStorage.setItem('vk_return_to', returnToFromUrl);
-        }
-        // Если в URL нет returnTo (ВК стер его при возврате), берем из памяти
+        // Сохраняем оба адреса в localStorage до ухода на ВК!
+        if (returnToFromUrl) localStorage.setItem('vk_return_to', returnToFromUrl);
+        if (cancelToFromUrl) localStorage.setItem('vk_cancel_to', cancelToFromUrl);
+        
         window.authReturnTo = returnToFromUrl || localStorage.getItem('vk_return_to') || '/';
+        window.authCancelTo = cancelToFromUrl || localStorage.getItem('vk_cancel_to') || window.authReturnTo;
     </script>
 </head>
 <body>
@@ -45,7 +46,8 @@
         
         <div id="vkid_container"></div>
         
-        <button onclick="window.location.href=window.authReturnTo" style="
+        <!-- НОВОЕ: Кнопка Позже ведет на cancelTo (корень сайта/приложения) -->
+        <button onclick="window.location.replace(window.authCancelTo)" style="
             width: 100%; 
             margin-top: 15px; 
             border: none; 
@@ -57,7 +59,6 @@
     </div>
 
     <script>
-        // Берем готовый адрес возврата
         const returnTo = window.authReturnTo;
         const code = urlParams.get('code');
         const deviceId = urlParams.get('device_id');
@@ -65,23 +66,20 @@
         const VK_CLIENT_ID = 54467300;
         const VK_REDIRECT_URL = `${window.location.origin}/vk.html`;
 
-        // Функция редиректа с ID
         const redirectWithId = (userId) => {
-            // Очищаем память от сохраненного адреса
             localStorage.removeItem('vk_return_to');
+            localStorage.removeItem('vk_cancel_to');
             
             if (returnTo && returnTo !== '/') {
                 const separator = returnTo.includes('?') ? '&' : '?';
-                // Редиректим обратно в APK или на Яндекс
-                window.location.href = `${returnTo}${separator}vk_user_id=${userId}`;
+                window.location.replace(`${returnTo}${separator}vk_user_id=${userId}`);
             } else {
                 localStorage.setItem('vk_user_id', String(userId));
                 localStorage.setItem('auth_provider', 'VK');
-                window.location.href = '/';
+                window.location.replace('/');
             }
         };
 
-        // Загружаем VK ID SDK
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js';
         script.async = true;
@@ -101,25 +99,19 @@
             const container = document.getElementById('vkid_container');
             const card = document.getElementById('auth_card');
 
-            // Если ВК вернул код
             if (code) {
                 card.innerHTML = '<p style="text-align:center; color:#000; font-size:16px; margin:0;">Авторизация...</p>';
                 VKID.Auth.exchangeCode(code, deviceId || '')
                     .then((data) => {
                         const userId = data.user_id || (data.user && data.user.id);
-                        if (userId) {
-                            redirectWithId(userId);
-                        } else {
-                            // Если ошибка, возвращаем на исходную страницу
-                            window.location.href = returnTo; 
-                        }
+                        if (userId) redirectWithId(userId);
+                        else window.location.replace(window.authCancelTo); // При ошибке тоже отменяем
                     })
                     .catch((err) => {
                         console.error('Exchange error:', err);
-                        window.location.href = returnTo;
+                        window.location.replace(window.authCancelTo);
                     });
             } else {
-                // Обычная загрузка - рисуем виджет
                 const oneTap = new VKID.OneTap();
                 oneTap.render({
                     container: container,
