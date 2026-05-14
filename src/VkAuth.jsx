@@ -36,11 +36,12 @@ script.onload = () => {
     source: VKID.ConfigSource.LOWCODE,
   });
 
-  const rootDiv = document.getElementById('vk_root');
+  const container = document.getElementById('vkid_container');
+  const card = document.getElementById('auth_card');
 
   // Если ВК вернул код (редирект из APK/Мобилки)
   if (code) {
-    rootDiv.innerHTML = '<p style="text-align:center; color:white; font-family:sans-serif;">Авторизация...</p>';
+    card.innerHTML = '<p style="text-align:center; color:#000; font-size:16px; margin:0;">Авторизация...</p>';
     VKID.Auth.exchangeCode(code, deviceId || '')
       .then((data) => {
         const userId = data.user_id || (data.user && data.user.id);
@@ -49,15 +50,16 @@ script.onload = () => {
       })
       .catch(() => window.location.href = './vk.html?error=failed');
   } else {
-    // Обычная загрузка - рисуем виджет
+    // Обычная загрузка - рисуем виджет ВНУТРИ нашей карточки
     const oneTap = new VKID.OneTap();
     oneTap.render({
-      container: rootDiv,
+      container: container, // Вставляем в наш div
       showAlternativeLogin: true,
+      oauthList: ['mail_ru', 'ok_ru'], // ВКЛЮЧАЕМ КНОПКИ MAIL.RU И OK!
       styles: { height: 44, borderRadius: 8 }
     })
     .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, (payload) => {
-      rootDiv.innerHTML = '<p style="text-align:center; color:white; font-family:sans-serif;">Авторизация...</p>';
+      card.innerHTML = '<p style="text-align:center; color:#000; font-size:16px; margin:0;">Авторизация...</p>';
       VKID.Auth.exchangeCode(payload.code, payload.device_id)
         .then((data) => {
           const userId = data.user_id || (data.user && data.user.id);
