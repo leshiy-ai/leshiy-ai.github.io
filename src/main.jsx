@@ -201,10 +201,16 @@ window.handleStatusResponse = (data) => {
     if (userId) localStorage.setItem('vk_user_id', userId);
 
     const userName = data.userName;
-    if (userName) localStorage.setItem('vk_user_name', userName);
+    // ЗАЩИТА: Не даем бэкенду затирать реальное имя дефолтным "Пользователь"
+    if (userName && userName !== 'Пользователь' && userName.trim() !== '') {
+        localStorage.setItem('vk_user_name', userName);
+    }
 
     const userPhoto = data.userPhoto;
-    if (userPhoto) localStorage.setItem('vk_user_photo', userPhoto);
+    // ЗАЩИТА: Не даем затирать фото дефолтной заглушкой
+    if (userPhoto && userPhoto !== '/tg_logo.svg' && !userPhoto.includes('default')) {
+        localStorage.setItem('vk_user_photo', userPhoto);
+    }
 
     if (typeof data.isAdmin !== 'undefined') {
       localStorage.setItem('isAdmin', String(data.isAdmin));
@@ -221,17 +227,28 @@ window.fetchUserStatus = async () => {
   }
 
   try {
-    const fullUrl = `${CONFIG.STORAGE_GATEWAY}/?action=get-status&userId=${userId}`;
+    // НОВОЕ: Берем имя и фото из localStorage, чтобы бэкенд обновил их в базе
+    const currentName = localStorage.getItem('vk_user_name');
+    const currentPhoto = localStorage.getItem('vk_user_photo');
+    
+    let fullUrl = `${CONFIG.STORAGE_GATEWAY}/?action=get-status&userId=${userId}`;
+    
+    // Передаем имя и фото, только если они реальные (не дефолтные)
+    if (currentName && currentName !== 'Пользователь' && currentName !== 'null') {
+        fullUrl += `&name=${encodeURIComponent(currentName)}`;
+    }
+    if (currentPhoto && currentPhoto !== '/tg_logo.svg' && currentPhoto !== 'null') {
+        fullUrl += `&photo=${encodeURIComponent(currentPhoto)}`;
+    }
+
     const response = await fetch(fullUrl);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     
     const serverData = await response.json();
     if (serverData) {
       window.handleStatusResponse(serverData);
-      // ГЕНЕРИРУЕМ СОБЫТИЕ
       console.log("Main: Статус подтвержден, запрашиваю обновление чатов");
       window.dispatchEvent(new CustomEvent('user-profile-updated', { detail: serverData }));
-      // Записываем статус в "глобальное окно"
       window.lastServerResponse = { status: response.status };
     }
   } catch (error) {
