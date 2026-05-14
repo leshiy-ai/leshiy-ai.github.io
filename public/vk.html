@@ -20,11 +20,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const returnToFromUrl = urlParams.get('returnTo') || urlParams.get('auth_origin') || '';
         
-        // Сохраняем адрес возврата в localStorage до ухода на ВК!
         if (returnToFromUrl) localStorage.setItem('vk_return_to', returnToFromUrl);
         window.authReturnTo = returnToFromUrl || localStorage.getItem('vk_return_to') || '/';
         
-        // Вычисляем cancelTo (для кнопки Позже): берем только корень домена
         if (window.authReturnTo && window.authReturnTo !== '/') {
             try {
                 window.authCancelTo = new URL(window.authReturnTo).origin + '/';
@@ -74,46 +72,79 @@
         const VK_CLIENT_ID = 54467300;
         const VK_REDIRECT_URL = `${window.location.origin}/vk.html`;
 
-        const redirectWithId = (userId) => {
+        // Обновленная функция: принимает и ID, и Токен
+        const redirectWithId = (userId, accessToken) => {
             localStorage.removeItem('vk_return_to');
             
-            let targetUrl = '/';
-            if (returnTo && returnTo !== '/') {
+            // Функция финального редиректа (вызывается после получения имени или сразу)
+            const doRedirect = (userName, userPhoto) => {
+                let targetUrl = '/';
+                if (returnTo && returnTo !== '/') {
+                    try {
+                        const domainRoot = new URL(returnTo).origin;
+                        // ФОРМИРУЕМ ССЫЛКУ С ИМЕНЕМ И ФОТО В ПАРАМЕТРАХ
+                        let params = new URLSearchParams();
+                        params.set('vk_user_id', userId);
+                        if (userName) params.set('vk_user_name', userName);
+                        if (userPhoto) params.set('vk_user_photo', userPhoto);
+                        targetUrl = `${domainRoot}/?${params.toString()}`;
+                    } catch(e) {
+                        const separator = returnTo.includes('?') ? '&' : '?';
+                        targetUrl = `${returnTo}${separator}vk_user_id=${userId}`;
+                        if (userName) targetUrl += `&vk_user_name=${encodeURIComponent(userName)}`;
+                        if (userPhoto) targetUrl += `&vk_user_photo=${encodeURIComponent(userPhoto)}`;
+                    }
+                } else {
+                    // Если возвращаемся на тот же Гитхаб - пишем сразу в localStorage
+                    localStorage.setItem('vk_user_id', String(userId));
+                    localStorage.setItem('auth_provider', 'VK');
+                    if (userName) localStorage.setItem('vk_user_name', userName);
+                    if (userPhoto) localStorage.setItem('vk_user_photo', userPhoto);
+                }
+
+                const card = document.getElementById('auth_card');
+                card.innerHTML = `
+                    <div style="width: 100px; height: 100px; margin: 0 auto 20px auto;">
+                        <img src="/Gemini.png" alt="Leshiy AI" style="max-width: 100%; max-height: 100%; border-radius: 22px;">
+                    </div>
+                    <div style="font: 700 22px sans-serif; margin-bottom: 8px; color: #000;">✅ Авторизация успешна!</div>
+                    <div style="font: 400 14px sans-serif; color: #818c99; margin-bottom: 30px; line-height: 1.4;">
+                        Нажмите кнопку ниже, чтобы вернуться в приложение
+                    </div>
+                    <a href="${targetUrl}" style="
+                        display: block; width: 100%; padding: 14px 0; background: #0077ff;
+                        color: white; text-decoration: none; border-radius: 12px; font-size: 16px;
+                        font-weight: 600; box-sizing: border-box;
+                    ">Вернуться в приложение</a>
+                `;
+            };
+
+            // Если есть токен, запрашиваем имя и фото ПЕРЕД редиректом
+            if (accessToken) {
                 try {
-                    const domainRoot = new URL(returnTo).origin;
-                    targetUrl = `${domainRoot}/?vk_user_id=${userId}`;
+                    const jsonpScript = document.createElement('script');
+                    jsonpScript.src = `https://api.vk.com/method/users.get?user_ids=${userId}&fields=photo_100&access_token=${accessToken}&v=5.131&callback=vkProfileCallback`;
+                    document.head.appendChild(jsonpScript);
+
+                    window.vkProfileCallback = function(response) {
+                        let userName = null;
+                        let userPhoto = null;
+                        if (response.response && response.response[0]) {
+                            const user = response.response[0];
+                            userName = `${user.first_name} ${user.last_name}`;
+                            userPhoto = user.photo_100;
+                        }
+                        delete window.vkProfileCallback;
+                        jsonpScript.remove();
+                        doRedirect(userName, userPhoto); // Редирект с именем
+                    };
                 } catch(e) {
-                    const separator = returnTo.includes('?') ? '&' : '?';
-                    targetUrl = `${returnTo}${separator}vk_user_id=${userId}`;
+                    console.error("JSONP Error:", e);
+                    doRedirect(null, null); // Редирект без имени
                 }
             } else {
-                localStorage.setItem('vk_user_id', String(userId));
-                localStorage.setItem('auth_provider', 'VK');
+                doRedirect(null, null); // Редирект без имени
             }
-
-            // Показываем экран успеха с логотипом и кнопкой
-            const card = document.getElementById('auth_card');
-            card.innerHTML = `
-                <div style="width: 100px; height: 100px; margin: 0 auto 20px auto;">
-                    <img src="/Gemini.png" alt="Leshiy AI" style="max-width: 100%; max-height: 100%; border-radius: 22px;">
-                </div>
-                <div style="font: 700 22px sans-serif; margin-bottom: 8px; color: #000;">✅ Авторизация успешна!</div>
-                <div style="font: 400 14px sans-serif; color: #818c99; margin-bottom: 30px; line-height: 1.4;">
-                    Нажмите кнопку ниже, чтобы вернуться в приложение
-                </div>
-                <a href="${targetUrl}" style="
-                    display: block;
-                    width: 100%;
-                    padding: 14px 0;
-                    background: #0077ff;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 12px;
-                    font-size: 16px;
-                    font-weight: 600;
-                    box-sizing: border-box;
-                ">Вернуться в приложение</a>
-            `;
         };
 
         const script = document.createElement('script');
@@ -140,7 +171,8 @@
                 VKID.Auth.exchangeCode(code, deviceId || '')
                     .then((data) => {
                         const userId = data.user_id || (data.user && data.user.id);
-                        if (userId) redirectWithId(userId);
+                        const accessToken = data.access_token; // ДОБАВЛЕНО: забираем токен
+                        if (userId) redirectWithId(userId, accessToken);
                         else window.location.replace(window.authCancelTo); 
                     })
                     .catch((err) => {
@@ -160,7 +192,8 @@
                     VKID.Auth.exchangeCode(payload.code, payload.device_id)
                         .then((data) => {
                             const userId = data.user_id || (data.user && data.user.id);
-                            if (userId) redirectWithId(userId);
+                            const accessToken = data.access_token; // ДОБАВЛЕНО: забираем токен
+                            if (userId) redirectWithId(userId, accessToken);
                         });
                 });
             }

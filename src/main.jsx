@@ -25,14 +25,20 @@ window.handleVKRedirect = () => {
   if (vkUserId) {
       localStorage.setItem('vk_user_id', vkUserId);
       localStorage.setItem('auth_provider', 'VK');
-      // Чистим URL, чтобы при обновлении страницы не висел ID
+      
+      // НОВОЕ: Сохраняем имя и фото, если ВК их передал в ссылке
+      const vkUserName = params.get('vk_user_name');
+      if (vkUserName) localStorage.setItem('vk_user_name', vkUserName);
+      
+      const vkUserPhoto = params.get('vk_user_photo');
+      if (vkUserPhoto) localStorage.setItem('vk_user_photo', vkUserPhoto);
+
+      // Чистим URL, чтобы при обновлении страницы не висели параметры
       const newUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
       console.log("VK ID сохранен из редиректа:", vkUserId);
       
-      // ДОБАВЛЕНО: Запрашиваем статус, чтобы UI сразу обновился
       if (window.fetchUserStatus) window.fetchUserStatus();
-      
       window.dispatchEvent(new Event('storage'));
   }
 };
