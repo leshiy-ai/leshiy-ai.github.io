@@ -19,20 +19,18 @@
         const urlParams = new URLSearchParams(window.location.search);
         const returnToFromUrl = urlParams.get('returnTo') || urlParams.get('auth_origin') || '';
         
-        // Сохраняем адрес возврата в localStorage
+        // Сохраняем адрес возврата в localStorage до ухода на ВК!
         if (returnToFromUrl) localStorage.setItem('vk_return_to', returnToFromUrl);
         window.authReturnTo = returnToFromUrl || localStorage.getItem('vk_return_to') || '/';
         
-        // ВЫЧИСЛЯЕМ cancelTo НА ЛЕТУ: берем только домен (origin) из returnTo
-        // Например, из https://d5dtt5rfr7nk66bbrec2.../vk получим https://d5dtt5rfr7nk66bbrec2...
+        // Вычисляем cancelTo (для кнопки Позже): берем только корень домена
         if (window.authReturnTo && window.authReturnTo !== '/') {
             try {
-                window.authCancelTo = new URL(window.authReturnTo).origin;
+                window.authCancelTo = new URL(window.authReturnTo).origin + '/';
             } catch(e) {
                 window.authCancelTo = window.authReturnTo;
             }
         } else {
-            // Если зашли напрямую на Гитхаб, возвращаемся на его главную
             window.authCancelTo = '/'; 
         }
     </script>
@@ -54,7 +52,7 @@
         
         <div id="vkid_container"></div>
         
-        <!-- Кнопка Позже ведет на вычисленный корень домена -->
+        <!-- Кнопка Позже ведет на корень домена -->
         <button onclick="window.location.replace(window.authCancelTo)" style="
             width: 100%; 
             margin-top: 15px; 
@@ -78,9 +76,21 @@
             localStorage.removeItem('vk_return_to');
             
             if (returnTo && returnTo !== '/') {
-                const separator = returnTo.includes('?') ? '&' : '?';
-                window.location.replace(`${returnTo}${separator}vk_user_id=${userId}`);
+                try {
+                    // ГЛАВНОЕ ИЗМЕНЕНИЕ: Вычисляем чистый корень домена из returnTo
+                    // Из https://d5dtt5rfr7nk66bbrec2.../vk получит https://d5dtt5rfr7nk66bbrec2...
+                    const domainRoot = new URL(returnTo).origin;
+                    
+                    // Формируем ссылку: КОРЕНЬ + /?vk_user_id=123
+                    // APK 100% перехватят такую ссылку!
+                    window.location.replace(`${domainRoot}/?vk_user_id=${userId}`);
+                } catch(e) {
+                    // Запасной вариант, если URL кривой
+                    const separator = returnTo.includes('?') ? '&' : '?';
+                    window.location.replace(`${returnTo}${separator}vk_user_id=${userId}`);
+                }
             } else {
+                // Если зашли напрямую на Гитхаб
                 localStorage.setItem('vk_user_id', String(userId));
                 localStorage.setItem('auth_provider', 'VK');
                 window.location.replace('/');
@@ -112,7 +122,7 @@
                     .then((data) => {
                         const userId = data.user_id || (data.user && data.user.id);
                         if (userId) redirectWithId(userId);
-                        else window.location.replace(window.authCancelTo); // При ошибке отменяем
+                        else window.location.replace(window.authCancelTo); 
                     })
                     .catch((err) => {
                         console.error('Exchange error:', err);
