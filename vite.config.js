@@ -8,10 +8,17 @@ const packageJson = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'pack
 
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  base: './', // Оставляем как есть, для GitHub Pages это правильно
   build: {
     crossOrigin: false,
     outDir: 'dist',
+    // НОВОЕ: Указываем Vite собирать две точки входа
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'), // Ваша главная страница
+        vk: path.resolve(__dirname, 'vk.html'),      // Наша новая страница авторизации
+      },
+    },
   },
   define: {
     // Передаем переменные в приложение
