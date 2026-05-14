@@ -19,11 +19,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const returnToFromUrl = urlParams.get('returnTo') || urlParams.get('auth_origin') || '';
         
-        // Сохраняем адрес возврата
         if (returnToFromUrl) localStorage.setItem('vk_return_to', returnToFromUrl);
         window.authReturnTo = returnToFromUrl || localStorage.getItem('vk_return_to') || '/';
         
-        // Вычисляем cancelTo (для кнопки Позже): берем только корень домена
         if (window.authReturnTo && window.authReturnTo !== '/') {
             try {
                 window.authCancelTo = new URL(window.authReturnTo).origin + '/';
@@ -74,25 +72,42 @@
         const redirectWithId = (userId) => {
             localStorage.removeItem('vk_return_to');
             
+            let targetUrl = '/';
             if (returnTo && returnTo !== '/') {
                 try {
-                    // ГЛАВНОЕ ИЗМЕНЕНИЕ: Берем ТОЛЬКО корень домена из returnTo
-                    // Из https://d5dtt5rfr7nk66bbrec2.../vk получит https://d5dtt5rfr7nk66bbrec2...
                     const domainRoot = new URL(returnTo).origin;
-                    
-                    // Делаем ровно то же, что и кнопка "Позже", но добавляем параметр!
-                    window.location.replace(`${domainRoot}/?vk_user_id=${userId}`);
+                    targetUrl = `${domainRoot}/?vk_user_id=${userId}`;
                 } catch(e) {
-                    // Запасной вариант, если URL кривой
                     const separator = returnTo.includes('?') ? '&' : '?';
-                    window.location.replace(`${returnTo}${separator}vk_user_id=${userId}`);
+                    targetUrl = `${returnTo}${separator}vk_user_id=${userId}`;
                 }
             } else {
-                // Если зашли напрямую на Гитхаб
                 localStorage.setItem('vk_user_id', String(userId));
                 localStorage.setItem('auth_provider', 'VK');
-                window.location.replace('/');
             }
+
+            // ГЛАВНОЕ ИЗМЕНЕНИЕ: Не делаем автоматический редирект!
+            // Показываем экран успеха с кнопкой. Android пропустит клик по кнопке в APK!
+            const card = document.getElementById('auth_card');
+            card.innerHTML = `
+                <div style="font-size: 60px; margin-bottom: 15px;">✅</div>
+                <div style="font: 700 22px sans-serif; margin-bottom: 8px; color: #000;">Авторизация успешна!</div>
+                <div style="font: 400 14px sans-serif; color: #818c99; margin-bottom: 30px; line-height: 1.4;">
+                    Нажмите кнопку ниже, чтобы вернуться в приложение
+                </div>
+                <a href="${targetUrl}" style="
+                    display: block;
+                    width: 100%;
+                    padding: 14px 0;
+                    background: #0077ff;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 12px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    box-sizing: border-box;
+                ">Вернуться в приложение</a>
+            `;
         };
 
         const script = document.createElement('script');
