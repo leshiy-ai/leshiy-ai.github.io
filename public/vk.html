@@ -76,12 +76,12 @@
             
             if (returnTo && returnTo !== '/') {
                 try {
-                    // Вычисляем чистый домен (например, https://d5dtt5rfr7nk66bbrec2...)
+                    // ГЛАВНОЕ ИЗМЕНЕНИЕ: Берем ТОЛЬКО корень домена из returnTo
+                    // Из https://d5dtt5rfr7nk66bbrec2.../vk получит https://d5dtt5rfr7nk66bbrec2...
                     const domainRoot = new URL(returnTo).origin;
                     
-                    // Отправляем на наш колбэк с готовым ID. 
-                    // Колбэк сделает 302 на корень, и APK это перехватит!
-                    window.location.replace(`${domainRoot}/auth/vk/callback?vk_user_id=${userId}`);
+                    // Делаем ровно то же, что и кнопка "Позже", но добавляем параметр!
+                    window.location.replace(`${domainRoot}/?vk_user_id=${userId}`);
                 } catch(e) {
                     // Запасной вариант, если URL кривой
                     const separator = returnTo.includes('?') ? '&' : '?';
