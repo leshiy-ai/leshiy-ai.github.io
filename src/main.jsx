@@ -29,10 +29,13 @@ window.handleVKRedirect = () => {
       const newUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
       console.log("VK ID сохранен из редиректа:", vkUserId);
+      
+      // ДОБАВЛЕНО: Запрашиваем статус, чтобы UI сразу обновился
+      if (window.fetchUserStatus) window.fetchUserStatus();
+      
       window.dispatchEvent(new Event('storage'));
   }
 };
-window.handleVKRedirect();
 
 // --- Возврат из TELEGRAM --- Выполняется один раз при загрузке страницы
 const handleTelegramRedirect = () => {
@@ -422,17 +425,3 @@ window.addEventListener('sidebar-tg-auth', () => {
       <TelegramAuthModal onClose={() => modalRoot.render(null)} />
   ); 
 });
-
-/*/ --- SERVICE WORKER REGISTRATION ---
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { type: 'module' })
-      .then(registration => {
-        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-      })
-      .catch(error => {
-        console.log('ServiceWorker registration failed: ', error);
-      });
-  });
-}
-*/

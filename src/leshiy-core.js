@@ -359,46 +359,12 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         };
     }
 
-    // НОВЫЙ ОБРАБОТЧИК: Инициализация VK ID по клику
+    // НОВЫЙ ОБРАБОТЧИК: Переход на страницу авторизации VK
     if (lowerQuery === '/auth_init_vk') {
-        const VKID = window.VKIDSDK;
-        const overlay = document.getElementById('vk_auth_overlay');
-        const container = document.getElementById('vk_auth_container');
-
-        if (overlay && container) {
-            container.innerHTML = ''; 
-            overlay.style.display = 'flex'; 
-
-            VKID.Config.init({
-                app: SITE_APP_ID, 
-                redirectUrl: 'https://leshiy-ai.github.io',
-                responseMode: VKID.ConfigResponseMode.Callback,
-                source: VKID.ConfigSource.LOWCODE,
-            });
-
-            const oneTap = new VKID.OneTap();
-            oneTap.render({
-                container: container,
-                showAlternativeLogin: true,
-                oauthList: ['mail_ru', 'ok_ru']
-            })
-            .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
-                VKID.Auth.exchangeCode(payload.code, payload.device_id)
-                    .then((data) => {
-                        const vkid = data.user_id || data.id; 
-                        if (vkid) {
-                            localStorage.setItem('vk_user_id', vkid);
-                            overlay.style.display = 'none';
-                            // Бросаем событие для глобального стейта
-                            window.dispatchEvent(new CustomEvent('vk-auth-success', { detail: vkid }));
-                            // Авто-переход в меню
-                            //window.dispatchEvent(new CustomEvent('send-bot-command', { detail: '/storage' }));
-                        }
-                    });
-            });
-
-            return { type: 'text', text: '⚡️ **Окно входа ВКонтакте открыто!**' };
-        }
+        // Просто перекидываем пользователя на нашу надежную страницу vk.html
+        // Она выглядит как модалка, авторизует и вернет назад с ID в URL
+        window.location.href = '/vk.html';
+        return { type: 'text', text: '⚡️ **Окно входа ВКонтакте открыто!**' };
     }
 
     // НОВЫЙ ОБРАБОТЧИК: Инициализация Telegram OAUth по клику

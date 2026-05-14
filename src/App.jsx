@@ -2074,14 +2074,12 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         };
     
         window.addEventListener('sidebar-storage', handleOpenStorage);
-        window.addEventListener('sidebar-vk-auth', handleVkAuth);
         window.addEventListener('sidebar-tg-auth', handleTgAuth);
         window.addEventListener('sidebar-logout', handleLogout);
         window.addEventListener('sidebar-admin-panel', handleAdminPanel);
     
         return () => {
             window.removeEventListener('sidebar-storage', handleOpenStorage);
-            window.removeEventListener('sidebar-vk-auth', handleVkAuth);
             window.removeEventListener('sidebar-tg-auth', handleTgAuth);
             window.removeEventListener('sidebar-logout', handleLogout);
             window.removeEventListener('sidebar-admin-panel', handleAdminPanel);

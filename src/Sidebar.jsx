@@ -80,8 +80,9 @@ const Sidebar = ({
   };
   const handleVkAuth = () => {
     setProfileMenuVisible(false);
-    console.log("Sidebar: Отправка события на открытие модалки VK");
-    window.dispatchEvent(new CustomEvent('sidebar-vk-auth'));
+    console.log("Sidebar: Перенаправление на страницу авторизации VK");
+    // Вместо события, просто переходим на надежную страницу vk.html
+    window.location.href = '/vk.html';
   }
 
   const handleTgAuth = (e) => {
