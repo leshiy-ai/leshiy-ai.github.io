@@ -86,7 +86,12 @@ const VIDEO_MODES = [
 const TRANSLATIONS = {
     ru: {
         title: 'Leshiy-AI',
-        placeholder: (files) => files.length > 0 ? "Добавь текст к файлам..." : "Спроси меня о чем-нибудь...",
+        placeholder: (files) => {
+            const imgCount = files.filter(f => f.file && f.file.type && f.file.type.startsWith('image/')).length;
+            if (imgCount > 1) return `Опиши ${imgCount} фото или сравни их...`;
+            if (files.length > 0) return "Добавь текст к файлам...";
+            return "Спроси меня о чем-нибудь...";
+        },
         send: 'Отправить',
         upload: '📎 Выбрать файл',
         //welcome: 'Привет! Я Leshiy-AI. Спроси меня о чём угодно, подключи Хранилку и вставляй картинки или файлы прямо в поле ввода или перетягивай в чат, я всё пойму, распознаю, и сделаю!',
@@ -124,7 +129,12 @@ const TRANSLATIONS = {
     },
     en: {
         title: 'Leshiy-AI',
-        placeholder: (files) => files.length > 0 ? "Now add a text query to the files..." : "Ask something...",
+        placeholder: (files) => {
+            const imgCount = files.filter(f => f.file && f.file.type && f.file.type.startsWith('image/')).length;
+            if (imgCount > 1) return `Describe ${imgCount} photos or compare them...`;
+            if (files.length > 0) return "Now add a text query to the files...";
+            return "Ask something...";
+        },
         send: 'Send',
         upload: '📎 Select file',
         //welcome: 'Hi! I am Leshiy-AI. Ask me anything, connect Storage and insert pictures or files directly into the input field or drag them into the chat, I will understand everything, recognize it, and do it!',
@@ -1311,17 +1321,32 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         }
     };
 
+    const MAX_IMAGES = 10; // Максимум изображений для одновременной отправки ИИ
+
     const handleFileSelect = useCallback(async (selectedFiles) => {
         const newFiles = Array.from(selectedFiles);
         const processedFiles = [];
         const otherFiles = [];
-    
+        // Считаем текущее количество изображений
+        const currentImageCount = files.filter(f => f.file.type.startsWith('image/')).length;
+        let newImageCount = 0;
+        
         for (const file of newFiles) {
             const isImage = file.type.startsWith('image/');
             const isAudio = file.type.startsWith('audio/');
             const isVideo = file.type.startsWith('video/');
     
             if (isImage) {
+                // Проверяем лимит изображений
+                if (currentImageCount + newImageCount >= MAX_IMAGES) {
+                    setMessages(prev => [...prev, { 
+                        id: Date.now() + Math.random(), 
+                        role: 'ai', 
+                        text: `⚠️ Максимум ${MAX_IMAGES} изображений за раз. Лишние фото пропущены.` 
+                    }]);
+                    break; // Пропускаем остальные изображения
+                }
+                newImageCount++;
                 try {
                     const dataUrl = await fileToDataURL(file);
                     processedFiles.push({
@@ -1353,7 +1378,7 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
         if (otherFiles.length > 0) {
             handleFileUpload(otherFiles);
         }
-    }, [setFiles, setMessages, handleFileUpload]); // ← Стабильные зависимости
+    }, [setFiles, setMessages, handleFileUpload, files]);
     
     const handleFileSelectRef = useRef(handleFileSelect);
 

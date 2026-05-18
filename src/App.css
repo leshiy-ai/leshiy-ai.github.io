@@ -912,6 +912,7 @@ body.sidebar-collapsed .history-item .icon {
     gap: 12px;
     align-items: flex-start;
     padding: 10px;
+    position: relative;
 }
 
 /* Общий стиль карточки файла */

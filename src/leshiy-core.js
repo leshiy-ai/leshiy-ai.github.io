@@ -160,12 +160,19 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
     // --- УМНЫЙ РЕЖИМ: Авто-промпт для медиа ---
     if (currentMode === 1 && hasFiles) {
+        // Если текста нет ИЛИ текст — это просто имя файла
+        const imageFiles = files.filter(f => f.file.type.startsWith('image/'));
+        const audioFiles = files.filter(f => f.file.type.startsWith('audio/'));
+        const videoFiles = files.filter(f => f.file.type.startsWith('video/'));
         const firstFile = files[0];
         // Если текста нет ИЛИ текст — это просто имя файла
         if (!userQuery || userQuery === firstFile.file.name) {
-            const firstFileType = firstFile.file.type; // Проверяем тип файла прямо здесь
+            const firstFileType = firstFile.file.type;
             
-            if (firstFileType.startsWith('image/')) {
+            if (imageFiles.length > 1) {
+                // Множественные изображения — особый промпт
+                userQuery = `Пользователь отправил ${imageFiles.length} изображений. Внимательно изучи КАЖДОЕ из них и дай подробное описание всех изображений. Укажи различия и сходства между ними, если это уместно.`;
+            } else if (firstFileType.startsWith('image/')) {
                 userQuery = "Опиши это изображение.";
             } else if (firstFileType.startsWith('audio/')) {
                 userQuery = "Расшифруй это аудио.";
@@ -819,16 +826,30 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         return { text: resultText, type: 'text' }; // Возвращаем объект, который ждет App.jsx
 
     } else {
+        // ==========================================================
+        // РАЗДЕЛЕНИЕ ФАЙЛОВ ПО ТИПАМ
+        // ==========================================================
+        const imageFiles = hasFiles ? files.filter(f => f.file.type.startsWith('image/')) : [];
+        const audioVideoFiles = hasFiles ? files.filter(f => !f.file.type.startsWith('image/')) : [];
         const firstFileObj = hasFiles ? files[0].file : null;
-        if (firstFileObj) {
-            if (firstFileObj.type.startsWith('image/')) serviceType = 'IMAGE_TO_TEXT';
-            else if (firstFileObj.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
+
+        // Если есть хотя бы одно изображение — режим IMAGE_TO_TEXT
+        // (аудио/видео приоритетнее, если первое НЕ изображение)
+        if (imageFiles.length > 0) {
+            serviceType = 'IMAGE_TO_TEXT';
+        } else if (firstFileObj) {
+            if (firstFileObj.type.startsWith('audio/')) serviceType = 'AUDIO_TO_TEXT';
             else if (firstFileObj.type.startsWith('video/')) serviceType = (videoProcessingMode === 'analysis') ? 'VIDEO_TO_ANALYSIS' : 'VIDEO_TO_TEXT';
-            console.log("🧩 [DEBUG] Файл определен:", {
-                name: firstFileObj?.name,
-                type: firstFileObj?.type,
-                size: firstFileObj?.size
-            });
+        }
+        
+        if (firstFileObj) {
+            console.log(`🧩 [DEBUG] Файлы определены: изображений=${imageFiles.length}, аудио/видео=${audioVideoFiles.length}`);
+            if (imageFiles.length > 0) {
+                console.log("🧩 [DEBUG] Изображения:", imageFiles.map(f => ({ name: f.file.name, type: f.file.type, size: f.file.size })));
+            }
+            if (audioVideoFiles.length > 0) {
+                console.log("🧩 [DEBUG] Медиа:", audioVideoFiles.map(f => ({ name: f.file.name, type: f.file.type, size: f.file.size })));
+            }
         }
 
         config = loadActiveModelConfig(serviceType);
@@ -839,25 +860,47 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
         console.log(`🧠 AI-Модель для ${serviceType}: ${friendlyModelName}`);
         
         // ==========================================================
-        // КОНВЕРТАЦИЯ В BASE64
+        // КОНВЕРТАЦИЯ В BASE64 — ВСЕХ ИЗОБРАЖЕНИЙ
         // ==========================================================
-        let cleanBase64 = "";
-        // КОНВЕРТАЦИЯ: Если есть файл, но нет Base64 — достаем его
-        if (firstFileObj) {
-            if (files[0].base64) {
-                const raw = files[0].base64;
+        // Массив подготовленных изображений: { mimeType, base64 }
+        const preparedImages = [];
+        for (const imgFile of imageFiles) {
+            let b64 = "";
+            if (imgFile.base64) {
+                const raw = imgFile.base64;
+                b64 = raw.includes(',') ? raw.split(',')[1] : raw;
+            } else {
+                try {
+                    b64 = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(imgFile.file);
+                    });
+                } catch (e) {
+                    console.error(`❌ Ошибка FileReader для ${imgFile.file.name}:`, e);
+                }
+            }
+            if (b64) {
+                preparedImages.push({ mimeType: imgFile.file.type, base64: b64, name: imgFile.file.name });
+            }
+        }
+
+        // Для обратной совместимости: cleanBase64 — base64 первого файла
+        let cleanBase64 = preparedImages.length > 0 ? preparedImages[0].base64 : "";
+        // Для аудио/видео — читаем первый не-графический файл
+        if (audioVideoFiles.length > 0 && cleanBase64 === "") {
+            const avFile = audioVideoFiles[0];
+            if (avFile.base64) {
+                const raw = avFile.base64;
                 cleanBase64 = raw.includes(',') ? raw.split(',')[1] : raw;
             } else {
-                // ЧИТАЕМ БЫСТРО И АСИНХРОННО
                 try {
                     cleanBase64 = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
-                        reader.onload = () => {
-                            const res = reader.result;
-                            resolve(res.split(',')[1]); // Сразу отрезаем заголовок
-                        };
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
                         reader.onerror = reject;
-                        reader.readAsDataURL(firstFileObj); // Это ОЧЕНЬ быстро
+                        reader.readAsDataURL(avFile.file);
                     });
                 } catch (e) {
                     console.error("❌ Ошибка FileReader:", e);
@@ -879,22 +922,23 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                 let currentUserParts = [];
                 if (userQuery) currentUserParts.push({ text: userQuery });
 
-                // 3. Распределяем логику по типу сервиса, построенную вокруг наличия файла
+                // 3. Распределяем логику по типу сервиса
                 if (firstFileObj) {
-                    // Если есть файл, определяем, что с ним делать, по serviceType
                     if (serviceType === 'IMAGE_TO_TEXT') {
-                        // --- ВАШ КОД ДЛЯ КАРТИНОК ---
-                        console.log("👁 Gemini: Режим VISION (Image)");
-                        currentUserParts.push({ 
-                            inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } 
-                        });
+                        // --- МУЛЬТИ-ИЗОБРАЖЕНИЯ: Добавляем ВСЕ изображения ---
+                        console.log(`👁 Gemini: Режим VISION (Image) — ${preparedImages.length} изображений`);
+                        for (const img of preparedImages) {
+                            currentUserParts.push({ 
+                                inlineData: { mimeType: img.mimeType, data: img.base64 } 
+                            });
+                        }
                         body = { 
                             systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
                             contents: [{ role: 'user', parts: currentUserParts }],
                             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
                         };
                     } else if (serviceType === 'VIDEO_TO_ANALYSIS') {
-                        // --- ЛОГИКА АНАЛИЗА ВИДЕО (по аналогии с картинками) ---
+                        // --- ЛОГИКА АНАЛИЗА ВИДЕО ---
                         console.log("👀 Gemini: Режим аналитики Analysis (Video)");
                         const systemInstructionText = "РОЛЬ: Действуй как 'Видеоаналитик'. Общение СТРОГО на РУССКОМ языке. ЦЕЛЬ: Предоставить подробный и точный анализ видеоконтента, включая ключевые действия, объекты и события. Твой ответ должен быть только анализом, без приветствий и объяснений.";
                     
@@ -903,7 +947,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                             contents: [{
                                 parts: [
                                     { text: userQuery },
-                                    { inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } } // <-- Используем mimeType видео
+                                    { inlineData: { mimeType: firstFileObj.type, data: cleanBase64 } }
                                 ]
                             }],
                             generationConfig: { maxOutputTokens: 8192, temperature: 0.2 }
@@ -955,12 +999,20 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     body = await firstFileData.file.arrayBuffer();
                     isRawBody = true;
                 } else if (serviceType.includes('IMAGE')) {
-                    // Распознавание картинки (Vision), используя Workers AI (Uform).
-                    const byteString = atob(firstFileData.base64.split(',')[1] || firstFileData.base64);
+                    // МУЛЬТИ-ИЗОБРАЖЕНИЯ: Cloudflare Workers AI (Uform) поддерживает только 1 изображение
+                    // Для нескольких фото — используем первое изображение с уточняющим промптом
+                    const imgData = preparedImages[0];
+                    const byteString = atob(imgData.base64);
                     const byteArray = new Uint8Array(byteString.length);
                     for (let i = 0; i < byteString.length; i++) byteArray[i] = byteString.charCodeAt(i);
-                    // Промпт на английском (так Vision-модель поймет лучше всего)
-                    const visionPrompt = `Instruction: ${userQuery}. (Task: Analyze the image and respond to the user's request in detail. Provide the description in English for further translation.)`;
+                    
+                    let visionPrompt;
+                    if (preparedImages.length > 1) {
+                        // Для нескольких фото — предупреждаем что видим только первое
+                        visionPrompt = `Instruction: ${userQuery}. Note: User sent ${preparedImages.length} images, but this model can only process one at a time. Analyzing the first image. (Task: Analyze the image and respond to the user's request in detail. Provide the description in English for further translation.)`;
+                    } else {
+                        visionPrompt = `Instruction: ${userQuery}. (Task: Analyze the image and respond to the user's request in detail. Provide the description in English for further translation.)`;
+                    }
                     body = { image: Array.from(byteArray), prompt: visionPrompt };
                 } else {
                     const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
@@ -986,7 +1038,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     url = `${config.BASE_URL}/chat/completions`;
 
                     // Нам нужен Base64 видео
-                    const base64Video = cleanBase64; // Берём уже очищенный base64 из твоего загрузчика
+                    const base64Video = cleanBase64;
                     
                     const systemMessage = "Действуй как 'Мультимодальный Видеоаналитик'. Общение СТРОГО на РУССКОМ языке...";
                     const userPrompt = "Проанализируй видеоролик. Предоставь полное описание...";
@@ -1008,7 +1060,7 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         ],
                         temperature: 0.7
                     };
-                    isRawBody = false; // Это обычный JSON запрос
+                    isRawBody = false;
                 } 
                 // 2. ЕСЛИ ЭТО ПРОСТО ТЕКСТ (Whisper)
                 else if (serviceType.includes('AUDIO') || serviceType.includes('VIDEO')) {
@@ -1019,14 +1071,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     const formData = new FormData();
                     const firstFileData = files[0];
             
-                    // Добавляем файл. Мы берем файл прямо из объекта files, который пришел с фронта
                     formData.append('file', firstFileData.file, 'voice.ogg');
                     formData.append('model', config.MODEL);
                     
                     body = formData;
                     isRawBody = true;
                 } else {
-                    // ВЕТКА 3: Обычный текстовый чат
+                    // ВЕТКА 3: Обычный текстовый чат + МУЛЬТИ-ИЗОБРАЖЕНИЯ
                     url = `${config.BASE_URL}/chat/completions`;
                     authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                     
@@ -1043,12 +1094,21 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     
                     const userContent = [{ type: 'text', text: userQuery }];
 
-                    // Если есть файл (и `cleanBase64` для него), маскируем его под image_url
-                    if (cleanBase64 && firstFileObj) {
+                    // МУЛЬТИ-ИЗОБРАЖЕНИЯ: Добавляем ВСЕ подготовленные изображения
+                    if (preparedImages.length > 0) {
+                        for (const img of preparedImages) {
+                            userContent.push({
+                                type: 'image_url',
+                                image_url: {
+                                    url: `data:${img.mimeType};base64,${img.base64}`
+                                }
+                            });
+                        }
+                    } else if (cleanBase64 && firstFileObj) {
+                        // Обратная совместимость: аудио/видео через base64
                         userContent.push({
-                            type: 'image_url', // ВСЕГДА image_url, как в вашем примере
+                            type: 'image_url',
                             image_url: {
-                                // И собираем полный data URL
                                 url: `data:${firstFileObj.type};base64,${cleanBase64}`
                             }
                         });
@@ -1068,7 +1128,6 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     const formData = new FormData();
                     const firstFileData = files[0];
                     
-                    // Используем напрямую файл, если это возможно, или создаем Blob
                     const fileToUpload = firstFileData.file;
                     formData.append('file', fileToUpload, fileToUpload.name || 'audio.mp3');
                     formData.append('model', config.MODEL || 'whisper');
@@ -1085,10 +1144,9 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     // 2. СИСТЕМНЫЙ ПРОМПТ ПЕРВЫМ
                     messages.push({ role: "system", content: SYSTEM_PROMPT });
 
-                    // 3. МАППИНГ ИСТОРИИ (строго по твоему рабочему примеру)
+                    // 3. МАППИНГ ИСТОРИИ
                     if (history && history.length > 0) {
                         history.forEach(msg => {
-                            // Берем только если есть текст, чтобы не плодить пустые объекты
                             const contentText = msg.text || (msg.parts && msg.parts[0] && msg.parts[0].text);
                             if (contentText) {
                                 messages.push({
@@ -1099,23 +1157,34 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                         });
                     }
 
-                    // 3. Текущее сообщение (Логика Vision / Мультимодальность)
+                    // 4. Текущее сообщение (МУЛЬТИ-ИЗОБРАЖЕНИЯ)
                     let userContent;
 
-                    // Если есть файл (картинка или видео-анализ)
-                    if (firstFileObj && (serviceType === 'IMAGE_TO_TEXT' || serviceType === 'VIDEO_TO_ANALYSIS')) {
+                    if (preparedImages.length > 0 || (firstFileObj && serviceType === 'VIDEO_TO_ANALYSIS')) {
                         userContent = [
                             { 
                                 type: "text", 
                                 text: userQuery.length > 0 ? userQuery : "Проанализируй этот файл на русском языке." 
-                            },
-                            { 
+                            }
+                        ];
+                        // Добавляем ВСЕ изображения
+                        for (const img of preparedImages) {
+                            userContent.push({ 
+                                type: "image_url", 
+                                image_url: { 
+                                    url: `data:${img.mimeType};base64,${img.base64}` 
+                                } 
+                            });
+                        }
+                        // Если это видео-анализ (не изображения)
+                        if (preparedImages.length === 0 && firstFileObj && serviceType === 'VIDEO_TO_ANALYSIS') {
+                            userContent.push({ 
                                 type: "image_url", 
                                 image_url: { 
                                     url: `data:${firstFileObj.type};base64,${cleanBase64}` 
                                 } 
-                            }
-                        ];
+                            });
+                        }
                     } else {
                         // Обычный текст
                         userContent = userQuery.length > 0 ? userQuery : "Привет";
@@ -1123,13 +1192,13 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
 
                     messages.push({ role: "user", content: userContent });
 
-                    // 4. Формирование Body по документации Pollinations
+                    // 5. Формирование Body по документации Pollinations
                     body = {
                         model: config.MODEL,
                         messages: messages,
                         temperature: 0.7,
                         max_tokens: 2048,
-                        seed: Math.floor(Math.random() * 1000000), // Полезно для Pollinations
+                        seed: Math.floor(Math.random() * 1000000),
                         stream: false
                     };
                 }
@@ -1150,7 +1219,19 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     });
                 }
                 
-                deepseekMessages.push({ role: 'user', content: userQuery });
+                // МУЛЬТИ-ИЗОБРАЖЕНИЯ: DeepSeek Vision поддерживает несколько image_url
+                if (preparedImages.length > 0) {
+                    const deepseekUserContent = [{ type: 'text', text: userQuery }];
+                    for (const img of preparedImages) {
+                        deepseekUserContent.push({
+                            type: 'image_url',
+                            image_url: { url: `data:${img.mimeType};base64,${img.base64}` }
+                        });
+                    }
+                    deepseekMessages.push({ role: 'user', content: deepseekUserContent });
+                } else {
+                    deepseekMessages.push({ role: 'user', content: userQuery });
+                }
                 
                 body = {
                     model: config.MODEL,
@@ -1594,7 +1675,7 @@ export const generateLeshiy = async ({ text, files = [], history = [], currentMo
     }
 };
 
-// ФУНКЦИЯ ГЕНЕРАЦИИ ИЗОБРАЖЕНИЙ (ПОЛНАЯ ВЕРСИЯ)
+// ФУНКЦИЯ ГЕНЕРАЦИИ ИЗОБРАЖЕНИЙ (ПОЛНАЯ ВЕРСИЯ — МУЛЬТИ-РЕФЕРЕНС)
 async function generateImage(prompt, files) {
     // 1. Определяем тип задачи и загружаем конфиг
     const isImg2Img = files && files.length > 0;
@@ -1607,20 +1688,38 @@ async function generateImage(prompt, files) {
     
     console.log(`🎨 [IMAGE_GEN] Модель: ${config.SERVICE} (${config.MODEL}) | Режим: ${configType}`);
 
-    // 2. Читаем файл в Base64, если нужно
+    // 2. Читаем ВСЕ файлы в Base64 (мульти-референс)
     let cleanBase64 = null;
+    const preparedImages = []; // Массив { mimeType, base64, name }
     if (isImg2Img) {
-        const fileToRead = files[0]?.file;
-        if (fileToRead) {
-            cleanBase64 = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(fileToRead);
-            });
-        } else {
-            return { type: 'error', text: 'Для режима Image-to-Image не был предоставлен файл.' };
+        for (const f of files) {
+            const fileToRead = f.file;
+            if (!fileToRead) continue;
+            if (!fileToRead.type.startsWith('image/')) continue; // Пропускаем не-изображения
+            
+            try {
+                const b64 = f.base64
+                    ? (f.base64.includes(',') ? f.base64.split(',')[1] : f.base64)
+                    : await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(fileToRead);
+                    });
+                if (b64) {
+                    preparedImages.push({ mimeType: fileToRead.type, base64: b64, name: fileToRead.name });
+                }
+            } catch (e) {
+                console.error(`❌ Ошибка чтения файла ${fileToRead.name}:`, e);
+            }
         }
+        
+        if (preparedImages.length === 0) {
+            return { type: 'error', text: 'Для режима Image-to-Image не был предоставлен файл изображения.' };
+        }
+        
+        // Обратная совместимость: cleanBase64 = первое изображение
+        cleanBase64 = preparedImages[0].base64;
     }
 
     try {
@@ -1632,11 +1731,24 @@ async function generateImage(prompt, files) {
         // ОСОБЫЙ СЛУЧАЙ: GEMINI (возвращает JSON с base64)
         if (config.SERVICE === 'GEMINI') {
             const url = `${config.BASE_URL}/models/${config.MODEL}:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-            const i2iPrompt = `Carefully analyze the user's instruction and apply it as an edit to the provided image. The user's instruction is: "${prompt}". Preserve the original image's style and composition as much as possible, only changing what the instruction requires.`;
+            
+            // МУЛЬТИ-РЕФЕРЕНС: ИИ видит ВСЕ изображения и использует их как референсы
+            let i2iPrompt;
+            if (preparedImages.length > 1) {
+                i2iPrompt = `The user has provided ${preparedImages.length} reference images. Carefully study ALL of them, then generate a NEW image that combines elements from each reference according to the user's instruction. The user's instruction is: "${prompt}". Preserve the style and composition of the references as much as possible.`;
+            } else {
+                i2iPrompt = `Carefully analyze the user's instruction and apply it as an edit to the provided image. The user's instruction is: "${prompt}". Preserve the original image's style and composition as much as possible, only changing what the instruction requires.`;
+            }
             const t2iPrompt = `Сгенерируй изображение по этому описанию: ${prompt}`;
             
+            // Формируем parts: текст + ВСЕ изображения как inlineData
+            let i2iParts = [{ text: i2iPrompt }];
+            for (const img of preparedImages) {
+                i2iParts.push({ inlineData: { mimeType: img.mimeType, data: img.base64 } });
+            }
+            
             const body = { contents: [{ parts: isImg2Img 
-                ? [{ text: i2iPrompt }, { inlineData: { mimeType: files[0].file.type, data: cleanBase64 } }] 
+                ? i2iParts
                 : [{ text: t2iPrompt }]
             }] };
             
@@ -1664,15 +1776,21 @@ async function generateImage(prompt, files) {
         } 
         // ОСОБЫЙ СЛУЧАЙ: BOTHUB (возвращает JSON с URL, требует второго запроса)
         else if (config.SERVICE === 'BOTHUB') {
-            //let requestUrl = `${config.BASE_URL}${config.API_PATH}`;
-            const i2iPrompt = `Apply the following edit instruction to the image provided. The instruction is: "${prompt}".`;
+            const i2iPrompt = preparedImages.length > 1
+                ? `The user provided ${preparedImages.length} reference images. Study ALL of them and generate a NEW image that combines/edits according to the instruction: "${prompt}".`
+                : `Apply the following edit instruction to the image provided. The instruction is: "${prompt}".`;
             const t2iPrompt = `Создай картинку по описанию: ${prompt}`;
             const authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
             let initialResponse;
             let requestBody;
 
             if (isImg2Img) {
-                 requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": [{ "type": "text", "text": i2iPrompt }, { "type": "image_url", "image_url": { "url": `data:image/jpeg;base64,${cleanBase64}` } }] }] };
+                // МУЛЬТИ-РЕФЕРЕНС: добавляем ВСЕ изображения как image_url
+                const content = [{ "type": "text", "text": i2iPrompt }];
+                for (const img of preparedImages) {
+                    content.push({ "type": "image_url", "image_url": { "url": `data:${img.mimeType};base64,${img.base64}` } });
+                }
+                requestBody = { model: config.MODEL, messages: [{ "role": "user", "content": content }] };
             } else {
                  if (config.API_PATH === '/images/generations') {
                     requestBody = { model: config.MODEL, prompt: prompt, n: 1, size: "1024x1024" };
@@ -1682,7 +1800,6 @@ async function generateImage(prompt, files) {
             }
             
             const requestUrl = `${config.BASE_URL}${config.API_PATH}`;
-            //const initialResponse = await sendAIRequest(config, requestUrl, requestBody, authHeader, false);
             initialResponse = await fetch(requestUrl, {
                 method: 'POST',
                 headers: {
@@ -1694,7 +1811,6 @@ async function generateImage(prompt, files) {
             
             const jsonData = await initialResponse.json();
 
-            // ДОБАВЛЯЕМ ЛОГ, ЧТОБЫ УВИДЕТЬ, ЧТО ПРИСЫЛАЕТ BOTHUB
             console.log('>>> [DEBUG_BOTHUB] Ответ от BotHub:', JSON.stringify(jsonData, null, 2));
             
             // --- ИЗВЛЕКАЕМ ПОДПИСЬ ---
@@ -1747,13 +1863,18 @@ async function generateImage(prompt, files) {
                     url = `https://api.cloudflare.com/client/v4/accounts/${CONFIG.CLOUDFLARE_ACCOUNT_ID}/ai/run/${config.MODEL}`;
                     authHeader = `Bearer ${CONFIG.CLOUDFLARE_API_TOKEN}`;
                     if (isImg2Img) {
+                         // Cloudflare img2img поддерживает только 1 изображение
+                         let cfPrompt = prompt || "Enhance the quality of the attached image: color it with bright, natural colors.";
+                         if (preparedImages.length > 1) {
+                             cfPrompt = `User provided ${preparedImages.length} reference images, but this model only supports one. Using the first image. Instruction: ${cfPrompt}`;
+                         }
                          body = {
-                            "prompt": prompt || "Enhance the quality of the attached image: color it with bright, natural colors.",
+                            "prompt": cfPrompt,
                             "negative_prompt": "bad art, ugly, deformed, blurry, low quality, unnatural colors, text, watermark, grayscale",
                             image_b64: cleanBase64,
                             num_steps: 20,
-                            strength: 0.02, // Сила изменения
-                            guidance: 12.0, // Точность промпта
+                            strength: 0.02,
+                            guidance: 12.0,
                         };
                     } else {
                          body = {
@@ -1770,16 +1891,21 @@ async function generateImage(prompt, files) {
                         const authHeader = `Bearer ${CONFIG[config.API_KEY]}`;
                         let response;
                         // --- РЕЖИМ EDIT / I2I (Strict OpenAI Compatibility) ---
-                        console.log("🎨 Pollinations: Режим EDIT (FormData)");
+                        console.log(`🎨 Pollinations: Режим EDIT (FormData) — ${preparedImages.length} референсов`);
                         
-                        // Согласно доке OpenAI, для правок используем /edits
                         const editUrl = `${config.BASE_URL}/v1/images/edits`;
                         
                         const formData = new FormData();
-                        // ВАЖНО: OpenAI требует именно PNG для эндпоинта edits
-                        formData.append('image', files[0].file); 
-                        formData.append('prompt', prompt);
-                        formData.append('model', config.MODEL); // или dall-e-2
+                        // OpenAI /edits поддерживает только 1 изображение — берём первое
+                        formData.append('image', files.find(f => f.file.type.startsWith('image/'))?.file || files[0].file);
+                        
+                        // Если несколько референсов — уточняем промпт
+                        let editPrompt = prompt;
+                        if (preparedImages.length > 1) {
+                            editPrompt = `[Note: User provided ${preparedImages.length} reference images, but this endpoint supports only one. Using the first as the base image. Instruction: ${prompt}]`;
+                        }
+                        formData.append('prompt', editPrompt);
+                        formData.append('model', config.MODEL);
                         formData.append('n', 1);
                         formData.append('size', '1024x1024');
                         formData.append('response_format', 'b64_json');
@@ -1935,6 +2061,7 @@ async function generateImage(prompt, files) {
         return handleAiError(error);
     }
 }
+
 
 
 // ФУНКЦИЯ ГЕНЕРАЦИИ ГОЛОСА
