@@ -100,6 +100,11 @@
                     localStorage.setItem('auth_provider', 'VK');
                     if (userName) localStorage.setItem('vk_user_name', userName);
                     if (userPhoto) localStorage.setItem('vk_user_photo', userPhoto);
+                    
+                    // 🔥 ЕДИНСТВЕННОЕ ДОБАВЛЕНИЕ: формируем ссылку с ID, чтобы Андроид перехватил
+                    targetUrl = `${window.location.origin}/?vk_user_id=${userId}`;
+                    if (userName) targetUrl += `&vk_user_name=${encodeURIComponent(userName)}`;
+                    if (userPhoto) targetUrl += `&vk_user_photo=${encodeURIComponent(userPhoto)}`;
                 }
 
                 const card = document.getElementById('auth_card');
