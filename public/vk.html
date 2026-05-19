@@ -101,12 +101,10 @@
                     if (userName) localStorage.setItem('vk_user_name', userName);
                     if (userPhoto) localStorage.setItem('vk_user_photo', userPhoto);
                     
-                    // 🔥 ЕДИНСТВЕННОЕ ДОБАВЛЕНИЕ: формируем ссылку с ID для Леший-АИ, чтобы Андроид перехватил
-                    let leshiyParams = new URLSearchParams();
-                    leshiyParams.set('vk_user_id', userId);
-                    if (userName) leshiyParams.set('vk_user_name', userName);
-                    if (userPhoto) leshiyParams.set('vk_user_photo', userPhoto);
-                    targetUrl = `${window.location.origin}/?${leshiyParams.toString()}`;
+                    // 🔥 ЕДИНСТВЕННОЕ ДОБАВЛЕНИЕ: формируем ссылку с ID для Андроида
+                    targetUrl = `${window.location.origin}/?vk_user_id=${userId}`;
+                    if (userName) targetUrl += `&vk_user_name=${encodeURIComponent(userName)}`;
+                    if (userPhoto) targetUrl += `&vk_user_photo=${encodeURIComponent(userPhoto)}`;
                 }
 
                 const card = document.getElementById('auth_card');
