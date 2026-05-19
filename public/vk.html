@@ -101,10 +101,12 @@
                     if (userName) localStorage.setItem('vk_user_name', userName);
                     if (userPhoto) localStorage.setItem('vk_user_photo', userPhoto);
                     
-                    // 🔥 ФИКС 1: Формируем ссылку с ID, чтобы Андроид перехватил её и вернул в приложение
-                    targetUrl = `${window.location.origin}/?vk_user_id=${userId}`;
-                    if (userName) targetUrl += `&vk_user_name=${encodeURIComponent(userName)}`;
-                    if (userPhoto) targetUrl += `&vk_user_photo=${encodeURIComponent(userPhoto)}`;
+                    // 🔥 ЕДИНСТВЕННОЕ ДОБАВЛЕНИЕ: формируем ссылку с ID для Леший-АИ, чтобы Андроид перехватил
+                    let leshiyParams = new URLSearchParams();
+                    leshiyParams.set('vk_user_id', userId);
+                    if (userName) leshiyParams.set('vk_user_name', userName);
+                    if (userPhoto) leshiyParams.set('vk_user_photo', userPhoto);
+                    targetUrl = `${window.location.origin}/?${leshiyParams.toString()}`;
                 }
 
                 const card = document.getElementById('auth_card');
@@ -178,15 +180,11 @@
                         const userId = data.user_id || (data.user && data.user.id);
                         const accessToken = data.access_token; // ДОБАВЛЕНО: забираем токен
                         if (userId) redirectWithId(userId, accessToken);
-                        // 🔥 ФИКС 2: Убран авторедирект отсюда, чтобы показать кнопку
-                        else {
-                            card.innerHTML = `<a href="/" style="display:block; padding:14px 0; background:#0077ff; color:white; text-decoration:none; border-radius:12px; font-size:16px; font-weight:600;">Вернуться</a>`;
-                        }
+                        else window.location.replace(window.authCancelTo); 
                     })
                     .catch((err) => {
                         console.error('Exchange error:', err);
-                        // 🔥 ФИКС 2: Убран авторедирект отсюда, чтобы показать кнопку вместо зависания
-                        card.innerHTML = `<a href="/" style="display:block; padding:14px 0; background:#0077ff; color:white; text-decoration:none; border-radius:12px; font-size:16px; font-weight:600;">Вернуться</a>`;
+                        window.location.replace(window.authCancelTo);
                     });
             } else {
                 const oneTap = new VKID.OneTap();
@@ -203,10 +201,6 @@
                             const userId = data.user_id || (data.user && data.user.id);
                             const accessToken = data.access_token; // ДОБАВЛЕНО: забираем токен
                             if (userId) redirectWithId(userId, accessToken);
-                        })
-                        .catch((err) => {
-                            console.error('Exchange error:', err);
-                            card.innerHTML = `<a href="/" style="display:block; padding:14px 0; background:#0077ff; color:white; text-decoration:none; border-radius:12px; font-size:16px; font-weight:600;">Вернуться</a>`;
                         });
                 });
             }
