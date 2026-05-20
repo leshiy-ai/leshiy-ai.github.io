@@ -76,8 +76,15 @@ const Sidebar = ({
   const handleAdminPanel = () => window.dispatchEvent(new CustomEvent('sidebar-admin-panel'));
   const handleLogout = () => {
     setProfileMenuVisible(false);
+    
+    // 🔥 Говорим Андроиду удалить ID и почистить кэш
+    if (window.Android && window.Android.logout) {
+        window.Android.logout();
+    }
+    
     window.dispatchEvent(new CustomEvent('sidebar-logout'));
   };
+  
   const handleVkAuth = () => {
     setProfileMenuVisible(false);
     console.log("Sidebar: Перенаправление на страницу авторизации VK");

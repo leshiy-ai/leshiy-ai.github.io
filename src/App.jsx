@@ -1948,6 +1948,13 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
     const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
     const toggleLanguage = () => setLanguage(language === 'ru' ? 'en' : 'ru');
     const closeApp = async () => {
+        // === Android приложение ===
+        if (window.Android && window.Android.closeApp) {
+          console.log("🤖 Android WebView: Закрытие приложения...");
+          window.Android.closeApp();
+          return; // Приложение закроется нативно, дальше код не пойдет
+        }
+
         // === ВК Мини-Апп ===
         if (window.vkBridge) {
           console.log("🔵 Закрытие ВК Мини-Апп...");
@@ -1962,12 +1969,12 @@ const makeSwipable = (panel, onRemove, useRotation = true) => {
           return;
         }
       
-        // === TWA / Standalone PWA (Bubblewrap) ===
+        // === TWA / Standalone PWA (Если откроют в браузере на рабочем столе) ===
         const isTwa = 
-          window.matchMedia('(display-mode: standalone)').matches ||
-          window.navigator.standalone === true ||
-          document.referrer.includes('android-app://');
-        
+            window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true ||
+            document.referrer.includes('android-app://');
+    
         if (isTwa) {
           console.log("🟡 TWA: эмуляция выхода...");
           
