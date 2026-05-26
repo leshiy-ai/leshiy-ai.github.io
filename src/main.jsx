@@ -342,13 +342,13 @@ const TelegramAuthModal = ({ onClose }) => {
         const script = document.createElement('script');
         script.async = true;
         script.src = "https://telegram.org/js/telegram-widget.js?23";
-        script.setAttribute('data-telegram-login', 'gemini_aitg_bot');
+        script.setAttribute('data-telegram-login', 'leshiy_storage_bot');
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-request-access', 'write');
         // ДЛЯ МОБИЛЫ (Callback режим):
         script.setAttribute('data-onauth', 'onTelegramAuth(user)');
         // ДЛЯ ПК (Redirect режим):
-        script.setAttribute('data-auth-url', `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io`);
+        script.setAttribute('data-auth-url', `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?return_to=https://leshiy-ai.github.io`);
         
         containerRef.current.appendChild(script);
     }
