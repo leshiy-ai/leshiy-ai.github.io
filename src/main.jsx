@@ -311,23 +311,49 @@ window.addEventListener('tg-auth-success', (event) => {
 
 // Модальное окно Telegram-авторизации
 const TelegramAuthModal = ({ onClose }) => {
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    // 1. Твой родной глобальный коллбэк (оставляем как есть)
+    window.onTelegramAuth = (user) => {
+      console.log("Widget success! Перенаправляю на бэкенд для проверки...");
   
-  const handleTgLoginRedirect = () => {
-    // 1. Берем базовый домен Хранилки из твоего конфига
-    const gateway = CONFIG.STORAGE_GATEWAY;
-    
-    // 2. Указываем гитхаб, куда Хранилка должна вернуть юзера после успешного логина
-    const returnTo = 'https://leshiy-ai.github.io';
-    
-    // 3. Формируем чистый урл перехода на роут /tg вашей Хранилки
-    const targetUrl = `${gateway}/tg?returnTo=${encodeURIComponent(returnTo)}`;
-    
-    // 4. Уходим на Хранилку, где ТГ-виджет сработает без ошибок домена
-    window.location.href = targetUrl;
-  };
+      const queryParams = new URLSearchParams();
+      for (const key in user) {
+          queryParams.append(key, user[key]);
+      }
+      
+      queryParams.append('bot', 'gemini');
+      queryParams.append('return_to', 'https://leshiy-ai.github.io');
+  
+      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?${queryParams.toString()}`;
+  
+      window.location.href = authUrl;
+    };
+  
+    // 2. Вместо вставки скрипта ТГ на гитхабе, вставляем iframe, ведущий на Хранилку
+    if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+        
+        const iframe = document.createElement('iframe');
+        // Уходим на страницу виджета на домене Хранилки, чтобы не было ошибки "Bot domain invalid"
+        iframe.src = `${CONFIG.STORAGE_GATEWAY}/tg`; 
+        iframe.style.width = '100%';
+        iframe.style.height = '44px';
+        iframe.style.border = 'none';
+        iframe.style.overflow = 'hidden';
+        iframe.scrolling = 'no';
+        
+        containerRef.current.appendChild(iframe);
+    }
+
+    return () => {
+        delete window.onTelegramAuth;
+    };
+  }, [onClose]);
 
   return (
-    /* Фон с блюром */
+    /* Фон с блюром как у ВК */
     <div style={{
       position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
       background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', 
@@ -337,7 +363,7 @@ const TelegramAuthModal = ({ onClose }) => {
       {/* Белая карточка */}
       <div style={{
         background: 'white', padding: '24px', borderRadius: '20px', 
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)', width: '90%', maxWidth: '360px', 
+        boxTarget: '0 10px 25px rgba(0,0,0,0.2)', width: '90%', maxWidth: '360px', 
         position: 'relative', textAlign: 'center'
       }} onClick={(e) => e.stopPropagation()}>
         
@@ -349,17 +375,8 @@ const TelegramAuthModal = ({ onClose }) => {
             </p>
         </div>
 
-        {/* Кнопка отправляет на Хранилку по динамическому адресу */}
-        <button 
-          onClick={handleTgLoginRedirect}
-          style={{
-            display: 'block', width: '100%', padding: '14px 0', background: '#0088cc',
-            color: 'white', border: 'none', borderRadius: '12px', fontHeight: '16px',
-            fontWeight: '600', boxSizing: 'border-box', cursor: 'pointer', fontFamily: 'sans-serif'
-          }}
-        >
-          Войти через Telegram
-        </button>
+        {/* Сюда встанет iframe с чистой кнопкой виджета */}
+        <div ref={containerRef} style={{ minHeight: '44px', display: 'flex', justifyContent: 'center' }}></div>
         
         <button 
           onClick={onClose} 
