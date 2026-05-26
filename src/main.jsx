@@ -311,56 +311,23 @@ window.addEventListener('tg-auth-success', (event) => {
 
 // Модальное окно Telegram-авторизации
 const TelegramAuthModal = ({ onClose }) => {
-  const containerRef = React.useRef(null);
-
-  React.useEffect(() => {
-    // 1. Создаем глобальную функцию-коллбэк, которую вызовет виджет
-    window.onTelegramAuth = (user) => {
-      console.log("Widget success! Перенаправляю на бэкенд для проверки...");
   
-      // 1. Собираем параметры из объекта user (id, hash, auth_date и т.д.)
-      const queryParams = new URLSearchParams();
-      for (const key in user) {
-          queryParams.append(key, user[key]);
-      }
-      
-      // 2. Добавляем твои обязательные параметры bot и return_to
-      queryParams.append('bot', 'gemini');
-      queryParams.append('return_to', 'https://leshiy-ai.github.io');
-  
-      // 3. Формируем ТВОЮ длинную ссылку
-      const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?${queryParams.toString()}`;
-  
-      // 4. Прямой редирект (вместо fetch)
-      // Это заставит бэкенд отработать, проверить хеш и вернуть нас назад с tg_data
-      window.location.href = authUrl;
+  const handleTgLoginRedirect = () => {
+    // 1. Берем базовый домен Хранилки из твоего конфига
+    const gateway = CONFIG.STORAGE_GATEWAY;
+    
+    // 2. Указываем гитхаб, куда Хранилка должна вернуть юзера после успешного логина
+    const returnTo = 'https://leshiy-ai.github.io';
+    
+    // 3. Формируем чистый урл перехода на роут /tg вашей Хранилки
+    const targetUrl = `${gateway}/tg?returnTo=${encodeURIComponent(returnTo)}`;
+    
+    // 4. Уходим на Хранилку, где ТГ-виджет сработает без ошибок домена
+    window.location.href = targetUrl;
   };
-  
-  // Чистим контейнер перед вставкой
-    if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-        const script = document.createElement('script');
-        script.async = true;
-        script.src = "https://telegram.org/js/telegram-widget.js?23";
-        script.setAttribute('data-telegram-login', 'leshiy_storage_bot');
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-request-access', 'write');
-        // ДЛЯ МОБИЛЫ (Callback режим):
-        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-        // ДЛЯ ПК (Redirect режим):
-        script.setAttribute('data-auth-url', `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?return_to=https://leshiy-ai.github.io`);
-        
-        containerRef.current.appendChild(script);
-    }
-
-    return () => {
-        // Чистим за собой
-        delete window.onTelegramAuth;
-    };
-  }, [onClose]);
 
   return (
-    /* Фон с блюром как у ВК */
+    /* Фон с блюром */
     <div style={{
       position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
       background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', 
@@ -370,7 +337,7 @@ const TelegramAuthModal = ({ onClose }) => {
       {/* Белая карточка */}
       <div style={{
         background: 'white', padding: '24px', borderRadius: '20px', 
-        boxTarget: '0 10px 25px rgba(0,0,0,0.2)', width: '90%', maxWidth: '360px', 
+        boxShadow: '0 10px 25px rgba(0,0,0,0.2)', width: '90%', maxWidth: '360px', 
         position: 'relative', textAlign: 'center'
       }} onClick={(e) => e.stopPropagation()}>
         
@@ -382,8 +349,17 @@ const TelegramAuthModal = ({ onClose }) => {
             </p>
         </div>
 
-        {/* Сюда встанет виджет */}
-        <div ref={containerRef} style={{ minHeight: '44px', display: 'flex', justifyContent: 'center' }}></div>
+        {/* Кнопка отправляет на Хранилку по динамическому адресу */}
+        <button 
+          onClick={handleTgLoginRedirect}
+          style={{
+            display: 'block', width: '100%', padding: '14px 0', background: '#0088cc',
+            color: 'white', border: 'none', borderRadius: '12px', fontHeight: '16px',
+            fontWeight: '600', boxSizing: 'border-box', cursor: 'pointer', fontFamily: 'sans-serif'
+          }}
+        >
+          Войти через Telegram
+        </button>
         
         <button 
           onClick={onClose} 
