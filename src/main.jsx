@@ -314,40 +314,47 @@ const TelegramAuthModal = ({ onClose }) => {
   const containerRef = React.useRef(null);
 
   React.useEffect(() => {
-    // 1. Твой родной глобальный коллбэк (оставляем как есть)
+    // 1. Создаем глобальную функцию-коллбэк, которую вызовет виджет
     window.onTelegramAuth = (user) => {
       console.log("Widget success! Перенаправляю на бэкенд для проверки...");
   
+      // 1. Собираем параметры из объекта user (id, hash, auth_date и т.д.)
       const queryParams = new URLSearchParams();
       for (const key in user) {
           queryParams.append(key, user[key]);
       }
       
+      // 2. Добавляем твои обязательные параметры bot и return_to
       queryParams.append('bot', 'gemini');
       queryParams.append('return_to', 'https://leshiy-ai.github.io');
   
+      // 3. Формируем ТВОЮ длинную ссылку
       const authUrl = `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?${queryParams.toString()}`;
   
+      // 4. Прямой редирект (вместо fetch)
+      // Это заставит бэкенд отработать, проверить хеш и вернуть нас назад с tg_data
       window.location.href = authUrl;
-    };
+  };
   
-    // 2. Вместо вставки скрипта ТГ на гитхабе, вставляем iframe, ведущий на Хранилку
+  // Чистим контейнер перед вставкой
     if (containerRef.current) {
         containerRef.current.innerHTML = '';
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = "https://telegram.org/js/telegram-widget.js?23";
+        script.setAttribute('data-telegram-login', 'leshiy_testbot');
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-request-access', 'write');
+        // ДЛЯ МОБИЛЫ (Callback режим):
+        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        // ДЛЯ ПК (Redirect режим):
+        script.setAttribute('data-auth-url', `${CONFIG.STORAGE_GATEWAY}/auth/telegram/callback?bot=gemini&return_to=https://leshiy-ai.github.io`);
         
-        const iframe = document.createElement('iframe');
-        // Уходим на страницу виджета на домене Хранилки, чтобы не было ошибки "Bot domain invalid"
-        iframe.src = `${CONFIG.STORAGE_GATEWAY}/tg`; 
-        iframe.style.width = '100%';
-        iframe.style.height = '44px';
-        iframe.style.border = 'none';
-        iframe.style.overflow = 'hidden';
-        iframe.scrolling = 'no';
-        
-        containerRef.current.appendChild(iframe);
+        containerRef.current.appendChild(script);
     }
 
     return () => {
+        // Чистим за собой
         delete window.onTelegramAuth;
     };
   }, [onClose]);
@@ -375,7 +382,7 @@ const TelegramAuthModal = ({ onClose }) => {
             </p>
         </div>
 
-        {/* Сюда встанет iframe с чистой кнопкой виджета */}
+        {/* Сюда встанет виджет */}
         <div ref={containerRef} style={{ minHeight: '44px', display: 'flex', justifyContent: 'center' }}></div>
         
         <button 
