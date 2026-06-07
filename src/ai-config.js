@@ -212,7 +212,8 @@ export const AI_MODELS = {
     TEXT_TO_TEXT_POLLINATIONS: { 
         SERVICE: 'POLLINATIONS', 
         //MODEL: 'gemini-fast', 
-        MODEL: 'grok', 
+        //MODEL: 'grok', 
+        MODEL: 'polly', 
         API_KEY: 'POLLINATIONS_API_KEY', 
         //BASE_URL: 'https://gen.pollinations.ai/v1/chat/completions'
         BASE_URL: 'https://gen.pollinations.ai'
