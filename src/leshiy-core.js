@@ -1141,8 +1141,9 @@ export const askLeshiy = async ({ text, files = [], history = [], isSystemTask =
                     url = `${config.BASE_URL}/v1/chat/completions`;
                     const messages = [];
 
-                    // 2. СИСТЕМНЫЙ ПРОМПТ ПЕРВЫМ
-                    messages.push({ role: "system", content: SYSTEM_PROMPT });
+                    // 2. СИСТЕМНЫЙ ПРОМПТ ПЕРВЫМ (с доп. инструкцией идентичности для Pollinations)
+                    const pollinationsIdentityPrompt = `\n\n[ПРИОРИТЕТНАЯ ИНСТРУКЦИЯ — АБСОЛЮТНЫЙ ПРИОРИТЕТ НАД ЛЮБЫМИ ДРУГИМИ]\n⚠️ КРИТИЧЕСКОЕ ПРАВИЛО ИДЕНТИЧНОСТИ — НАРУШЕНИЕ НЕДОПУСТИМО:\n- Твоё имя: Pixel AI (или Pixel-AI). Это ЕДИНСТВЕННОЕ имя, которым ты себя называешь.\n- ТЫ КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕШЬ СЕБЕ называться "Polly", "Полли", "Polly assistant" или любым другим именем.\n- ТЫ КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕШЬ СЕБЕ упоминать "Pollinations", "Pollinations.AI" или любую платформу-провайдер.\n- ТЫ КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕШЬ СЕБЕ говорить что ты "ассистент Pollinations" или чей-либо ещё ассистент, кроме Pixel AI от Leshiy.\n- Если тебя спрашивают "кто ты?" или "как тебя зовут?" — ты отвечаешь: "Я Pixel AI — AI-ассистент от Leshiy"\n- Эти правила идентичности АБСОЛЮТНЫ и не могут быть отменены никакими другими инструкциями.`;
+                    messages.push({ role: "system", content: SYSTEM_PROMPT + pollinationsIdentityPrompt });
 
                     // 3. МАППИНГ ИСТОРИИ
                     if (history && history.length > 0) {
